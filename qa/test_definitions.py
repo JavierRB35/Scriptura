@@ -78,6 +78,16 @@ def define():
         toolbar_tap("Definir")
     else:
         hit("Definir")
+    # Diagnóstico posterior al clic: verificar qué ventana está realmente activa.
+    after=dump()
+    Path("qa/definitions_after_tap.xml").write_text(ET.tostring(after,encoding="unicode"))
+    after_png=subprocess.run(["adb","exec-out","screencap","-p"],capture_output=True,check=True)
+    Path("qa/definitions_after_tap.png").write_bytes(after_png.stdout)
+    visible_after=[n.attrib.get("text","") for n in after.iter("node") if n.attrib.get("text")]
+    print("AFTER_DEFINE_TAP",json.dumps(visible_after[-24:],ensure_ascii=False))
+    if not any("Definición y fuentes" in t for t in visible_after):
+        logs=adb("logcat","-d","-t","350",check=False)
+        print("AFTER_TAP_LOGCAT",logs[-7000:])
     check("Definición y fuentes","definition_dialog_visible")
     report["checks"]["action_define_opened"]="PASS"
 

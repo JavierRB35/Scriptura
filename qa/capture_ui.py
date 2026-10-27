@@ -154,6 +154,14 @@ def main():
         hit("Explorar atlas bíblico",scroll=True)
         assert_text("Lugares bíblicos")
         screen("07_atlas")
+        hit("Recorridos",scroll=True)
+        hit("Ver recorrido",scroll=True)
+        assert_text("Recorrido sobre mapa actual",scroll=True)
+        adb("shell","input","swipe","420","1320","420","570","450")
+        wait(16)
+        screen("08_mapa_real_abraham")
+        assert_text("teselas de fondo cargadas",scroll=True)
+        REPORT["checks"]["real_osm_tile_loaded"]="PASS"
         REPORT["checks"]["five_tabs_navigable"]="PASS"
         REPORT["checks"]["atlas_internal_page"]="PASS"
     except Exception as error:

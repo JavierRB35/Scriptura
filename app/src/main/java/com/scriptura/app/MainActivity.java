@@ -20,8 +20,10 @@ import java.util.concurrent.*;
 
 public final class MainActivity extends Activity {
     private static final int PICK_EPUB=1027;
-    private final int DARK=Color.rgb(37,60,52), GOLD=Color.rgb(174,122,49), MUTED=Color.rgb(95,110,104);
-    private final int BG=Color.rgb(250,249,245), SURFACE=Color.WHITE, SOFT=Color.rgb(239,244,239);
+    // Identidad visual v2: valores coincidentes con res/values/scriptura_colors.xml
+    private final int DARK=Color.rgb(13,35,56), GOLD=Color.rgb(218,168,92), MUTED=Color.rgb(71,89,105);
+    private final int BG=Color.rgb(255,252,246), SURFACE=Color.WHITE, SOFT=Color.rgb(245,231,200);
+    private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private BibleStore store;
     private NavarraNotes notes;
     private GeminiClient ai;
@@ -42,10 +44,18 @@ public final class MainActivity extends Activity {
     private GradientDrawable bg(int color,int radius) {
         GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;
     }
+    private GradientDrawable outlined(int color,int radius){
+        GradientDrawable drawable=bg(color,radius);drawable.setStroke(dp(1),OUTLINE);return drawable;
+    }
+    private void serif(TextView t){t.setTypeface(Typeface.create("serif",Typeface.NORMAL));}
+    private void section(LinearLayout box,String heading,String caption) {
+        TextView h=text(heading,20,DARK,false);serif(h);box.addView(h);
+        hint(box,caption);addGap(box,4);
+    }
     private TextView text(String s,int size,int color,boolean bold){
         TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);
-        if(bold)t.setTypeface(null,Typeface.BOLD);
-        t.setLineSpacing(dp(3),1.13f);
+        if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        t.setLineSpacing(dp(4),1.15f);
         return t;
     }
     private void pad(View view,int px){view.setPadding(dp(px),dp(px),dp(px),dp(px));}
@@ -57,22 +67,24 @@ public final class MainActivity extends Activity {
     }
     private void button(LinearLayout box,String label,Runnable action,boolean primary){
         TextView b=text(label,15,primary?Color.WHITE:DARK,true);b.setGravity(Gravity.CENTER);
-        pad(b,13);b.setBackground(bg(primary?DARK:SOFT,14));b.setOnClickListener(v->action.run());
-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(8);box.addView(b,p);
+        b.setMinHeight(dp(48));b.setPadding(dp(14),dp(12),dp(14),dp(12));
+        b.setBackground(primary?bg(DARK,12):outlined(SOFT,12));
+        b.setContentDescription(label);b.setOnClickListener(v->action.run());
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(9);box.addView(b,p);
     }
     private LinearLayout card(LinearLayout dest){
-        LinearLayout l=vertical();pad(l,17);l.setBackground(bg(SURFACE,17));l.setElevation(dp(2));
+        LinearLayout l=vertical();pad(l,17);l.setBackground(outlined(SURFACE,16));
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(13);
         dest.addView(l,lp);return l;
     }
     private void title(LinearLayout l,String s){
-        TextView v=text(s,24,DARK,true);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
+        TextView v=text(s,26,DARK,false);serif(v);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
         p.bottomMargin=dp(14);l.addView(v,p);
     }
     private EditText input(LinearLayout container,String hint,boolean multiline){
         EditText e=new EditText(this);e.setTextColor(DARK);e.setTextSize(16);e.setHint(hint);
-        e.setSingleLine(!multiline);e.setPadding(dp(12),dp(12),dp(12),dp(12));
-        e.setBackground(bg(SOFT,11));
+        e.setSingleLine(!multiline);e.setPadding(dp(14),dp(14),dp(14),dp(14));
+        e.setMinHeight(dp(50));e.setHintTextColor(MUTED);e.setBackground(outlined(BG,12));
         if(multiline){e.setMinLines(3);e.setGravity(Gravity.TOP);}
         else{e.setImeOptions(EditorInfo.IME_ACTION_SEARCH);}
         container.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;
@@ -108,28 +120,69 @@ public final class MainActivity extends Activity {
     private void render(){
         frame=vertical();frame.setBackgroundColor(BG);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-        head.setPadding(dp(20),dp(18),dp(20),dp(12));
-        TextView brand=text("✦  Scriptura",23,DARK,true);head.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        TextView settings=text("⚙",25,DARK,false);pad(settings,8);settings.setOnClickListener(v->showSettings());head.addView(settings);
+        head.setPadding(dp(17),dp(12),dp(16),dp(11));head.setBackgroundColor(SURFACE);
+        android.widget.ImageView mark=new android.widget.ImageView(this);
+        mark.setImageResource(R.drawable.ic_scriptura_foreground);
+        mark.setBackground(bg(DARK,12));
+        mark.setContentDescription("Libro abierto y luz, símbolo de Scriptura");
+        LinearLayout.LayoutParams markParams=new LinearLayout.LayoutParams(dp(48),dp(48));
+        markParams.rightMargin=dp(10);head.addView(mark,markParams);
+        LinearLayout branding=vertical();
+        TextView brand=text("Scriptura",25,DARK,false);serif(brand);branding.addView(brand);
+        TextView sub=text("BIBLIA · CONTEXTO · REFLEXIÓN",9,MUTED,true);
+        sub.setLetterSpacing(0.08f);branding.addView(sub);
+        head.addView(branding,new LinearLayout.LayoutParams(0,-2,1));
+        TextView settings=text("⚙",24,DARK,false);
+        settings.setGravity(Gravity.CENTER);settings.setContentDescription("Abrir ajustes");
+        settings.setOnClickListener(v->showSettings());
+        head.addView(settings,new LinearLayout.LayoutParams(dp(48),dp(48)));
         frame.addView(head);
+        View hairline=new View(this);hairline.setBackgroundColor(OUTLINE);
+        frame.addView(hairline,new LinearLayout.LayoutParams(-1,dp(1)));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
-        column=vertical();column.setPadding(dp(18),dp(8),dp(18),dp(20));
+        column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(SURFACE);
+
+        // Cinco pestañas reales. El lector y el atlas son destinos internos.
+        nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
+        nav.setBackgroundColor(DARK);
         String[] names={"Inicio","Buscar","Misa","Para mí","Guardados"};
+        String[] symbols={"⌂","⌕","✝","♡","★"};
+        int active=page==5?1:(page==6?0:page);
         for(int i=0;i<names.length;i++){
-            final int dest=i;TextView item=text(names[i],12,i==page?DARK:MUTED,i==page);
-            item.setGravity(Gravity.CENTER);pad(item,10);
-            nav.addView(item,new LinearLayout.LayoutParams(0,dp(54),1));
+            final int dest=i;boolean selected=active==i;
+            int color=selected?GOLD:Color.rgb(231,236,242);
+            LinearLayout item=vertical();item.setGravity(Gravity.CENTER);
+            item.setContentDescription(names[i]+(selected?", pestaña seleccionada":""));
+            item.setClickable(true);item.setFocusable(true);item.setMinHeight(dp(64));
+            TextView glyph=text(symbols[i],21,color,selected);glyph.setGravity(Gravity.CENTER);
+            TextView label=text(names[i],11,color,selected);label.setGravity(Gravity.CENTER);
+            glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            item.addView(glyph);item.addView(label);
+            if(selected)item.setBackground(bg(Color.rgb(29,54,78),10));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);
+            lp.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(item,lp);
             item.setOnClickListener(v->{page=dest;render();});
         }
-        frame.addView(nav);
-        setContentView(frame);
-        switch(page){case 0:home();break;case 1:search();break;case 2:mass();break;case 3:personal();break;case 4:saved();break;case 5:passagePage();break;case 6:atlas();break;default:home();}
+        frame.addView(nav);setContentView(frame);
+        switch(page){
+            case 0:home();break;case 1:search();break;case 2:mass();break;
+            case 3:personal();break;case 4:saved();break;
+            case 5:passagePage();break;case 6:atlas();break;
+            default:page=0;home();
+        }
     }
+
     private void home(){
-        TextView k=text("LECTURA Y REFLEXIÓN",12,GOLD,true);column.addView(k);
-        title(column,"Una palabra para hoy");
+        LinearLayout hero=vertical();hero.setBackground(bg(DARK,17));pad(hero,20);
+        LinearLayout.LayoutParams heroLp=new LinearLayout.LayoutParams(-1,-2);
+        heroLp.bottomMargin=dp(16);column.addView(hero,heroLp);
+        TextView k=text("LEE · EXPLORA · COMPRENDE",11,GOLD,true);
+        k.setLetterSpacing(0.08f);hero.addView(k);addGap(hero,9);
+        TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
+        serif(title);hero.addView(title);addGap(hero,7);
+        hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
         if(!store.ready()){
             LinearLayout c=card(column);c.addView(text("Prepara tu biblioteca",20,DARK,true));
             hint(c,"Importa tu ejemplar EPUB de la Biblia de Navarra. Su contenido permanecerá únicamente en este dispositivo.");
@@ -143,20 +196,20 @@ public final class MainActivity extends Activity {
             readingPreview("Nuevo Testamento",store.random(true,seed*911+53));
         }
         LinearLayout c=card(column);
-        c.addView(text("⛪  Lecturas de la misa",20,DARK,true));
+        section(c,"Lecturas de la misa","Referencias bíblicas del calendario litúrgico.");
         hint(c,Liturgy.label(Calendar.getInstance()));
         button(c,"Leer las lecturas de hoy",()->{page=2;massDay=Calendar.getInstance();render();},true);
-        c=card(column);c.addView(text("¿Cómo te encuentras hoy?",20,DARK,true));
+        c=card(column);section(c,"¿Cómo te encuentras hoy?","Lecturas para reflexionar sobre lo que vives.");
         hint(c,"Busca una lectura para lo que estás viviendo y reflexiona sobre ella.");
         button(c,"Explorar según mi estado de ánimo",()->{page=3;render();},false);
-        c=card(column);c.addView(text("Buscar en los 73 libros",20,DARK,true));
+        c=card(column);section(c,"Buscar en los 73 libros","Consulta referencias, capítulos o palabras.");
         button(c,"Ir al buscador",()->{page=1;render();},false);
-        c=card(column);c.addView(text("⌖  Lugares bíblicos",20,DARK,true));
+        c=card(column);section(c,"Lugares bíblicos","Atlas preliminar, con ubicaciones orientativas.");
         hint(c,"Atlas de ciudades, regiones y recorridos de personajes de la Biblia. Ubicaciones con niveles de certeza.");
         button(c,"Explorar atlas bíblico",()->openAtlas(0),false);
     }
     private void readingPreview(String label,BibleStore.Passage p){
-        LinearLayout c=card(column);c.addView(text(label.toUpperCase(),12,GOLD,true));
+        LinearLayout c=card(column);c.addView(text(label.toUpperCase(),12,ACCENT,true));
         if(p==null){hint(c,"Importa primero tu Biblia.");return;}
         c.addView(text(p.ref,19,DARK,true));
         String summary=p.text.length()>280?p.text.substring(0,280)+"…":p.text;
@@ -206,9 +259,10 @@ public final class MainActivity extends Activity {
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
-        TextView edition=text("BIBLIA DE LA UNIVERSIDAD DE NAVARRA",11,GOLD,true);column.addView(edition);
+        TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         title(column,p.ref);
-        LinearLayout c=card(column);TextView bible=text(p.text,textSize,DARK,false);
+        LinearLayout c=card(column);c.setBackground(outlined(BG,16));
+        TextView bible=text(p.text,textSize,DARK,false);serif(bible);
         bible.setTextIsSelectable(true);c.addView(bible);
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
@@ -570,7 +624,7 @@ public final class MainActivity extends Activity {
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
-        hint(box,"Versión preliminar 0.5.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
+        hint(box,"Versión preliminar 0.6.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();

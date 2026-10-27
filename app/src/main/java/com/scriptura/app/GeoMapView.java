@@ -183,6 +183,9 @@ public final class GeoMapView extends View {
                     if(ready!=null){
                         if(images.size()>100)images.clear();
                         images.put(id,ready);loaded++;
+                        setContentDescription("Mapa OpenStreetMap con "+loaded+
+                                " teselas de fondo cargadas; "+places.size()+
+                                " lugares bíblicos. Usa el listado para accesibilidad.");
                     }
                 }
                 if(failed)failure=true;

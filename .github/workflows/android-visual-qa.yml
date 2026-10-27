@@ -2,7 +2,7 @@ name: Scriptura · capturas y actualización en emulador Android
 
 on:
   push:
-    branches: [feature/glosario-palabras-2s]
+    branches: [feature/mapas-estudio-inicio-0-7-3]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   screenshots-and-upgrade:
-    if: github.ref == 'refs/heads/feature/glosario-palabras-2s'
+    if: github.ref == 'refs/heads/feature/mapas-estudio-inicio-0-7-3'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:

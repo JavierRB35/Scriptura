@@ -578,10 +578,11 @@ public final class MainActivity extends Activity {
             hint(column,places.size()+" lugares relacionados con "+Books.name(atlasBook)+" (selección inicial).");
             if(places.size()>1){
                 LinearLayout mapCard=card(column);
-                mapCard.addView(text("Esquema de ubicaciones",17,DARK,true));
-                GeoSketch sketch=new GeoSketch(this,places,false,this::openPlace);
-                mapCard.addView(sketch);
-                hint(mapCard,"Puntos aproximados. No representa fronteras, relieve ni rutas.");
+                mapCard.addView(text("Mapa actual de los lugares",17,DARK,true));
+                GeoMapView mapView=new GeoMapView(this,places,false,this::openPlace);
+                mapCard.addView(mapView);
+                mapControls(mapCard,mapView);
+                hint(mapCard,"Cartografía actual: © OpenStreetMap contributors. Los emplazamientos son orientativos; no se muestran fronteras antiguas.");
             }
             atlasPlaceCards(places);
         }
@@ -597,9 +598,11 @@ public final class MainActivity extends Activity {
         hint(column,"Referencia bíblica: "+route.refs);
         java.util.List<BibleGeography.Place> stops=BibleGeography.stops(route);
         if(stops.size()>1){
-            LinearLayout map=card(column);map.addView(text("Etapas esquemáticas",17,DARK,true));
-            map.addView(new GeoSketch(this,stops,true,this::openPlace));
-            hint(map,"Línea de puntos = secuencia narrativa. NO reconstruye el recorrido real ni ofrece distancias o tiempos.");
+            LinearLayout map=card(column);map.addView(text("Recorrido sobre mapa actual",17,DARK,true));
+            GeoMapView mapView=new GeoMapView(this,stops,true,this::openPlace);
+            map.addView(mapView);
+            mapControls(map,mapView);
+            hint(map,"Línea discontinua = orden narrativo de etapas. NO equivale al camino histórico exacto.");
         }
         for(int i=0;i<stops.size();i++){
             BibleGeography.Place p=stops.get(i);
@@ -618,9 +621,11 @@ public final class MainActivity extends Activity {
         hint(box,"Precisión: "+p.certainty);
         hint(box,p.description);
         hint(box,"Pasajes para consultar: "+p.refs);
-        box.addView(new GeoSketch(this,java.util.Collections.singletonList(p),false,place->openExternalMap(place)));
-        button(box,"Ver posición en OpenStreetMap",()->openExternalMap(p),true);
-        hint(box,"El mapa de OpenStreetMap muestra geografía actual, no reconstrucción histórica. Requiere internet.");
+        GeoMapView localMap=new GeoMapView(this,java.util.Collections.singletonList(p),false,place->openExternalMap(place));
+        box.addView(localMap);
+        mapControls(box,localMap);
+        button(box,"Ver lugar en OpenStreetMap",()->openExternalMap(p),false);
+        hint(box,"Cartografía moderna © OpenStreetMap contributors. El mapa requiere conexión; la identificación histórica puede ser aproximada.");
         if(store.ready()){
             String[] tokens=p.refs.split(";");
             if(tokens.length>0){
@@ -630,6 +635,35 @@ public final class MainActivity extends Activity {
             }
         }
     }
+    private void mapControls(LinearLayout box,GeoMapView map){
+        LinearLayout zooms=new LinearLayout(this);
+        zooms.setOrientation(LinearLayout.HORIZONTAL);
+        TextView minus=text("−  Alejar",15,DARK,true);
+        TextView plus=text("+  Acercar",15,DARK,true);
+        for(TextView control:new TextView[]{minus,plus}){
+            control.setGravity(Gravity.CENTER);
+            control.setMinHeight(dp(45));
+            control.setBackground(outlined(SOFT,11));
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
+            params.setMargins(dp(4),dp(8),dp(4),dp(0));
+            zooms.addView(control,params);
+        }
+        minus.setOnClickListener(v->map.zoomOut());
+        plus.setOnClickListener(v->map.zoomIn());
+        box.addView(zooms);
+        button(box,"Ver esta zona por satélite en Google Maps",
+            ()->openSatellite(map.centerLatitude(),map.centerLongitude(),map.zoomLevel()),false);
+        hint(box,"El satélite se abre en Google Maps y no superpone el itinerario bíblico. En este mapa puedes arrastrar, ampliar y pulsar los puntos.");
+    }
+    private void openSatellite(double latitude,double longitude,int zoom){
+        // URL oficial de Google Maps. No requiere API key ni SDK facturado.
+        String center=String.format(java.util.Locale.US,"%.6f%%2C%.6f",latitude,longitude);
+        String link="https://www.google.com/maps/@?api=1&map_action=map&center="+center+
+            "&zoom="+Math.min(19,Math.max(3,zoom))+"&basemap=satellite";
+        try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}
+        catch(Exception e){showError("No se pudo abrir la vista satélite: "+e.getMessage());}
+    }
+
     private void openExternalMap(BibleGeography.Place p){
         String lat=String.format(java.util.Locale.US,"%.6f",p.lat);
         String lon=String.format(java.util.Locale.US,"%.6f",p.lon);

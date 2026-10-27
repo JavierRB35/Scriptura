@@ -1,0 +1,518 @@
+{
+  "version": 1,
+  "bibliography": {
+    "SANDERS": {
+      "label": "E. P. Sanders, Judaism: Practice and Belief, 63 BCE–66 CE",
+      "url": "https://www.jstor.org/stable/j.ctt17mcs1x"
+    },
+    "HEZSER": {
+      "label": "Catherine Hezser (ed.), The Oxford Handbook of Jewish Daily Life in Roman Palestine",
+      "url": "https://doi.org/10.1093/oxfordhb/9780199216437.001.0001"
+    },
+    "LEVANT": {
+      "label": "A. E. Killebrew y M. Steiner (eds.), The Oxford Handbook of the Archaeology of the Levant",
+      "url": "https://academic.oup.com/edited-volume/34497"
+    },
+    "MATTHEWS": {
+      "label": "Victor H. Matthews, The History of Bronze and Iron Age Israel",
+      "url": "https://doi.org/10.1093/oso/9780190231149.001.0001"
+    },
+    "FREYNE": {
+      "label": "Sean Freyne, Galilee and Judaea in the First Century, Cambridge History of Christianity",
+      "url": "https://www.cambridge.org/core/books/abs/cambridge-history-of-christianity/galilee-and-judaea-in-the-first-century/84FB3F1D56614D7AFF4C1FEAFBD23F69"
+    },
+    "SAMARITAN": {
+      "label": "R. T. Anderson y T. Giles, The Samaritan Pentateuch (SBL)",
+      "url": "https://www.jstor.org/stable/j.ctt32bzhn"
+    }
+  },
+  "entries": [
+    {
+      "id": 1,
+      "title": "Fariseos",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "fariseos",
+        "fariseo"
+      ],
+      "brief": "Movimiento judío que interpretaba la Ley y sus tradiciones en tiempos del Segundo Templo.",
+      "detail": "Participaron en debates sobre observancia, pureza y enseñanza religiosa. Los Evangelios muestran discusiones con algunos de ellos, pero no constituyen una descripción exhaustiva de todo el grupo ni justifican identificarlos a todos con la hipocresía.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 2,
+      "title": "Saduceos",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "saduceos",
+        "saduceo"
+      ],
+      "brief": "Grupo judío asociado en las fuentes a ciertos ambientes sacerdotales y dirigentes.",
+      "detail": "Sus posiciones diferían de las atribuidas a los fariseos; los textos destacan debates sobre resurrección. Su composición exacta y la amplitud de su influencia siguen siendo materias de investigación.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 3,
+      "title": "Esenios",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "esenios",
+        "esenio"
+      ],
+      "brief": "Corriente religiosa judía conocida por autores antiguos.",
+      "detail": "Algunas comunidades practicaban reglas particulares de vida y pureza. Su relación exacta con todos los manuscritos del mar Muerto y con Qumrán no debe darse por demostrada en cada caso.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 4,
+      "title": "Samaritanos",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SAMARITAN",
+      "scope": "ALL",
+      "aliases": [
+        "samaritanos",
+        "samaritano",
+        "samaritana",
+        "samaritanas"
+      ],
+      "brief": "Comunidad de tradición israelita cuyo centro religioso es el monte Garizim.",
+      "detail": "Comparten tradiciones del Pentateuco con el judaísmo, pero poseen una historia comunitaria y de culto propia. En los Evangelios, las relaciones entre judeos y samaritanos ayudan a comprender el alcance social de varios relatos.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 5,
+      "title": "Cananeos",
+      "category": "Pueblos y grupos",
+      "period": "Antiguo Oriente Próximo",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "cananeos",
+        "cananeo",
+        "cananea",
+        "cananeas"
+      ],
+      "brief": "Poblaciones y culturas relacionadas con la región de Canaán en la Edad del Bronce.",
+      "detail": "Canaán fue una región con múltiples ciudades y formas culturales, no un único pueblo uniforme. Las narraciones bíblicas deben distinguirse de las reconstrucciones arqueológicas sobre sus habitantes.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 6,
+      "title": "Filisteos",
+      "category": "Pueblos y grupos",
+      "period": "Antiguo Oriente Próximo",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "filisteos",
+        "filisteo",
+        "filistea"
+      ],
+      "brief": "Poblaciones del sur de la costa levantina durante la Edad del Hierro.",
+      "detail": "Se conocen asentamientos como Ascalón, Asdod y Gaza. Su historia se reconstruye con textos y arqueología; no debe reducirse a su papel como adversarios en relatos bíblicos.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 7,
+      "title": "Israelitas",
+      "category": "Pueblos y grupos",
+      "period": "Antiguo Oriente Próximo",
+      "source": "MATTHEWS",
+      "scope": "ALL",
+      "aliases": [
+        "israelitas",
+        "israelita",
+        "israel"
+      ],
+      "brief": "Poblaciones vinculadas con las tradiciones y reinos del antiguo Israel.",
+      "detail": "La formación de su identidad fue un proceso histórico complejo. Los relatos de origen y los restos arqueológicos iluminan dimensiones distintas y no siempre coincidentes del pasado.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 8,
+      "title": "Judíos",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "judíos",
+        "judío",
+        "judías",
+        "judía",
+        "judeos",
+        "judeo"
+      ],
+      "brief": "Comunidades vinculadas a Judea y al judaísmo del período estudiado.",
+      "detail": "En el siglo I convivían diferentes corrientes religiosas y prácticas compartidas. En la lectura de los Evangelios conviene evitar la imagen de un grupo homogéneo y no proyectar conflictos posteriores sobre toda la comunidad.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 9,
+      "title": "Levitas",
+      "category": "Pueblos y grupos",
+      "period": "Israel antiguo y Segundo Templo",
+      "source": "SANDERS",
+      "scope": "ALL",
+      "aliases": [
+        "levitas",
+        "levita"
+      ],
+      "brief": "Miembros de linajes asociados en la tradición bíblica al servicio del culto.",
+      "detail": "Sus funciones aparecen descritas de manera distinta según el período y el libro: asistencia ritual, música, custodia o enseñanza. No equivalen automáticamente a todos los sacerdotes.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 10,
+      "title": "Sacerdotes",
+      "category": "Pueblos y grupos",
+      "period": "Israel antiguo y Segundo Templo",
+      "source": "SANDERS",
+      "scope": "ALL",
+      "aliases": [
+        "sacerdotes",
+        "sacerdote"
+      ],
+      "brief": "Personas encargadas de determinados servicios y ritos del santuario.",
+      "detail": "En Jerusalén los turnos sacerdotales, sacrificios y normas de pureza formaban parte de una institución organizada. Su situación variaba según rango y época.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 11,
+      "title": "Sumo sacerdote",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "sumo sacerdote",
+        "sumos sacerdotes",
+        "sumo sacerdote"
+      ],
+      "brief": "Principal autoridad sacerdotal del Templo de Jerusalén en ciertos períodos.",
+      "detail": "Durante la dominación romana, la designación de sumos sacerdotes también se relacionaba con equilibrios políticos. Conviene distinguir el cargo de las funciones de otros sacerdotes.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 12,
+      "title": "Escribas",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "escribas",
+        "escriba"
+      ],
+      "brief": "Personas dedicadas a escribir, copiar, interpretar o administrar documentos.",
+      "detail": "La alfabetización especializada era valiosa en sociedades donde muchos no dominaban la escritura. En los relatos religiosos algunos escribas aparecen como conocedores y maestros de la Ley.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 13,
+      "title": "Maestros de la Ley",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "maestros de la ley",
+        "doctor de la ley",
+        "doctores de la ley",
+        "interpretes de la ley"
+      ],
+      "brief": "Especialistas en la interpretación de los mandamientos y las tradiciones.",
+      "detail": "Podían debatir sobre formas de aplicar la Torá en la vida cotidiana. No representan siempre una institución uniforme ni todos pertenecían necesariamente al mismo movimiento.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 14,
+      "title": "Publicanos",
+      "category": "Pueblos y grupos",
+      "period": "Imperio romano, siglo I",
+      "source": "HEZSER",
+      "scope": "NT",
+      "aliases": [
+        "publicanos",
+        "publicano",
+        "recaudadores",
+        "recaudador"
+      ],
+      "brief": "Agentes relacionados con la recaudación de tributos o peajes.",
+      "detail": "La recaudación combinaba mecanismos locales e imperiales. El contacto con impuestos y cobros impopulares explica parte de su reputación literaria; las situaciones personales eran diversas.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 15,
+      "title": "Zelotes",
+      "category": "Pueblos y grupos",
+      "period": "Judea romana, siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "zelotes",
+        "zelote",
+        "celotas",
+        "celota"
+      ],
+      "brief": "Nombre aplicado a formas de celo religioso y, en ciertos relatos, oposición política.",
+      "detail": "No es seguro que todas las referencias a personas «celosas» designen un partido organizado idéntico. El uso del término cambia según la fuente y la fecha.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 16,
+      "title": "Herodianos",
+      "category": "Pueblos y grupos",
+      "period": "Dinastía herodiana, siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "herodianos",
+        "herodiano"
+      ],
+      "brief": "Grupo mencionado en algunos pasajes evangélicos en relación con Herodes.",
+      "detail": "No conocemos con precisión su estructura y composición. El nombre sugiere vínculos o simpatías políticas con la dinastía herodiana, sin permitir describirlo como un partido moderno.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 17,
+      "title": "Romanos",
+      "category": "Pueblos y grupos",
+      "period": "Dominación romana",
+      "source": "FREYNE",
+      "scope": "ALL",
+      "aliases": [
+        "romanos",
+        "romano",
+        "romana",
+        "romanas"
+      ],
+      "brief": "Habitantes o representantes del mundo político y cultural de Roma.",
+      "detail": "En el Mediterráneo del siglo I Roma gobernaba mediante autoridades imperiales, provincias, gobernantes locales y redes militares. La vida de cada comunidad bajo Roma era muy desigual.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 18,
+      "title": "Griegos",
+      "category": "Pueblos y grupos",
+      "period": "Período helenístico y romano",
+      "source": "LEVANT",
+      "scope": "ALL",
+      "aliases": [
+        "griegos",
+        "griego",
+        "griega",
+        "griegas",
+        "helenos",
+        "heleno"
+      ],
+      "brief": "Pueblos de cultura y lengua griegas, de fuerte influencia mediterránea.",
+      "detail": "La lengua griega se extendió ampliamente después de las conquistas de Alejandro. En textos del Nuevo Testamento «griego» puede indicar idioma, cultura o procedencia no judía.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 19,
+      "title": "Fenicios",
+      "category": "Pueblos y grupos",
+      "period": "Edad del Bronce y del Hierro",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "fenicios",
+        "fenicio",
+        "fenicia",
+        "fenicias"
+      ],
+      "brief": "Comunidades de ciudades costeras del Levante, célebres por su comercio marítimo.",
+      "detail": "Ciudades como Tiro y Sidón participaron en redes de intercambio del Mediterráneo. Sus relaciones con reinos vecinos variaron según los siglos.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 20,
+      "title": "Arameos",
+      "category": "Pueblos y grupos",
+      "period": "Edad del Hierro",
+      "source": "MATTHEWS",
+      "scope": "AT",
+      "aliases": [
+        "arameos",
+        "arameo",
+        "aramea",
+        "arameas"
+      ],
+      "brief": "Poblaciones del Próximo Oriente vinculadas a distintos reinos y al arameo.",
+      "detail": "No forman una única entidad política estable. El idioma arameo terminó siendo muy extendido y se utilizaba ampliamente en el mundo de Jesús.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 21,
+      "title": "Asirios",
+      "category": "Pueblos y grupos",
+      "period": "Imperio neoasirio, siglos IX-VII a. C.",
+      "source": "MATTHEWS",
+      "scope": "AT",
+      "aliases": [
+        "asirios",
+        "asirio",
+        "asiria"
+      ],
+      "brief": "Habitantes y autoridades del imperio asirio de Mesopotamia.",
+      "detail": "La expansión asiria afectó a los reinos de Israel y Judá; los textos y relieves documentan campañas, tributos y deportaciones. Deben distinguirse episodios concretos de fórmulas narrativas.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 22,
+      "title": "Babilonios",
+      "category": "Pueblos y grupos",
+      "period": "Imperio neobabilónico, siglos VII-VI a. C.",
+      "source": "MATTHEWS",
+      "scope": "AT",
+      "aliases": [
+        "babilonios",
+        "babilonio",
+        "babilonia"
+      ],
+      "brief": "Poblaciones y autoridades de Babilonia, centro importante de Mesopotamia.",
+      "detail": "Los conflictos con Judá desembocaron en la caída de Jerusalén y deportaciones en el siglo VI a. C. La experiencia del exilio influyó profundamente en la literatura bíblica.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 23,
+      "title": "Persas",
+      "category": "Pueblos y grupos",
+      "period": "Imperio aqueménida, siglos VI-IV a. C.",
+      "source": "MATTHEWS",
+      "scope": "AT",
+      "aliases": [
+        "persas",
+        "persa"
+      ],
+      "brief": "Poblaciones y autoridades del imperio aqueménida.",
+      "detail": "Su gobierno reunió territorios extensos mediante administraciones regionales. El contexto persa fue decisivo para el retorno de comunidades deportadas y la reorganización de Judá.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 24,
+      "title": "Egipcios",
+      "category": "Pueblos y grupos",
+      "period": "Egipto faraónico y posterior",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "egipcios",
+        "egipcio",
+        "egipcia",
+        "egipcias"
+      ],
+      "brief": "Poblaciones del valle del Nilo, con una larga historia de reinos y dinastías.",
+      "detail": "Egipto tuvo relaciones comerciales, militares y políticas con Canaán y el Levante. Sus épocas son muy distintas: no conviene tratar todo el Egipto bíblico como un único momento.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 25,
+      "title": "Madianitas",
+      "category": "Pueblos y grupos",
+      "period": "Tradiciones del antiguo sur levantino",
+      "source": "MATTHEWS",
+      "scope": "AT",
+      "aliases": [
+        "madianitas",
+        "madianita",
+        "madian"
+      ],
+      "brief": "Grupos asociados en las tradiciones bíblicas al área de Madián.",
+      "detail": "Las localizaciones y relaciones tribales no siempre pueden identificarse con certeza arqueológica. Aparecen en relatos vinculados a Moisés y a contactos del desierto.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 26,
+      "title": "Moabitas",
+      "category": "Pueblos y grupos",
+      "period": "Transjordania, Edad del Hierro",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "moabitas",
+        "moabita",
+        "moab"
+      ],
+      "brief": "Poblaciones relacionadas con el reino de Moab, al este del mar Muerto.",
+      "detail": "La estela de Mesa y otras fuentes muestran que Moab tuvo una historia política propia. Los relatos bíblicos ofrecen además perspectivas religiosas y literarias.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 27,
+      "title": "Edomitas",
+      "category": "Pueblos y grupos",
+      "period": "Sur de Transjordania, Edad del Hierro",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "edomitas",
+        "edomita",
+        "edom"
+      ],
+      "brief": "Poblaciones relacionadas con Edom, al sur y sureste de Judá.",
+      "detail": "Su economía y relaciones con vecinos cambiaron con el tiempo. Las genealogías bíblicas presentan parentescos simbólicos que no equivalen sin más a reconstrucciones étnicas modernas.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 28,
+      "title": "Amonitas",
+      "category": "Pueblos y grupos",
+      "period": "Transjordania, Edad del Hierro",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "amonitas",
+        "amonita",
+        "amon"
+      ],
+      "brief": "Poblaciones vinculadas al reino de Amón.",
+      "detail": "Su territorio se situaba en el área de la actual Jordania. Como otros reinos levantinos, estuvo relacionado con alianzas, enfrentamientos y tributos regionales.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 29,
+      "title": "Gentiles",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo antiguo y cristianismo primitivo",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "gentiles",
+        "gentil"
+      ],
+      "brief": "Personas o pueblos no judíos desde una perspectiva de identidad judía.",
+      "detail": "En el Nuevo Testamento el término tiene importancia en los debates sobre la apertura del mensaje de Jesús a otros pueblos. No equivale a una sola nacionalidad.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    },
+    {
+      "id": 30,
+      "title": "Prosélitos",
+      "category": "Pueblos y grupos",
+      "period": "Judaísmo del Segundo Templo y siglo I",
+      "source": "SANDERS",
+      "scope": "NT",
+      "aliases": [
+        "proselitos",
+        "prosélitos",
+        "proselito",
+        "prosélito"
+      ],
+      "brief": "Personas convertidas al judaísmo, según determinados usos del término.",
+      "detail": "La incorporación de extranjeros a comunidades judías tuvo formas diversas. No se debe confundir a todos los simpatizantes o temerosos de Dios con prosélitos formales.",
+      "certainty": "Contexto histórico general; alcance variable según el pasaje"
+    }
+  ]
+}

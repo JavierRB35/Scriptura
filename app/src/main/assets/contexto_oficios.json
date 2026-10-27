@@ -1,0 +1,649 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": 31,
+      "title": "Pastores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "pastor",
+        "pastores",
+        "pastora",
+        "pastoras",
+        "rebaño",
+        "rebaños"
+      ],
+      "brief": "Cuidadores de ovejas y cabras en áreas rurales.",
+      "detail": "El pastoreo exigía vigilar el agua, el alimento y la seguridad de los animales. Podía practicarse por familias o trabajadores al servicio de propietarios. No todos los pastores pertenecían al mismo estrato social.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 32,
+      "title": "Pescadores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "pescadores",
+        "pescador",
+        "pescadora",
+        "pescadoras",
+        "pesca",
+        "pescaban"
+      ],
+      "brief": "Trabajadores dedicados a capturar pescado para alimentación y comercio.",
+      "detail": "En torno al lago de Galilea se practicaba la pesca con redes y barcas, dentro de economías familiares y redes de distribución. Las técnicas, los impuestos y el acceso a las aguas variaban.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 33,
+      "title": "Carpinteros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "carpintero",
+        "carpinteros",
+        "carpintera",
+        "carpinteras",
+        "artesano",
+        "artesanos",
+        "tekton"
+      ],
+      "brief": "Oficio relacionado con la construcción y la elaboración de objetos.",
+      "detail": "El término griego téktōn puede indicar artesano o constructor, no necesariamente un carpintero especializado solo en madera. Los materiales dependían de los recursos y las necesidades locales.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 34,
+      "title": "Agricultores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "agricultores",
+        "agricultor",
+        "agricultora",
+        "labranza",
+        "labradores",
+        "labrador"
+      ],
+      "brief": "Trabajadores que cultivaban cereales, legumbres, olivares o viñedos.",
+      "detail": "La agricultura estaba expuesta a sequías, tributos, deudas y ritmos estacionales. Algunas familias poseían sus parcelas y otras las trabajaban como arrendatarias o jornaleras.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 35,
+      "title": "Jornaleros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "jornaleros",
+        "jornalero",
+        "jornalera",
+        "jornaleras",
+        "obreros",
+        "obrero"
+      ],
+      "brief": "Trabajadores contratados por días o temporadas.",
+      "detail": "Dependían de oportunidades de empleo, especialmente en tareas agrícolas y obras. El salario y la inseguridad de la contratación explican imágenes de parábolas relativas al trabajo.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 36,
+      "title": "Viñadores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "viñadores",
+        "viñador",
+        "viña",
+        "viñas",
+        "viñedos",
+        "lagar"
+      ],
+      "brief": "Personas que cultivaban vides o trabajaban en la elaboración de vino.",
+      "detail": "El cultivo requería podas, vigilancia de cosechas y prensado. Las viñas podían ser propiedades familiares o explotaciones con arrendatarios; su imagen era también un recurso literario.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 37,
+      "title": "Alfareros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "alfareros",
+        "alfarero",
+        "alfarera",
+        "alfareras",
+        "alfarería",
+        "barro"
+      ],
+      "brief": "Artesanos que moldeaban y cocían recipientes de arcilla.",
+      "detail": "Las vasijas servían para cocinar, transportar y almacenar productos. Los hornos, tipos cerámicos y técnicas permiten a la arqueología fechar contextos y estudiar intercambios.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 38,
+      "title": "Tejedores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "tejedores",
+        "tejedor",
+        "tejedora",
+        "tejedoras",
+        "tejían",
+        "tejido"
+      ],
+      "brief": "Personas que producían telas mediante el hilado y el telar.",
+      "detail": "La fabricación de prendas y tejidos incluía trabajo doméstico y talleres; el lino y la lana se utilizaron en distinta proporción según lugar y época.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 39,
+      "title": "Curtidores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "curtidores",
+        "curtidor",
+        "curtiduría",
+        "pieles"
+      ],
+      "brief": "Oficio de preparación de pieles para fabricar objetos.",
+      "detail": "La transformación de pieles requería agua y sustancias de tratamiento y solía producir olores intensos. Algunas fuentes antiguas relacionan el oficio con preocupaciones sobre pureza, aunque no todos los contextos son iguales.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 40,
+      "title": "Herreros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "herreros",
+        "herrero",
+        "herrera",
+        "forja",
+        "forjadores"
+      ],
+      "brief": "Trabajadores capaces de fabricar o reparar objetos metálicos.",
+      "detail": "El hierro y el bronce se usaban en herramientas, armas y objetos cotidianos. La especialización y acceso a materias primas variaban según período y ciudad.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 41,
+      "title": "Orfebres",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "orfebres",
+        "orfebre",
+        "plateros",
+        "platero",
+        "joyeros",
+        "joyero"
+      ],
+      "brief": "Artesanos especializados en metales preciosos y adornos.",
+      "detail": "Podían fabricar joyas, recipientes y objetos rituales. En centros urbanos, la actividad estaba ligada a encargos, comercio y, en ocasiones, cultos locales.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 42,
+      "title": "Mercaderes",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "mercaderes",
+        "mercader",
+        "comerciantes",
+        "comerciante",
+        "mercancías",
+        "mercancias"
+      ],
+      "brief": "Personas dedicadas al intercambio de bienes.",
+      "detail": "Las rutas terrestres y marítimas conectaban ciudades y aldeas con mercados distantes. El comercio incluía desde productos de uso diario hasta objetos de lujo.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 43,
+      "title": "Panaderos",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "panaderos",
+        "panadero",
+        "panadera",
+        "hornos",
+        "horno"
+      ],
+      "brief": "Personas que elaboraban pan para consumo familiar o venta.",
+      "detail": "El pan era un alimento central. La molienda, mezcla de harina y cocción podía hacerse en hogares, hornos compartidos y establecimientos según la localidad.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 44,
+      "title": "Molineros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "molineros",
+        "molinero",
+        "molinera",
+        "molino",
+        "molienda"
+      ],
+      "brief": "Quienes molían grano para obtener harina.",
+      "detail": "La molienda manual con piedras era una tarea cotidiana en numerosos hogares; también existían formas de organización de trabajo con mayor escala.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 45,
+      "title": "Salineros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "salineros",
+        "salinero",
+        "sal",
+        "salinas"
+      ],
+      "brief": "Trabajadores relacionados con la obtención o distribución de sal.",
+      "detail": "La sal se empleaba para conservar alimentos y en prácticas domésticas y rituales. Las zonas de extracción y las redes comerciales variaban regionalmente.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 46,
+      "title": "Pastores nómadas",
+      "category": "Profesiones y economía",
+      "period": "Próximo Oriente antiguo",
+      "source": "MATTHEWS",
+      "scope": "AT",
+      "aliases": [
+        "nómadas",
+        "nomadas",
+        "tiendas de campaña",
+        "tienda de campaña"
+      ],
+      "brief": "Grupos o familias con movilidad estacional vinculada al ganado.",
+      "detail": "La movilidad dependía de agua y pastos y podía coexistir con asentamientos permanentes. No debe confundirse una imagen literaria patriarcal con una descripción uniforme de todos los grupos antiguos.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 47,
+      "title": "Recaudadores de impuestos",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "tributos",
+        "tributo",
+        "peajes",
+        "peaje",
+        "impuestos",
+        "impuesto"
+      ],
+      "brief": "Personas y oficinas que cobraban cargas económicas.",
+      "detail": "Los tributos podían afectar cosechas, propiedades y circulación de productos. La gestión combinaba autoridades locales e imperiales y era una fuente frecuente de tensiones sociales.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 48,
+      "title": "Soldados",
+      "category": "Profesiones y economía",
+      "period": "Imperio romano",
+      "source": "FREYNE",
+      "scope": "NT",
+      "aliases": [
+        "soldados",
+        "soldado",
+        "militares",
+        "militar",
+        "centurión",
+        "centurion"
+      ],
+      "brief": "Personas al servicio de fuerzas armadas.",
+      "detail": "Las tropas podían realizar vigilancia, desplazamientos y tareas de administración territorial. Un centurión dirigía una unidad militar romana, aunque sus funciones variaron.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 49,
+      "title": "Centuriones",
+      "category": "Profesiones y economía",
+      "period": "Imperio romano",
+      "source": "FREYNE",
+      "scope": "NT",
+      "aliases": [
+        "centuriones",
+        "centurión",
+        "centurion"
+      ],
+      "brief": "Oficiales del ejército romano.",
+      "detail": "Un centurión ejercía autoridad sobre una unidad de soldados; el tamaño y las tareas no siempre correspondían de modo rígido a cien hombres.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 50,
+      "title": "Marineros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "marineros",
+        "marinero",
+        "marineras",
+        "navegantes",
+        "navegante",
+        "marinería"
+      ],
+      "brief": "Trabajadores dedicados a viajes y transporte por agua.",
+      "detail": "La navegación mediterránea dependía de condiciones meteorológicas y temporadas favorables. Los viajes comerciales conectaban puertos, islas y provincias.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 51,
+      "title": "Constructores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "constructores",
+        "constructor",
+        "albañiles",
+        "albañil",
+        "canteros",
+        "cantero"
+      ],
+      "brief": "Oficios relacionados con la construcción de edificios y caminos.",
+      "detail": "La piedra, la madera y el adobe se empleaban según la región. Los grandes proyectos urbanos reunían trabajadores especializados y mano de obra temporal.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 52,
+      "title": "Esclavos domésticos",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "esclavos",
+        "esclavo",
+        "esclava",
+        "esclavas",
+        "siervos",
+        "siervo"
+      ],
+      "brief": "Personas privadas de libertad jurídica y sometidas a propietarios.",
+      "detail": "La esclavitud antigua adoptó muchas formas y tareas: servicio doméstico, agricultura, administración y talleres. Su existencia no debe presentarse como una condición aceptable ni equipararse exactamente a instituciones modernas.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 53,
+      "title": "Administradores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "administradores",
+        "administrador",
+        "mayordomo",
+        "mayordomos",
+        "encargado"
+      ],
+      "brief": "Responsables de organizar bienes, trabajadores o cuentas.",
+      "detail": "En propiedades grandes podían supervisar arrendamientos, almacenes y obligaciones. Las parábolas emplean estas funciones para ilustrar responsabilidad o confianza.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 54,
+      "title": "Médicos",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "médicos",
+        "medicos",
+        "médico",
+        "medico",
+        "medicina",
+        "curanderos"
+      ],
+      "brief": "Personas dedicadas a tratar enfermedades y lesiones.",
+      "detail": "Existían prácticas de observación, remedios y cuidados, coexistiendo con creencias religiosas sobre la enfermedad. Las capacidades variaban y no deben equipararse a la medicina actual.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 55,
+      "title": "Parteras",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "parteras",
+        "partera",
+        "comadrona",
+        "comadronas"
+      ],
+      "brief": "Mujeres que asistían en el parto.",
+      "detail": "El parto se atendía normalmente en ámbitos familiares y comunitarios. Algunas narraciones bíblicas destacan su función y las dificultades de la maternidad en sociedades antiguas.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 56,
+      "title": "Músicos",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "músicos",
+        "musicos",
+        "músico",
+        "musico",
+        "cantores",
+        "cantor",
+        "cantaban"
+      ],
+      "brief": "Personas que interpretaban música en fiestas y celebraciones.",
+      "detail": "La música acompañaba festejos, lamentos, banquetes y ceremonias. En los templos también existían funciones musicales organizadas.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 57,
+      "title": "Bailarines",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "danzantes",
+        "danza",
+        "danzaban",
+        "bailaban"
+      ],
+      "brief": "Personas que participaban en danzas rituales o festivas.",
+      "detail": "Las danzas comunitarias aparecen ligadas a celebraciones y victorias. El significado de cada práctica depende de la época y la narración.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 58,
+      "title": "Vigilantes",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "vigilantes",
+        "vigilante",
+        "guardias",
+        "guardia",
+        "centinelas",
+        "centinela"
+      ],
+      "brief": "Personas encargadas de observar y proteger lugares.",
+      "detail": "Murallas, puertas y caminos necesitaban vigilancia frente a ataques o robos; la figura del centinela también se usa como metáfora profética.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 59,
+      "title": "Mensajeros",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "mensajeros",
+        "mensajero",
+        "correos",
+        "correo",
+        "emisario",
+        "emisarios"
+      ],
+      "brief": "Personas que transportaban noticias e instrucciones.",
+      "detail": "Sin comunicaciones modernas, cartas y mensajes dependían de viajes a pie, animales o barcos. La rapidez variaba según rutas, clima y autoridad del remitente.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 60,
+      "title": "Pastores de camellos",
+      "category": "Profesiones y economía",
+      "period": "Antiguo Oriente Próximo",
+      "source": "LEVANT",
+      "scope": "AT",
+      "aliases": [
+        "camelleros",
+        "camellero",
+        "camellos",
+        "camello"
+      ],
+      "brief": "Quienes cuidaban o conducían camellos en rutas de comercio y transporte.",
+      "detail": "Los camellos se usaban para transporte en ambientes apropiados, pero su difusión dependía de época y región. No todas las escenas patriarcales pueden corroborarse con igual certeza.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 61,
+      "title": "Porteadores",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "porteadores",
+        "porteador",
+        "cargadores",
+        "cargador"
+      ],
+      "brief": "Trabajadores que transportaban mercancías y equipaje.",
+      "detail": "Las cargas podían llevarse a pie, con animales de tiro o carros. Su actividad era fundamental en mercados y construcción.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 62,
+      "title": "Pastores de bueyes",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "boyeros",
+        "boyero",
+        "bueyes",
+        "buey",
+        "yuntas",
+        "yunta"
+      ],
+      "brief": "Trabajadores y familias que empleaban bovinos en labores agrarias.",
+      "detail": "Los animales de tiro permitían arar y transportar cargas. Mantenerlos requería forraje y recursos, por lo que su posesión tenía consecuencias económicas.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 63,
+      "title": "Cambistas",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "cambistas",
+        "cambista",
+        "monedas",
+        "moneda",
+        "denarios",
+        "denario"
+      ],
+      "brief": "Personas que cambiaban o evaluaban monedas.",
+      "detail": "La circulación de distintas monedas requería cambio y cálculo de valores. Los relatos del Templo incluyen esta actividad en un espacio que también tenía funciones económicas.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 64,
+      "title": "Lavanderos",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "lavanderos",
+        "lavandero",
+        "lavanderas",
+        "lavandera",
+        "lavaban"
+      ],
+      "brief": "Personas encargadas de lavar y cuidar ropa.",
+      "detail": "El lavado podía ser trabajo doméstico o remunerado y requería agua, esfuerzo físico y materiales abrasivos o alcalinos.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    },
+    {
+      "id": 65,
+      "title": "Arrendatarios",
+      "category": "Profesiones y economía",
+      "period": "Israel antiguo y período romano",
+      "source": "HEZSER",
+      "scope": "ALL",
+      "aliases": [
+        "arrendatarios",
+        "arrendatario",
+        "arrendadas",
+        "arrendada",
+        "arriendo"
+      ],
+      "brief": "Trabajadores que explotaban tierras mediante acuerdos con propietarios.",
+      "detail": "Parte de las cosechas o una renta podía corresponder al dueño de la finca. Las tensiones entre propietarios, administradores y trabajadores aparecen en narraciones y parábolas.",
+      "certainty": "Reconstrucción histórica general; variaciones regionales y cronológicas"
+    }
+  ]
+}

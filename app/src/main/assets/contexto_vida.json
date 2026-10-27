@@ -1,0 +1,619 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": 66,
+      "title": "Sinagogas",
+      "category": "Culto e instituciones",
+      "aliases": [
+        "sinagoga",
+        "sinagogas"
+      ],
+      "brief": "Lugares de reunión, oración, lectura y enseñanza de la Escritura.",
+      "detail": "Las sinagogas desempeñaron diversas funciones en comunidades judías antiguas. Su organización y arquitectura no fueron uniformes; deben distinguirse de los sacrificios del Templo.",
+      "scope": "NT",
+      "source": "SANDERS",
+      "period": "Segundo Templo y época romana",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 67,
+      "title": "Templo de Jerusalén",
+      "category": "Culto e instituciones",
+      "aliases": [
+        "templo",
+        "templos",
+        "santuario de jerusalén"
+      ],
+      "brief": "Centro principal del culto sacrificial judío antes del año 70 d. C.",
+      "detail": "El recinto incluía espacios de distinta accesibilidad y personal sacerdotal. Su destrucción en 70 d. C. cambió profundamente las formas de vida religiosa judía.",
+      "scope": "NT",
+      "source": "SANDERS",
+      "period": "Segundo Templo",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 68,
+      "title": "Sanedrín",
+      "category": "Culto e instituciones",
+      "aliases": [
+        "sanedrín",
+        "sanedrin",
+        "consejo de ancianos"
+      ],
+      "brief": "Nombre relacionado con asambleas o consejos de dirigentes judíos.",
+      "detail": "Las fuentes antiguas describen organismos y actuaciones distintas; no es seguro proyectar una misma estructura judicial sobre todos los relatos.",
+      "scope": "NT",
+      "source": "SANDERS",
+      "period": "Judea del siglo I",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 69,
+      "title": "Sábado",
+      "category": "Culto e instituciones",
+      "aliases": [
+        "sábado",
+        "sabado",
+        "día de reposo",
+        "dia de reposo"
+      ],
+      "brief": "Jornada semanal de descanso y santificación en la tradición judía.",
+      "detail": "Las prácticas sabáticas incluían dejar tareas ordinarias y participar en reuniones y comidas; existían debates internos sobre su aplicación concreta.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 70,
+      "title": "Pascua judía",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "pascua",
+        "panes ácimos",
+        "panes acimos"
+      ],
+      "brief": "Fiesta vinculada al recuerdo de la salida de Egipto.",
+      "detail": "Las formas rituales variaron con el tiempo. En época del Segundo Templo incluía peregrinaciones y sacrificios, mientras que prácticas posteriores se organizaron de otros modos.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 71,
+      "title": "Fiesta de las Tiendas",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "tabernáculos",
+        "tabernaculos",
+        "sucot",
+        "fiesta de las tiendas"
+      ],
+      "brief": "Celebración judía ligada a la cosecha y al recuerdo de la vida en el desierto.",
+      "detail": "Las tradiciones de peregrinación, vegetación y cabañas expresaban memoria e identidad colectiva; su forma histórica no fue idéntica en todos los siglos.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 72,
+      "title": "Pentecostés",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "pentecostés",
+        "pentecostes",
+        "fiesta de las semanas"
+      ],
+      "brief": "Fiesta de las Semanas del calendario judío y, en Hechos, marco de un relato cristiano.",
+      "detail": "La festividad agrícola y religiosa existía antes del cristianismo; los primeros cristianos atribuyeron a Pentecostés un significado específico relativo al Espíritu.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 73,
+      "title": "Sacrificios",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "sacrificio",
+        "sacrificios",
+        "holocausto",
+        "holocaustos",
+        "ofrenda",
+        "ofrendas"
+      ],
+      "brief": "Actos rituales de entrega de animales u otros productos en el culto antiguo.",
+      "detail": "Las ofrendas variaban por ocasión, finalidad y recursos de quien las presentaba. No puede entenderse todo sacrificio bíblico como una práctica idéntica.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 74,
+      "title": "Diezmo",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "diezmo",
+        "diezmos",
+        "diezmar"
+      ],
+      "brief": "Entrega de una parte de productos o ingresos para fines religiosos o comunitarios.",
+      "detail": "La aplicación del diezmo y sus destinatarios cambiaron según las épocas y tradiciones. En el mundo agrario se vinculó especialmente a cosechas y ganados.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 75,
+      "title": "Pureza ritual",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "pureza",
+        "purificación",
+        "purificacion",
+        "impureza",
+        "inmundo",
+        "inmundos"
+      ],
+      "brief": "Categorías rituales que regulaban determinados accesos y prácticas.",
+      "detail": "La impureza ritual no equivale necesariamente a culpa moral o enfermedad. Las normas podían relacionarse con contacto corporal, alimentos, objetos o espacios sagrados.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 76,
+      "title": "Circuncisión",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "circuncisión",
+        "circuncision",
+        "circuncidado",
+        "circuncidar"
+      ],
+      "brief": "Rito corporal que en la tradición israelita expresa pertenencia a la alianza.",
+      "detail": "La circuncisión tiene historia anterior y paralela en culturas antiguas. En el cristianismo primitivo fue objeto de debates sobre la incorporación de personas no judías.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 77,
+      "title": "Torá",
+      "category": "Culto e instituciones",
+      "aliases": [
+        "torá",
+        "tora",
+        "pentateuco",
+        "ley de moisés",
+        "ley de moises"
+      ],
+      "brief": "Enseñanza y tradición de los primeros libros de la Escritura hebrea.",
+      "detail": "Torá puede indicar instrucción y, según el contexto, el conjunto de cinco libros o la enseñanza de la Ley; no se reduce a una lista moderna de prohibiciones.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 78,
+      "title": "Pergaminos",
+      "category": "Escritura y educación",
+      "aliases": [
+        "pergaminos",
+        "pergamino",
+        "papiro",
+        "papiros"
+      ],
+      "brief": "Soportes antiguos para escribir y conservar documentos.",
+      "detail": "Los manuscritos podían usar piel preparada o material vegetal y almacenarse como rollos u otros formatos. Su producción requería materiales y escribas especializados.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 79,
+      "title": "Rollos de la Escritura",
+      "category": "Escritura y educación",
+      "aliases": [
+        "rollos",
+        "rollo",
+        "libro de la ley",
+        "libro de isaías",
+        "libro de isaias"
+      ],
+      "brief": "Forma material común de muchos textos antiguos antes del códice.",
+      "detail": "Los rollos se desenrollaban para leer; su estructura no coincidía con la paginación moderna. Las copias manuscritas podían presentar diferencias textuales.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 80,
+      "title": "Lectura pública",
+      "category": "Escritura y educación",
+      "aliases": [
+        "leían la ley",
+        "leyeron la ley",
+        "lectura de la ley",
+        "leer la ley"
+      ],
+      "brief": "Práctica comunitaria de escuchar textos sagrados.",
+      "detail": "La lectura en voz alta permitía participar a personas con distintos niveles de alfabetización. Enseñanza, traducción y explicación acompañaban los textos en algunos contextos.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 81,
+      "title": "Casas y patios",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "patio",
+        "patios",
+        "azotea",
+        "azoteas",
+        "tejado",
+        "tejados"
+      ],
+      "brief": "Elementos habituales de viviendas en pueblos y ciudades del antiguo Levante.",
+      "detail": "El patio organizaba tareas familiares; las azoteas podían utilizarse como espacios prácticos. Las casas variaban mucho entre entornos rurales y urbanos.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 82,
+      "title": "Aldeas",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "aldea",
+        "aldeas",
+        "aldeanos",
+        "aldeano"
+      ],
+      "brief": "Asentamientos de escala reducida ligados a campos y redes familiares.",
+      "detail": "Su población dependía de agricultura, ganado y oficios cercanos. La organización de casas, patios y almacenaje se reconstruye con arqueología y fuentes literarias.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 83,
+      "title": "Mercados",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "mercado",
+        "mercados",
+        "plaza del mercado"
+      ],
+      "brief": "Lugares o redes de intercambio de alimentos, herramientas y servicios.",
+      "detail": "No todo intercambio ocurría en una plaza formal. Las ciudades conectaban producción rural, pequeños comerciantes y rutas mayores de transporte.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 84,
+      "title": "Caminos y viajes",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "caravana",
+        "caravanas",
+        "caminantes",
+        "caminante",
+        "camino de jericó",
+        "camino de jerico"
+      ],
+      "brief": "Desplazamientos a pie, en animales o en vehículos por caminos antiguos.",
+      "detail": "Las rutas dependían de relieve, agua, clima y seguridad. Las distancias se medían en jornadas y podían ser difíciles de recorrer para personas vulnerables.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 85,
+      "title": "Pozos",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "pozo",
+        "pozos",
+        "manantial",
+        "manantiales"
+      ],
+      "brief": "Puntos de acceso al agua para habitantes y animales.",
+      "detail": "Asegurar agua condicionaba asentamientos, viajes y trabajo doméstico. Los pozos podían ser centros cotidianos de encuentro y negociación comunitaria.",
+      "scope": "ALL",
+      "source": "MATTHEWS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 86,
+      "title": "Cisternas",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "cisterna",
+        "cisternas"
+      ],
+      "brief": "Depósitos destinados a conservar agua, frecuentemente de lluvia.",
+      "detail": "En zonas con estaciones secas, almacenar agua era fundamental. La construcción y limpieza de cisternas condicionaba la seguridad hídrica de hogares y poblados.",
+      "scope": "ALL",
+      "source": "LEVANT",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 87,
+      "title": "Matrimonio",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "esposo",
+        "esposa",
+        "esposos",
+        "esposas",
+        "desposada",
+        "desposado",
+        "casamiento"
+      ],
+      "brief": "Unión reconocida socialmente y regulada por prácticas familiares y legales.",
+      "detail": "Las formas de matrimonio, pactos y responsabilidades cambiaban por región y época. Es importante no asumir que las expectativas familiares eran equivalentes a las modernas.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 88,
+      "title": "Dote y acuerdos matrimoniales",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "dote",
+        "esponsales",
+        "arras",
+        "nupcias"
+      ],
+      "brief": "Bienes y acuerdos relacionados con las uniones matrimoniales.",
+      "detail": "Su existencia y modalidad dependían de las comunidades. Los textos legales antiguos muestran obligaciones económicas entre familias sin que hubiera una única regla para todo el período bíblico.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 89,
+      "title": "Viudas",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "viuda",
+        "viudas",
+        "viudo",
+        "viudos"
+      ],
+      "brief": "Personas que habían perdido a su cónyuge.",
+      "detail": "La viudedad podía crear vulnerabilidad económica y jurídica cuando faltaban redes de sustento; algunas viudas, sin embargo, contaban con patrimonio o apoyo familiar.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 90,
+      "title": "Huérfanos",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "huérfano",
+        "huérfanos",
+        "huerfano",
+        "huerfanos",
+        "huérfana",
+        "huérfanas"
+      ],
+      "brief": "Menores que carecían de uno o ambos progenitores.",
+      "detail": "En sociedades organizadas en torno a hogares y parentescos, la pérdida de protección familiar podía comprometer recursos y derechos. Los textos bíblicos insisten a menudo en su defensa.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 91,
+      "title": "Extranjeros residentes",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "forasteros",
+        "forastero",
+        "extranjero",
+        "extranjeros",
+        "inmigrante",
+        "inmigrantes"
+      ],
+      "brief": "Personas de otro lugar que vivían o viajaban entre comunidades.",
+      "detail": "La acogida, las obligaciones y los derechos de extranjeros eran diversos. Distintas palabras de las lenguas bíblicas indican grados de residencia o pertenencia no equivalentes.",
+      "scope": "ALL",
+      "source": "MATTHEWS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 92,
+      "title": "Ayuno",
+      "category": "Fiestas y ritos",
+      "aliases": [
+        "ayuno",
+        "ayunaban",
+        "ayunó",
+        "ayuno",
+        "ayunar"
+      ],
+      "brief": "Práctica de privarse de alimentos durante períodos determinados.",
+      "detail": "Podía expresar duelo, arrepentimiento, oración o preparación. Las formas y expectativas variaban entre comunidades y tradiciones religiosas.",
+      "scope": "ALL",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 93,
+      "title": "Limosna",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "limosna",
+        "limosnas",
+        "dar limosna"
+      ],
+      "brief": "Ayuda material dada a personas necesitadas.",
+      "detail": "La asistencia comunitaria y las donaciones formaban parte de diversos ideales religiosos. Su significado social y espiritual era debatido entre maestros y comunidades.",
+      "scope": "NT",
+      "source": "SANDERS",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 94,
+      "title": "Sepultura",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "sepulcro",
+        "sepulcros",
+        "sepultura",
+        "sepulturas",
+        "entierro",
+        "enterraron"
+      ],
+      "brief": "Conjunto de prácticas destinadas a disponer del cuerpo tras la muerte.",
+      "detail": "Se empleaban sepulturas excavadas, tumbas familiares y otros sistemas. Los ritos de duelo y el tratamiento de los restos diferían por riqueza y período.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 95,
+      "title": "Banquetes",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "banquete",
+        "banquetes",
+        "convite",
+        "convites",
+        "festín",
+        "festin"
+      ],
+      "brief": "Comidas festivas con valor social y de hospitalidad.",
+      "detail": "La distribución de asientos, invitaciones y alimentos podía expresar jerarquías. En las parábolas los banquetes sirven también para tratar hospitalidad e inclusión.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 96,
+      "title": "Hospitalidad",
+      "category": "Vida cotidiana",
+      "aliases": [
+        "hospitalidad",
+        "huésped",
+        "huesped",
+        "huéspedes",
+        "huespedes",
+        "hospedaje"
+      ],
+      "brief": "Acogida de visitantes con alimento, descanso o protección.",
+      "detail": "Era importante en un mundo de viajes inseguros y alojamiento desigual. Sus normas y obligaciones aparecían en relatos familiares y mandatos religiosos.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 97,
+      "title": "Exilio babilónico",
+      "category": "Historia y política",
+      "aliases": [
+        "exilio",
+        "destierro",
+        "deportados",
+        "deportación",
+        "deportacion"
+      ],
+      "brief": "Desplazamiento forzoso de grupos judíos tras conquistas del siglo VI a. C.",
+      "detail": "Los episodios de destrucción y deportación asociados con Babilonia afectaron a comunidades y tradiciones religiosas; no toda la población fue expulsada ni todos los exilios fueron iguales.",
+      "scope": "AT",
+      "source": "MATTHEWS",
+      "period": "Siglo VI a. C.",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 98,
+      "title": "Gobernadores romanos",
+      "category": "Historia y política",
+      "aliases": [
+        "gobernador",
+        "gobernadores",
+        "procurador",
+        "prefecto",
+        "prefectos"
+      ],
+      "brief": "Autoridades imperiales responsables de territorio, tributos y orden público.",
+      "detail": "El gobierno romano podía coexistir con poderes locales. Las competencias y títulos variaban por período; el prefecto de Judea tenía responsabilidades militares y judiciales.",
+      "scope": "NT",
+      "source": "FREYNE",
+      "period": "Siglo I d. C.",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 99,
+      "title": "Censo y empadronamiento",
+      "category": "Historia y política",
+      "aliases": [
+        "censo",
+        "censos",
+        "empadronamiento",
+        "empadronarse"
+      ],
+      "brief": "Procedimientos para registrar población, propiedades o recursos.",
+      "detail": "Los censos podían relacionarse con obligaciones fiscales y administración política. La cronología exacta de algunos relatos evangélicos sobre censos es objeto de debate.",
+      "scope": "NT",
+      "source": "FREYNE",
+      "period": "Imperio romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    },
+    {
+      "id": 100,
+      "title": "Monedas y salarios",
+      "category": "Economía y sociedad",
+      "aliases": [
+        "dracma",
+        "dracmas",
+        "talento",
+        "talentos",
+        "óbolo",
+        "obolo",
+        "óbolos",
+        "obolos"
+      ],
+      "brief": "Unidades monetarias o de cuenta mencionadas en diferentes textos.",
+      "detail": "Valores, poderes adquisitivos y monedas circulantes cambiaban por época y región. Traducirlas a una cantidad actual sin contexto económico puede llevar a errores.",
+      "scope": "ALL",
+      "source": "HEZSER",
+      "period": "Israel antiguo y período romano",
+      "certainty": "Introducción histórica; prácticas y significados variables según lugar y época"
+    }
+  ]
+}

@@ -2,7 +2,7 @@ name: Scriptura · compilar y publicar APK firmada
 
 on:
   push:
-    branches: [main, feature/mapas-estudio-inicio-0-7-3]
+    branches: [main, feature/contexto-historico-local]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -47,6 +47,27 @@ jobs:
             git commit -m "build: incluir gradle-wrapper.jar oficial 8.9"
             git push origin HEAD:main
           fi
+
+      - name: Validar catálogo histórico local
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path('app/src/main/assets')
+          files=['contexto_grupos.json','contexto_oficios.json','contexto_vida.json']
+          parts=[json.loads((folder/name).read_text(encoding='utf-8')) for name in files]
+          rows=[row for part in parts for row in part['entries']]
+          assert len(rows)==100, f"Se esperaban 100 fichas, hay {len(rows)}"
+          ids=[e['id'] for e in rows]
+          assert sorted(ids)==list(range(1,101)), "IDs duplicados o ausentes"
+          bib=parts[0]['bibliography']
+          for e in rows:
+              assert e['scope'] in ('AT','NT','ALL')
+              assert e['source'] in bib
+              assert e['title'] and e['aliases'] and e['brief'] and e['detail']
+              assert all(len(word)>2 for word in e['aliases'])
+          print('CATÁLOGO HISTÓRICO: 100 FICHAS VÁLIDAS')
+          PY
 
       - name: Compilar versión de verificación
         run: sh ./gradlew :app:assembleDebug --no-daemon --max-workers=1
@@ -98,7 +119,7 @@ jobs:
         if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.7.3-build.${GITHUB_RUN_NUMBER}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.7.4-build.${GITHUB_RUN_NUMBER}.apk"
 
       - name: Guardar APK firmado en artefactos
         if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
@@ -113,7 +134,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v0.7.3-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.7.3-build.${GITHUB_RUN_NUMBER}.apk" \
-            --title "Scriptura 0.7.3 · compilación ${GITHUB_RUN_NUMBER}" \
+          gh release create "v0.7.4-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.7.4-build.${GITHUB_RUN_NUMBER}.apk" \
+            --title "Scriptura 0.7.4 · compilación ${GITHUB_RUN_NUMBER}" \
             --notes "Versión preliminar de desarrollo. APK firmado para actualización sobre instalaciones anteriores firmadas con la misma clave." \
             --prerelease --target "$GITHUB_SHA"

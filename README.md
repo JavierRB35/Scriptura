@@ -119,3 +119,8 @@ Conserva JDK17, compileSdk/targetSdk34, Gradle8.9, AGP8.7.3, las cinco pestañas
 - **Validación:** pruebas unitarias del orden de etapas, relación con marcadores, enlaces a escrituras y coordenadas Google Maps. El emulador comprueba carga de teselas y presenta pantallas auténticas sin EPUB personal. Pendiente comprobar zoom multitáctil en móvil real, lectura del EPUB personal y vínculo desde todas las fichas.
 
 El atlas reproduce lugares de geografía moderna, **no** una reconstrucción fiable de itinerarios antiguos; las etapas siguen un orden narrativo y no se deben interpretar como recorridos históricos exactos. Conserva la serie preliminar, el certificado de firma, `com.scriptura.app`, Java 17, SDK 34, Gradle 8.9 y AGP 8.7.3.
+
+
+## Contexto histórico local (v0.7.4)
+
+El lector incluye el desplegable «Contexto histórico», con 100 fichas introductorias offline sobre pueblos, grupos religiosos, trabajos, costumbres e instituciones. Explicaciones cortas y ampliables, bibliografía orientativa y distinción AT/NT. La base local \`scriptura_contexto.db\` es independiente de la Biblia privada. Véase \`docs/CONTEXTO_HISTORICO.md\`.

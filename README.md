@@ -47,3 +47,16 @@ Versión 0.3.0: biblioteca con lector y notas de Navarra, búsqueda literal y po
 - Ampliaciones históricas y cartográficas pendientes en [#4](https://github.com/JavierRB35/Scriptura/issues/4).
 
 El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales, el EPUB personal y su contenido no están incluidos en el repositorio.
+
+## Avisos automáticos de actualización — 0.5.1
+
+- Scriptura consulta las versiones `0.x.y-build.N` **publicadas con APK** en las GitHub Releases de `JavierRB35/Scriptura`.
+- **Repositorio privado:** GitHub rechaza consultas no autenticadas. Por eso, en Ajustes, el usuario configura **una sola vez** un Fine-grained personal access token de GitHub, limitado al repositorio Scriptura y **Contents: Read**. No se solicitan otros permisos.
+- El token se cifra con AES-GCM mediante Android Keystore y se guarda **solo en el almacenamiento privado del dispositivo**. No incluirlo en el ZIP, repositorio, APK ni secretos compartidos. Puede revocarse desde GitHub o borrarse en Ajustes.
+- La aplicación realiza comprobaciones al abrir (con control de frecuencia) y mediante `JobScheduler` cada 12 horas, con conexión de red. Android puede retrasar las tareas periódicas; no existe garantía de notificación instantánea.
+- Una actualización disponible se muestra en Inicio y, si está permitido, se envía una notificación Android en un canal independiente al recordatorio de lectura. Se notifica cada etiqueta una sola vez para evitar repeticiones.
+- Al pulsar se abre la página **privada** del Release en el navegador, donde el usuario inicia sesión si es necesario y descarga la APK firmada. **Jamás se instala automáticamente.**
+- En Android 13+ hay que permitir `POST_NOTIFICATIONS` para los avisos del sistema, pero el banner dentro de la app no lo necesita.
+- El modelo de versiones se comprueba con tests unitarios y no se notifica sobre borradores, tags sueltos ni Releases que carezcan de APK.
+- Limitación de seguridad: aunque cifrado en el Keystore, el token personal es una credencial sensible. Usar una credencial limitada con caducidad; regenerarla al vencer.
+- Para comprobar un APK publicado nuevo, no basta un commit o una compilación de PR: debe existir una **Release** firmada descargable.

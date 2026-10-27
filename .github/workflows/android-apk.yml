@@ -2,7 +2,7 @@ name: Scriptura · compilar y publicar APK firmada
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/avisos-actualizacion]
   workflow_dispatch:
 
 permissions:
@@ -95,7 +95,7 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.5.0-build.${GITHUB_RUN_NUMBER}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.5.1-build.${GITHUB_RUN_NUMBER}.apk"
 
       - name: Guardar APK firmado en artefactos
         if: steps.signing.outputs.ready == 'true'
@@ -106,11 +106,11 @@ jobs:
           if-no-files-found: error
 
       - name: Publicar versión preliminar descargable
-        if: steps.signing.outputs.ready == 'true'
+        if: github.ref == 'refs/heads/main' && steps.signing.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v0.5.0-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.5.0-build.${GITHUB_RUN_NUMBER}.apk" \
-            --title "Scriptura 0.5.0 · compilación ${GITHUB_RUN_NUMBER}" \
+          gh release create "v0.5.1-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.5.1-build.${GITHUB_RUN_NUMBER}.apk" \
+            --title "Scriptura 0.5.1 · compilación ${GITHUB_RUN_NUMBER}" \
             --notes "Versión preliminar de desarrollo. APK firmado para actualización sobre instalaciones anteriores firmadas con la misma clave." \
             --prerelease --target "$GITHUB_SHA"

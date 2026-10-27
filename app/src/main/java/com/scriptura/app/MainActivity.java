@@ -23,6 +23,7 @@ public final class MainActivity extends Activity {
     private final int DARK=Color.rgb(37,60,52), GOLD=Color.rgb(174,122,49), MUTED=Color.rgb(95,110,104);
     private final int BG=Color.rgb(250,249,245), SURFACE=Color.WHITE, SOFT=Color.rgb(239,244,239);
     private BibleStore store;
+    private NavarraNotes notes;
     private GeminiClient ai;
     private LinearLayout column,frame,nav;
     private TextView caption;
@@ -83,7 +84,7 @@ public final class MainActivity extends Activity {
     }
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
-        store=new BibleStore(this);ai=new GeminiClient(this);
+        store=new BibleStore(this);notes=new NavarraNotes(this);ai=new GeminiClient(this);
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");}
         render();
@@ -205,6 +206,7 @@ public final class MainActivity extends Activity {
             i.putExtra(Intent.EXTRA_TEXT,p.ref+"\n"+p.text+"\nBiblia de Navarra");
             startActivity(Intent.createChooser(i,"Compartir pasaje"));
         },false);
+        button(c,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
         button(c,"✦  Interpretación con Gemini",()->interpret(p,"Explica este pasaje de forma breve y fiel a su contexto.",false),true);
         button(c,"Profundizar o preguntar",()->ask(p),false);
         LinearLayout link=card(column);
@@ -217,6 +219,17 @@ public final class MainActivity extends Activity {
         if(chapter<1||chapter>store.chapters(book)){showError("No hay más capítulos en ese sentido.");return;}
         BibleStore.Passage p=store.passage(Books.name(book)+" "+chapter);
         if(p!=null)open(p);
+    }
+    private void showNavarraNote(BibleStore.Passage p){
+        String note=notes.get(p.book,p.chapter,p.first);
+        if(note.isEmpty()){
+            showError("No se ha encontrado una nota específica para el primer versículo seleccionado. La edición conserva comentarios en otras referencias y libros.");
+            return;
+        }
+        TextView body=text(note,16,DARK,false);body.setTextIsSelectable(true);pad(body,18);
+        ScrollView scroll=new ScrollView(this);scroll.addView(body);
+        new AlertDialog.Builder(this).setTitle("Comentario de Navarra · "+p.ref)
+            .setView(scroll).setPositiveButton("Cerrar",null).show();
     }
     private void ask(BibleStore.Passage p){
         EditText edit=new EditText(this);edit.setHint("¿Qué quieres comprender o cómo quieres aplicarlo?");edit.setMinLines(3);
@@ -233,9 +246,9 @@ public final class MainActivity extends Activity {
         }
         String detail=custom&&question.isEmpty()?"Profundiza en el significado":question;
         new AlertDialog.Builder(this).setTitle("Consulta externa")
-            .setMessage("Se enviará a la API de Gemini el pasaje seleccionado y tu pregunta, si la has escrito. No se envía el EPUB completo. En el nivel gratuito Google puede utilizar estas consultas para mejorar sus productos. ¿Continuar?")
+            .setMessage("Se enviará a Gemini el pasaje seleccionado, el fragmento disponible del comentario de Navarra y tu pregunta, si la has escrito. No se envía el EPUB completo. El nivel gratuito puede usar las consultas para mejorar los productos de Google. ¿Continuar?")
             .setNegativeButton("Cancelar",null)
-            .setPositiveButton("Enviar",(dialog,w)->async("Consultando Gemini...",()->ai.explain(p.ref,p.text,"Traducción personal: Biblia de Navarra",detail),out->{
+            .setPositiveButton("Enviar",(dialog,w)->async("Consultando Gemini...",()->ai.explain(p.ref,p.text,"Traducción personal: Biblia de Navarra. Comentario de la edición: "+notes.get(p.book,p.chapter,p.first),detail),out->{
                 if(!custom)store.saveReflection(cacheKey,out);
                 showExplanation(p,out,false);
             })).show();
@@ -365,7 +378,9 @@ public final class MainActivity extends Activity {
         if(request==PICK_EPUB&&result==RESULT_OK&&data!=null&&data.getData()!=null){
             Uri uri=data.getData();
             async("Importando y verificando 73 libros...",()->{
-                int n=store.importEpub(uri);return n+" versículos importados desde el EPUB personal";
+                int n=store.importEpub(uri);
+                int comments=notes.importFromPrivateEpub();
+                return n+" versículos y "+comments+" comentarios importados desde tu EPUB personal";
             },msg->{new AlertDialog.Builder(this).setTitle("Biblioteca preparada")
                 .setMessage(msg).setPositiveButton("Continuar",(d,w)->{page=0;render();}).show();});
         }
@@ -415,5 +430,5 @@ public final class MainActivity extends Activity {
                 else {Reminders.disable(this);Toast.makeText(this,"Recordatorio desactivado",Toast.LENGTH_SHORT).show();}
             }).show();
     }
-    @Override protected void onDestroy(){worker.shutdownNow();store.close();super.onDestroy();}
+    @Override protected void onDestroy(){worker.shutdownNow();store.close();notes.close();super.onDestroy();}
 }

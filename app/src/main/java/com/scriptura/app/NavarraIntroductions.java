@@ -29,25 +29,45 @@ public final class NavarraIntroductions extends SQLiteOpenHelper {
     private static final Pattern PART=Pattern.compile("(?i).*/Text/part(\\d{4})(?:_split_\\d{3})?\\.html");
     private final Context app;
     public NavarraIntroductions(Context c){
-        super(c.getApplicationContext(),"scriptura_introducciones.db",null,1);
+        super(c.getApplicationContext(),"scriptura_introducciones.db",null,2);
         app=c.getApplicationContext();
     }
     @Override public void onCreate(SQLiteDatabase db){
         db.execSQL("CREATE TABLE introductions(book TEXT PRIMARY KEY, source TEXT NOT NULL, body TEXT NOT NULL)");
+        db.execSQL("CREATE TABLE source_revision(id INTEGER PRIMARY KEY CHECK(id=1),stamp TEXT NOT NULL)");
     }
-    @Override public void onUpgrade(SQLiteDatabase db,int previous,int current){}
+    @Override public void onUpgrade(SQLiteDatabase db,int previous,int current){
+        if(previous<2)
+            db.execSQL("CREATE TABLE IF NOT EXISTS source_revision(id INTEGER PRIMARY KEY CHECK(id=1),stamp TEXT NOT NULL)");
+    }
+    private File sourceFile(){return new File(app.getFilesDir(),"biblia-usuario.epub");}
+    private String fingerprint(){
+        File file=sourceFile();
+        if(!file.isFile())return "";
+        return file.length()+":"+file.lastModified();
+    }
+    private boolean validSource(){
+        String stamp=fingerprint();
+        if(stamp.isEmpty())return false;
+        try(Cursor c=getReadableDatabase().rawQuery("SELECT stamp FROM source_revision WHERE id=1",null)){
+            return c.moveToFirst()&&stamp.equals(c.getString(0));
+        }
+    }
     public int count(){
+        if(!validSource())return 0;
         try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM introductions",null)){
             return c.moveToFirst()?c.getInt(0):0;
         }
     }
     public String textFor(String book){
+        if(!validSource())return "";
         try(Cursor c=getReadableDatabase().rawQuery(
             "SELECT body FROM introductions WHERE book=?",new String[]{book})){
             return c.moveToFirst()?c.getString(0):"";
         }
     }
     public String sourceBook(String book){
+        if(!validSource())return "";
         try(Cursor c=getReadableDatabase().rawQuery(
             "SELECT source FROM introductions WHERE book=?",new String[]{book})){
             return c.moveToFirst()?c.getString(0):"";
@@ -78,7 +98,7 @@ public final class NavarraIntroductions extends SQLiteOpenHelper {
 
     /** Nunca devuelve contenido bíblico en el registro; solo el número de entradas. */
     public int importPrivateEpub() throws Exception {
-        File file=new File(app.getFilesDir(),"biblia-usuario.epub");
+        File file=sourceFile();
         if(!file.isFile())return 0;
         LinkedHashMap<String,StringBuilder> chunks=new LinkedHashMap<>();
         String current=null;
@@ -137,8 +157,8 @@ public final class NavarraIntroductions extends SQLiteOpenHelper {
                 origins.put(book,from);
             }
         }
-        if(found.size()<60)throw new IOException(
-            "No se pudieron localizar suficientes introducciones en este EPUB ("+found.size()+"). La biblioteca original sigue intacta.");
+        if(found.isEmpty())throw new IOException(
+            "Este EPUB no contiene introducciones reconocibles. La biblioteca bíblica importada no se modifica.");
         SQLiteDatabase db=getWritableDatabase();
         db.beginTransaction();
         try{
@@ -146,6 +166,8 @@ public final class NavarraIntroductions extends SQLiteOpenHelper {
             for(String book:found.keySet())
                 db.execSQL("INSERT INTO introductions(book,source,body) VALUES(?,?,?)",
                     new Object[]{book,origins.get(book),found.get(book)});
+            db.execSQL("INSERT OR REPLACE INTO source_revision(id,stamp) VALUES(1,?)",
+                new Object[]{fingerprint()});
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
         return found.size();

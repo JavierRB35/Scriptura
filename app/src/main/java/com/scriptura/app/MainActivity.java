@@ -30,6 +30,10 @@ public final class MainActivity extends Activity {
     private NavarraIntroductions introductions;
     private boolean introBusy=false, introAttempted=false;
     private String indexBook="Gn";
+    private String indexQuery="";
+    private int indexScope=0; // 0=todos, 1=antiguo, 2=nuevo
+    private int readerOrigin=1;
+    private static final String GUIDE_DONE="primer_uso_v1";
     private GeminiClient ai;
     private LinearLayout column,frame,nav;
     private TextView caption;
@@ -112,9 +116,15 @@ public final class MainActivity extends Activity {
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
             indexBook=state.getString("indexBook","Gn");
+            indexQuery=state.getString("indexQuery","");
+            indexScope=state.getInt("indexScope",0);
+            readerOrigin=state.getInt("readerOrigin",1);
+            String restoredRef=state.getString("selectedRef","");
+            if(!restoredRef.isEmpty())selected=store.passage(restoredRef);
             atlasPlace=BibleGeography.place(state.getString("atlasPlace",""));
             atlasJourney=BibleGeography.journey(state.getString("atlasJourney",""));
         }
+        if(page==5&&selected==null)page=readerOrigin;
         render();
         if(UpdateChecker.configured(this)){
             UpdateChecker.schedule(this);
@@ -129,6 +139,10 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(state);state.putInt("page",page);state.putString("mood",mood);
         state.putInt("atlasMode",atlasMode);state.putString("atlasBook",atlasBook);
         state.putString("indexBook",indexBook);
+        state.putString("indexQuery",indexQuery);
+        state.putInt("indexScope",indexScope);
+        state.putInt("readerOrigin",readerOrigin);
+        state.putString("selectedRef",selected==null?"":selected.ref);
         state.putString("atlasPlace",atlasPlace==null?"":atlasPlace.id);
         state.putString("atlasJourney",atlasJourney==null?"":atlasJourney.id);
     }
@@ -149,6 +163,7 @@ public final class MainActivity extends Activity {
         head.addView(branding,new LinearLayout.LayoutParams(0,-2,1));
         TextView settings=text("⚙",24,DARK,false);
         settings.setGravity(Gravity.CENTER);settings.setContentDescription("Abrir ajustes");
+        settings.setFocusable(true);settings.setTooltipText("Ajustes y guía de Scriptura");
         settings.setOnClickListener(v->showSettings());
         head.addView(settings,new LinearLayout.LayoutParams(dp(48),dp(48)));
         frame.addView(head);
@@ -164,6 +179,8 @@ public final class MainActivity extends Activity {
         mapsFixed.setMinHeight(dp(44));
         mapsFixed.setBackground(outlined(SOFT,12));
         mapsFixed.setContentDescription("Abrir Mapas bíblicos");
+        mapsFixed.setFocusable(true);
+        mapsFixed.setTooltipText("Atlas de lugares y recorridos");
         LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
         fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
         frame.addView(mapsFixed,fixedParams);
@@ -212,13 +229,14 @@ public final class MainActivity extends Activity {
         brandArt.setImageResource(R.drawable.ic_scriptura_foreground);
         brandArt.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
         brandArt.setContentDescription("Ilustración del libro luminoso de Scriptura");
-        LinearLayout.LayoutParams brandParams=new LinearLayout.LayoutParams(-1,dp(154));
+        LinearLayout.LayoutParams brandParams=new LinearLayout.LayoutParams(-1,dp(98));
         brandParams.topMargin=dp(6);brandParams.bottomMargin=dp(4);
         hero.addView(brandArt,brandParams);
         TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
         serif(title);hero.addView(title);addGap(hero,7);
         hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
         addGap(column,2);
+        if(!getPreferences(0).getBoolean(GUIDE_DONE,false))welcomeCard();
         UpdateChecker.Update available=UpdateChecker.available(this);
         if(available!=null){
             LinearLayout updateCard=card(column);
@@ -227,16 +245,15 @@ public final class MainActivity extends Activity {
             button(updateCard,"Ver y descargar actualización",
                     ()->UpdateChecker.openRelease(this,available),true);
             hint(updateCard,"Se instalará encima de esta versión manteniendo los datos, siempre que utilice la misma firma.");
-        }else if(!UpdateChecker.configured(this)){
-            LinearLayout updateCard=card(column);
-            hint(updateCard,"Puedes activar avisos automáticos de nuevas versiones de Scriptura.");
-            button(updateCard,"Configurar avisos de actualización",this::configureUpdateToken,false);
         }
+        // El acceso privado a GitHub no se presenta como requisito de primer uso:
+        // queda voluntario dentro de Ajustes → Actualizaciones.
         if(!store.ready()){
-            LinearLayout c=card(column);c.addView(text("Prepara tu biblioteca",20,DARK,true));
-            hint(c,"Importa tu ejemplar EPUB de la Biblia de Navarra. Su contenido permanecerá únicamente en este dispositivo.");
-            button(c,"Importar mi Biblia",this::pickEpub,true);
-            hint(c,"También puedes consultar las lecturas de misa por internet sin importar el EPUB.");
+            if(getPreferences(0).getBoolean(GUIDE_DONE,false)){
+                LinearLayout c=card(column);c.addView(text("Prepara tu biblioteca",20,DARK,true));
+                hint(c,"Puedes explorar libros, mapas y arte sin EPUB. Para leer los textos completos y las notas de Navarra, importa tu ejemplar personal.");
+                button(c,"Importar mi Biblia EPUB",this::pickEpub,true);
+            }
         } else {
             hint(column,"Biblia de Navarra · "+store.count()+" versículos importados");
             Calendar today=Calendar.getInstance();
@@ -256,6 +273,43 @@ public final class MainActivity extends Activity {
         hint(c,"Atlas de ciudades, regiones y recorridos de personajes de la Biblia. Ubicaciones con niveles de certeza.");
         button(c,"Explorar atlas bíblico",()->openAtlas(0),false);
     }
+    private void welcomeCard(){
+        LinearLayout welcome=card(column);
+        section(welcome,"Empieza a descubrir Scriptura",
+            "Puedes explorar mapas, pinturas e índice sin registrarte ni configurar claves.");
+        hint(welcome,"1. Importa tu EPUB de Navarra si quieres leer el texto completo y sus notas.");
+        hint(welcome,"2. Consulta un libro desde el índice o descubre lugares en Mapas.");
+        hint(welcome,"3. Las cinco pestañas inferiores reúnen búsqueda, misa, lecturas y favoritos.");
+        if(!store.ready())button(welcome,"Importar mi Biblia (opcional)",()->{
+            getPreferences(0).edit().putBoolean(GUIDE_DONE,true).apply();
+            pickEpub();
+        },true);
+        button(welcome,"Explorar los 73 libros",()->{
+            getPreferences(0).edit().putBoolean(GUIDE_DONE,true).apply();
+            openIndex();
+        },false);
+        button(welcome,"Entendido · ocultar esta guía",()->{
+            getPreferences(0).edit().putBoolean(GUIDE_DONE,true).apply();
+            render();
+        },false);
+    }
+    private void showQuickGuide(){
+        new AlertDialog.Builder(this).setTitle("Cómo empezar con Scriptura")
+            .setMessage("Scriptura funciona en parte sin conexión y sin cuentas.\n\n"+
+                "• Inicio: lecturas sugeridas, índice y arte.\n"+
+                "• Buscar: capítulos, versículos y palabras (requiere importar tu EPUB).\n"+
+                "• Misa: lecturas litúrgicas del día (puede requerir internet).\n"+
+                "• Para mí: reflexión por estado de ánimo; Gemini es opcional y requiere permiso.\n"+
+                "• Guardados: tus favoritos y lecturas recientes.\n"+
+                "• Mapas: acceso fijo a lugares y recorridos.\n\n"+
+                "Para leer el texto y las notas de Navarra, importa tu ejemplar desde Ajustes. "+
+                "No necesitas token de GitHub ni clave Gemini para explorar la biblioteca.")
+            .setNegativeButton("Cerrar",null)
+            .setPositiveButton("Mostrar guía en Inicio",(d,w)->{
+                getPreferences(0).edit().putBoolean(GUIDE_DONE,false).apply();
+                page=0;render();
+            }).show();
+    }
     private void readingPreview(String label,BibleStore.Passage p){
         LinearLayout c=card(column);c.addView(text(label.toUpperCase(),12,ACCENT,true));
         if(p==null){hint(c,"Importa primero tu Biblia.");return;}
@@ -267,8 +321,10 @@ public final class MainActivity extends Activity {
     private void search(){
         title(column,"Buscar en la Biblia");
         if(!store.ready()){
-            hint(column,"Importa tu Biblia primero desde Ajustes. Puedes consultar el índice sin EPUB.");
-            button(column,"Abrir índice de los 73 libros",this::openIndex,false);
+            hint(column,"La búsqueda de versículos y palabras necesita tu ejemplar EPUB de Navarra. Puedes consultar gratis el índice, los mapas y las obras sin importarlo.");
+            button(column,"Importar mi Biblia para buscar",this::pickEpub,true);
+            button(column,"Explorar el índice de los 73 libros",this::openIndex,false);
+            button(column,"Ver obras de arte bíblico",this::openGallery,false);
             return;
         }
         LinearLayout c=card(column);
@@ -309,7 +365,10 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle(Books.name(book))
             .setItems(ch,(d,which)->lookup(Books.name(book)+" "+(which+1))).setNegativeButton("Cancelar",null).show();
     }
-    private void open(BibleStore.Passage p){selected=p;store.record(p.ref);page=5;render();}
+    private void open(BibleStore.Passage p){
+        if(page!=5)readerOrigin=page;
+        selected=p;store.record(p.ref);page=5;render();
+    }
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
@@ -561,7 +620,10 @@ public final class MainActivity extends Activity {
                 interpret(p,"Estado de ánimo: "+mood+". Situación personal: "+own+
                     ". Explica qué puede aportar el pasaje, sin atribuir mensajes personalizados a Dios.",true);
             },true);
-        }else hint(c,"Importa tu Biblia para recibir las lecturas personalizadas.");
+        }else{
+            hint(c,"Para proponerte un pasaje basado en tu estado de ánimo, importa antes tu Biblia EPUB. No hace falta configurar Gemini para leerlo.");
+            button(c,"Importar mi Biblia EPUB",this::pickEpub,true);
+        }
         button(c,"Descubrir otro texto aleatorio",()->{
             if(!store.ready()){showError("Importa la Biblia primero");return;}
             BibleStore.Passage next=store.random(new Random().nextBoolean(),System.nanoTime());
@@ -582,7 +644,12 @@ public final class MainActivity extends Activity {
     }
     private void saved(){
         title(column,"Tus lecturas");
-        if(!store.ready()){hint(column,"Importa tu Biblia desde Ajustes.");return;}
+        if(!store.ready()){
+            hint(column,"Tus favoritos e historial estarán disponibles cuando importes tu ejemplar personal de la Biblia. Importarlo no exige registrarte.");
+            button(column,"Importar mi Biblia EPUB",this::pickEpub,true);
+            button(column,"Explorar índice de libros",this::openIndex,false);
+            return;
+        }
         section(column,"★ Favoritos","Pasajes que decidiste guardar.");
         java.util.List<String> favorites=store.saved(true);
         if(favorites.isEmpty())hint(column,"Todavía no has guardado ningún pasaje.");
@@ -609,7 +676,9 @@ public final class MainActivity extends Activity {
                 int comments=notes.importFromPrivateEpub();
                 int intros=0;
                 try{intros=introductions.importPrivateEpub();}
-                catch(Exception error){android.util.Log.w("Scriptura","No se pudieron extraer las introducciones",error);}
+                catch(Exception error){
+                    android.util.Log.w("Scriptura","No se pudieron extraer las introducciones: "+error.getClass().getSimpleName());
+                }
                 return n+" versículos, "+comments+" comentarios y "+intros+" introducciones de libros extraídas de tu EPUB personal";
             },msg->{new AlertDialog.Builder(this).setTitle("Biblioteca preparada")
                 .setMessage(msg).setPositiveButton("Continuar",(d,w)->{page=0;render();}).show();});
@@ -627,8 +696,10 @@ public final class MainActivity extends Activity {
      * El libro privado no se lee ni se descarga de Internet.
      * Se reconstruye el índice editorial una sola vez desde el EPUB ya importado.
      */
-    private void ensureIntroductions(){
-        if(introductions.count()>0||introBusy||introAttempted)return;
+    private void ensureIntroductions(){ensureIntroductions(false);}
+    private void ensureIntroductions(boolean force){
+        if(introBusy)return;
+        if(!force && (introductions.count()>0||introAttempted))return;
         File check=new File(getFilesDir(),"biblia-usuario.epub");
         if(!check.isFile())return;
         introBusy=true;introAttempted=true;
@@ -648,34 +719,92 @@ public final class MainActivity extends Activity {
             }
         });
     }
+    private void fillIndex(LinearLayout target,String query,int scope){
+        target.removeAllViews();
+        int total=0;
+        boolean lastNew=false,foundSection=false;
+        for(String code:Books.NAMES.keySet()){
+            boolean isNew=Books.isNew(code);
+            if(!BookIndexFilter.matches(code,query,scope))continue;
+            if(!foundSection||lastNew!=isNew){
+                TextView heading=text(isNew?"Nuevo Testamento":"Antiguo Testamento",17,DARK,true);
+                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,-2);
+                params.topMargin=dp(12);params.bottomMargin=dp(7);
+                target.addView(heading,params);
+                foundSection=true;lastNew=isNew;
+            }
+            final String book=code;total++;
+            LinearLayout entry=card(target);
+            TextView name=text(Books.name(book),17,DARK,true);
+            entry.addView(name);
+            String intro=introductions.textFor(book);
+            if(!intro.isEmpty()){
+                TextView sample=text(intro,13,MUTED,false);
+                sample.setMaxLines(2);entry.addView(sample);
+            }
+            TextView hint=text("Ver introducción, capítulos, mapas y arte",12,ACCENT,false);
+            entry.addView(hint);
+            entry.setClickable(true);entry.setFocusable(true);
+            entry.setContentDescription(Books.name(book)+": abrir información del libro");
+            entry.setOnClickListener(v->openBookInfo(book));
+        }
+        if(total==0)hint(target,"No hay libros que coincidan. Prueba con otro nombre.");
+    }
     private void bibleIndex(){
         title(column,"Índice de la Biblia");
-        hint(column,"Los 73 libros del canon católico. Selecciona uno para ver un extracto de su introducción editorial y acceder a su lectura.");
+        hint(column,"Busca un libro entre los 73 del canon católico. Toca su nombre para abrir la introducción, capítulos, lugares y obras.");
         ensureIntroductions();
-        if(introBusy)hint(column,"Extrayendo las introducciones de tu EPUB privado…");
+        if(introBusy)hint(column,"Preparando las introducciones de tu EPUB privado…");
         if(introductions.count()==0){
-            hint(column,"El índice está disponible sin conexión. Para las introducciones de Navarra es necesario importar tu EPUB personal.");
-            if(!store.ready())button(column,"Importar Biblia de Navarra",this::pickEpub,true);
-            else button(column,"Reintentar extracción editorial",()->{introAttempted=false;ensureIntroductions();},false);
-        }else hint(column,introductions.count()+" fichas editoriales importadas de tu archivo privado.");
-        boolean wasNew=false;
-        for(String code:Books.NAMES.keySet()){
-            if(Books.isNew(code)&&!wasNew){
-                wasNew=true;section(column,"Nuevo Testamento","");addGap(column,4);
-            }else if(!wasNew && code.equals("Gn")){
-                section(column,"Antiguo Testamento","");addGap(column,4);
-            }
-            final String selected=code;
-            LinearLayout block=card(column);
-            TextView row=text(Books.name(code),17,DARK,true);block.addView(row);
-            String excerpt=introductions.textFor(code);
-            if(!excerpt.isEmpty()){
-                TextView snippet=text(excerpt,13,MUTED,false);
-                snippet.setMaxLines(2);
-                block.addView(snippet);
-            }
-            button(block,"Ver introducción y capítulos",()->openBookInfo(selected),false);
+            hint(column,"Sin un EPUB importado puedes explorar los nombres, mapas y obras. Las introducciones editoriales son opcionales.");
+            if(!store.ready())button(column,"Importar mi Biblia de Navarra",this::pickEpub,false);
+            else button(column,"Reintentar extracción de introducciones",()->{
+                introAttempted=false;ensureIntroductions(true);
+            },false);
+        }else{
+            hint(column,introductions.count()+" introducciones encontradas en tu ejemplar privado.");
         }
+        LinearLayout filter=card(column);
+        EditText edit=input(filter,"Filtrar por libro: Génesis, Juan, Salmos…",false);
+        edit.setSingleLine(true);
+        edit.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        edit.setText(indexQuery);
+        LinearLayout selectors=new LinearLayout(this);
+        selectors.setOrientation(LinearLayout.HORIZONTAL);
+        String[] labels={"Todos","Antiguo","Nuevo"};
+        LinearLayout resultList=vertical();
+        for(int i=0;i<labels.length;i++){
+            final int selection=i;
+            TextView toggle=text(labels[i],13,indexScope==i?Color.WHITE:DARK,true);
+            toggle.setGravity(Gravity.CENTER);
+            toggle.setMinHeight(dp(46));
+            toggle.setBackground(indexScope==i?bg(DARK,10):outlined(SOFT,10));
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,dp(46),1);
+            params.setMargins(dp(2),dp(10),dp(2),dp(5));
+            selectors.addView(toggle,params);
+            toggle.setContentDescription("Filtrar libros: "+labels[i]);
+            toggle.setFocusable(true);
+            toggle.setOnClickListener(v->{
+                indexScope=selection;
+                for(int j=0;j<selectors.getChildCount();j++){
+                    TextView item=(TextView)selectors.getChildAt(j);
+                    item.setTextColor(indexScope==j?Color.WHITE:DARK);
+                    item.setBackground(indexScope==j?bg(DARK,10):outlined(SOFT,10));
+                }
+                fillIndex(resultList,indexQuery,indexScope);
+            });
+        }
+        filter.addView(selectors);
+        column.addView(resultList);
+        fillIndex(resultList,indexQuery,indexScope);
+        edit.addTextChangedListener(new android.text.TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence t,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence text,int start,int before,int count){
+                indexQuery=text.toString();
+                fillIndex(resultList,indexQuery,indexScope);
+            }
+            @Override public void afterTextChanged(android.text.Editable text){}
+        });
     }
     private void bookOverview(){
         String code=indexBook;
@@ -688,7 +817,7 @@ public final class MainActivity extends Activity {
         if(introduction.isEmpty()){
             hint(block,introBusy?"Preparando la introducción de tu EPUB…":
                 "No se encontró una introducción específica importada. No se generará un resumen ficticio.");
-            button(block,"Reintentar extracción",()->{introAttempted=false;ensureIntroductions();},false);
+            button(block,"Reintentar extracción",()->{introAttempted=false;ensureIntroductions(true);},false);
         }else{
             String source=introductions.sourceBook(code);
             if(!code.equals(source))hint(block,"Introducción conjunta: "+Books.name(source)+" y "+Books.name(code)+".");
@@ -945,8 +1074,15 @@ public final class MainActivity extends Activity {
             .setNegativeButton("Cerrar",null).show();
     }
 
+    private String currentVersionName(){
+        try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}
+        catch(Exception ignored){return "desconocida";}
+    }
     private void showSettings(){
         LinearLayout box=vertical();box.setPadding(dp(18),dp(12),dp(18),dp(12));
+        section(box,"Primeros pasos","Guía rápida disponible en cualquier momento.");
+        button(box,"Cómo utilizar Scriptura",this::showQuickGuide,false);
+        addGap(box,14);
         section(box,"Tu Biblia","El ejemplar personal se guarda únicamente en este móvil.");
         button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
         addGap(box,17);
@@ -974,7 +1110,7 @@ public final class MainActivity extends Activity {
         String updateError=UpdateChecker.lastError(this);
         if(!updateError.isEmpty())hint(box,"Última comprobación: "+updateError);
 
-        section(box,"Información","Versión preliminar 0.6.0");
+        section(box,"Información","Scriptura · versión "+currentVersionName());
         hint(box,"Los comentarios de Navarra son editoriales. Las respuestas de Gemini son interpretaciones generadas con IA. No se transmiten datos personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
@@ -1004,8 +1140,11 @@ public final class MainActivity extends Activity {
                     UpdateChecker.saveToken(this,edit.getText().toString());
                     UpdateChecker.requestNotificationPermission(this);
                     checkUpdatesNow();
+                }catch(IllegalArgumentException invalid){
+                    showError("El token tiene un formato no reconocido. Copia únicamente la cadena completa desde GitHub, sin comillas.");
                 }catch(Exception err){
-                    showError("No se pudo guardar el acceso. Comprueba el formato del token.");
+                    showError("No se pudo cifrar o guardar el token en Android ("+
+                        err.getClass().getSimpleName()+"). El formato puede ser correcto. No compartas tu credencial.");
                 }
             }).show();
     }
@@ -1064,7 +1203,11 @@ public final class MainActivity extends Activity {
             }).show();
     }
     @Override public void onBackPressed(){
-        if(page==5){page=1;render();}
+        if(page==5){
+            int previous=readerOrigin;
+            page=(previous>=0&&previous<=9&&previous!=5)?previous:1;
+            render();
+        }
         else if(page==9){page=7;render();}
         else if(page==7||page==8){page=0;render();}
         else if(page==6){
@@ -1074,5 +1217,9 @@ public final class MainActivity extends Activity {
         else if(page!=0){page=0;render();}
         else super.onBackPressed();
     }
-    @Override protected void onDestroy(){worker.shutdownNow();store.close();notes.close();super.onDestroy();}
+    @Override protected void onDestroy(){
+        worker.shutdownNow();
+        store.close();notes.close();introductions.close();
+        super.onDestroy();
+    }
 }

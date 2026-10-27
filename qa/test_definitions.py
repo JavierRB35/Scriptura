@@ -102,6 +102,11 @@ def run():
         ("Enciclopedia Católica","https://ec.aciprensa.com/wiki/Fariseos"),
         ("Wikipedia","https://es.wikipedia.org/wiki/Especial:Buscar?search=Fariseos"),
         ("Wikcionario","https://es.wiktionary.org/wiki/Especial:Buscar?search=Fariseos")]:
+        # Reiniciar solo la Activity de QA entre casos. Evita reutilizar el
+        # cursor de selección nativo Android y verifica cada enlace por separado.
+        adb("shell","am","force-stop","com.scriptura.app")
+        adb("shell","am","start","-n","com.scriptura.app/.DefinitionQaActivity")
+        time.sleep(2)
         define()
         hit(label,scroll=True)
         check("DESTINO: "+part,"opened_"+label.replace(" ","_").lower())
@@ -109,6 +114,9 @@ def run():
     Path("qa/definitions_screenshot.png").write_bytes(snap.stdout)
     # Comprobar Copiar de forma funcional: pulsar el control real y pedir a la
     # Activity de QA que confirme que Android actualizó el portapapeles.
+    adb("shell","am","force-stop","com.scriptura.app")
+    adb("shell","am","start","-n","com.scriptura.app/.DefinitionQaActivity")
+    time.sleep(2)
     long_press()
     toolbar_tap("Copy")
     check("COPIADO: Fariseos","native_copy_preserved")

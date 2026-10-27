@@ -49,7 +49,16 @@ def long_press():
 def define():
     long_press()
     if not find("Definir"):
-        for term in ("More options","Más opciones","More","Más"):
+        root=dump()
+        nodes=[{"text":n.attrib.get("text",""),"desc":n.attrib.get("content-desc",""),
+                "class":n.attrib.get("class",""),"clickable":n.attrib.get("clickable","")}
+               for n in root.iter("node")
+               if n.attrib.get("text") or n.attrib.get("content-desc")]
+        print("LONG_PRESS_NODES",json.dumps(nodes[-35:],ensure_ascii=False))
+        Path("qa/definitions_dump.xml").write_text(ET.tostring(root,encoding="unicode"))
+        png=subprocess.run(["adb","exec-out","screencap","-p"],capture_output=True)
+        Path("qa/definitions_screenshot.png").write_bytes(png.stdout)
+        for term in ("More options","Más opciones","More","Más","⋮"):
             if find(term):
                 hit(term)
                 break

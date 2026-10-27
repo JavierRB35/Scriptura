@@ -12,7 +12,7 @@ import java.util.regex.*;
 import java.util.zip.*;
 
 public final class NavarraNotes extends SQLiteOpenHelper {
-    private static final Pattern NOTE=Pattern.compile("(?i)id=[\\\"']nt-([A-Za-z0-9]+)-(\\d+)-(\\d+)[\\\"']");
+    private static final Pattern NOTE=Pattern.compile("(?i)id=[\\\"']nt-([A-Za-z0-9]+)-(\\d+)-(\\d+)(?:w)?[\\\"']");
     private static final Pattern PARA=Pattern.compile("(?is)<p\\b[^>]*>(.*?)</p\\s*>");
     private final Context context;
     public NavarraNotes(Context c) {super(c,"scriptura_notas.db",null,1);context=c.getApplicationContext();}

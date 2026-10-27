@@ -47,15 +47,18 @@ public final class Liturgy {
         if(day.readings.isEmpty())throw new Exception("No fue posible extraer referencias de la fuente. Puedes abrir las lecturas en la web.");
         return day;
     }
+    // Rechazar citas discontinuas para no mostrar lecturas equivocadas.
     public static String toLocalQuery(String ref){
-        String r=ref.replace('–','-').replace('—','-').replace(',',':').replaceAll("\\s+"," ").trim();
-        // Los pasajes litúrgicos no siempre son continuos; no simplificar silenciosamente
-        // referencias con saltos ni versículos a/b/c, porque alteraría su selección.
-        if(r.matches(".*[a-zA-Z]\\d+[a-zA-Z].*")||r.matches(".*[.]\\s*\\d+.*"))return "";
-        Matcher m=Pattern.compile("^(.+?)\\s+(\\d+)\\s*:\\s*(\\d+)(?:\\s*-\\s*(\\d+))?.*$").matcher(r);
-        if(!m.find())return "";
+        if(ref==null)return "";
+        String r=ref.trim().replace('–','-').replace('—','-').replace('\u00A0',' ');
+        Matcher m=Pattern.compile("^(.+?)\\s+(\\d{1,3})\\s*[,.:]\\s*(\\d{1,3})(?:\\s*-\\s*(\\d{1,3}))?\\s*$").matcher(r);
+        if(!m.matches())return "";
         String code=Books.resolve(m.group(1));
         if(code.isEmpty())return "";
-        return Books.name(code)+" "+m.group(2)+":"+m.group(3)+(m.group(4)!=null?"-"+m.group(4):"");
+        int chapter=Integer.parseInt(m.group(2));
+        int from=Integer.parseInt(m.group(3));
+        int to=m.group(4)==null?from:Integer.parseInt(m.group(4));
+        if(chapter<1||chapter>200||from<1||to>200||to<from)return "";
+        return Books.name(code)+" "+chapter+":"+from+(from==to?"":"-"+to);
     }
 }

@@ -303,6 +303,7 @@ public final class MainActivity extends Activity {
             LinearLayout box=card(column);box.addView(text(type,13,GOLD,true));
             box.addView(text(ref,17,DARK,true));
             String local=Liturgy.toLocalQuery(ref);
+            if(local.isEmpty())hint(box,"Cita litúrgica compuesta: consulta el texto exacto en la web enlazada.");
             if(store.ready()&&!local.isEmpty()){
                 BibleStore.Passage p=store.passage(local);
                 if(p!=null)button(box,"Leer en mi Biblia de Navarra",()->open(p),false);
@@ -398,7 +399,7 @@ public final class MainActivity extends Activity {
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
-        hint(box,"Versión preliminar 0.3.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
+        hint(box,"Versión preliminar 0.4.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();

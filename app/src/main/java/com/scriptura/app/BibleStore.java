@@ -186,19 +186,31 @@ public final class BibleStore extends SQLiteOpenHelper {
         }
         return results;
     }
-    public Passage random(boolean newTestament,long seed){
+    /** El ciclo de cada Testamento visita todos sus libros antes de repetir uno. */
+    public Passage random(boolean newTestament,long dayIndex){
         ArrayList<String> codes=new ArrayList<>();
-        for(String code:Books.NAMES.keySet())if(Books.isNew(code)==newTestament&&chapters(code)>0)codes.add(code);
+        for(String code:Books.NAMES.keySet())
+            if(Books.isNew(code)==newTestament&&chapters(code)>0)codes.add(code);
         if(codes.isEmpty())return null;
-        Random r=new Random(seed);
-        String book=codes.get(r.nextInt(codes.size()));
-        int chapter=1+r.nextInt(chapters(book));
-        Passage whole=passage(Books.name(book)+" "+chapter);
-        if(whole==null)return null;
+        int step=newTestament?11:17;
+        if(gcd(step,codes.size())!=1)step=1;
+        int index=(int)Math.floorMod(dayIndex*step+(newTestament?5:13),codes.size());
+        String book=codes.get(index);
+        Random random=new Random(dayIndex*1000003L+index*7919L+(newTestament?31:71));
+        int chapter=1+random.nextInt(chapters(book));
         int max=0;
-        try(Cursor c=getReadableDatabase().rawQuery("SELECT MAX(verse) FROM verses WHERE book=? AND chapter=?",new String[]{book,""+chapter})){if(c.moveToFirst())max=c.getInt(0);}
-        int start=1+r.nextInt(Math.max(1,max));
-        return passage(Books.name(book)+" "+chapter+":"+start+"-"+Math.min(max,start+Math.min(7,max-start)));
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT MAX(verse) FROM verses WHERE book=? AND chapter=?",
+                new String[]{book,""+chapter})){
+            if(c.moveToFirst())max=c.getInt(0);
+        }
+        if(max<1)return passage(Books.name(book)+" "+chapter);
+        int start=1+random.nextInt(max);
+        Passage hit=passage(Books.name(book)+" "+chapter+":"+start+"-"+Math.min(max,start+6));
+        return hit!=null?hit:passage(Books.name(book)+" "+chapter);
+    }
+    private static int gcd(int a,int b){
+        while(b!=0){int t=a%b;a=b;b=t;}return a;
     }
     public void record(String ref){
         getWritableDatabase().execSQL("INSERT OR REPLACE INTO history(ref,seen) VALUES(?,?)",new Object[]{ref,System.currentTimeMillis()});

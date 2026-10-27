@@ -116,7 +116,10 @@ def make_model_setting():
     adb("shell","input","keyevent","123")
     adb("shell","input","keyevent",*["67"]*45)
     adb("shell","input","text","gemini-2.5-flash-lite")
-    hit("Guardar",strict=True)
+    # El teclado virtual cubre la fila de botones en algunos emuladores.
+    adb("shell","input","keyevent","4")
+    wait(1)
+    hit("Guardar",strict=True,scroll=True)
     wait(.5)
     assert_text("Ajustes de Scriptura")
     hit("Cerrar",strict=True)

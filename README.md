@@ -124,3 +124,12 @@ El atlas reproduce lugares de geografía moderna, **no** una reconstrucción fia
 ## Contexto histórico local (v0.7.4)
 
 El lector incluye el desplegable «Contexto histórico», con 100 fichas introductorias offline sobre pueblos, grupos religiosos, trabajos, costumbres e instituciones. Explicaciones cortas y ampliables, bibliografía orientativa y distinción AT/NT. La base local \`scriptura_contexto.db\` es independiente de la Biblia privada. Véase \`docs/CONTEXTO_HISTORICO.md\`.
+
+## Consulta ampliada de definiciones (rama de desarrollo)
+
+- En un versículo, mantener pulsada **una sola palabra**, tocar **Definir** en la barra de selección de Android y consultar el glosario local.
+- Desde el mismo globo de definición se puede buscar el término en **Enciclopedia Católica de ACI Prensa**, **Wikipedia en español** o **Wikcionario**, cada una abierta externamente por HTTPS. Se mantiene la explicación contextual opcional con Gemini y sus avisos previos.
+- Las búsquedas externas se realizan solo al pulsar la fuente elegida y contienen únicamente la palabra, nunca el pasaje completo, la biblioteca EPUB, claves ni otros datos privados de Scriptura. Requieren conexión; una fuente puede no tener una entrada para ese término.
+- La Enciclopedia Católica ofrece un recurso de consulta desde perspectiva católica, pero no sustituye los documentos oficiales del Magisterio. Wikipedia y Wikcionario son fuentes colaborativas, no doctrinales.
+- No cambia `applicationId`, versión de la APK ni configuración de compilación o firma. Validar el menú contextual y los enlaces en un móvil Android antes de incorporar a la rama principal.
+

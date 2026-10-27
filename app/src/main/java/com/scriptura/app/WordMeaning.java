@@ -72,6 +72,22 @@ public final class WordMeaning {
         String t=selection.trim();
         return !t.isEmpty()&&t.codePointCount(0,t.length())<=45&&t.matches("(?U)[\\p{L}][\\p{L}\\p{M}'’]*");
     }
+    /** Busca el término en la Enciclopedia Católica de ACI Prensa. */
+    public static String catholicSearchUrl(String word){
+        return "https://ec.aciprensa.com/wiki/Especial:Buscar?search="+encodeSearchTerm(word);
+    }
+    /** Wikipedia es una fuente general, no una referencia doctrinal católica. */
+    public static String wikipediaSearchUrl(String word){
+        return "https://es.wikipedia.org/w/index.php?search="+encodeSearchTerm(word);
+    }
+    private static String encodeSearchTerm(String word){
+        if(!oneWord(word))throw new IllegalArgumentException("Se requiere una sola palabra");
+        try{
+            return java.net.URLEncoder.encode(word.trim(),"UTF-8").replace("+","%20");
+        }catch(java.io.UnsupportedEncodingException impossible){
+            throw new AssertionError(impossible);
+        }
+    }
     public static String selection(String original,int start,int end){
         if(original==null||start<0||end>original.length()||start>=end)return null;
         String candidate=original.substring(start,end).trim();

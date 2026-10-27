@@ -85,6 +85,13 @@ public final class BiblicalArt {
         return "https://commons.wikimedia.org/w/index.php?search="+
             escape(item.file.replace(".jpg",""))+"&title=Special:MediaSearch&type=image";
     }
+    public static String resolvedFilePage(ImageView image,Painting item){
+        Object source=image.getTag();
+        if(source instanceof String &&
+                ((String)source).startsWith("https://commons.wikimedia.org/wiki/File:"))
+            return (String)source;
+        return commonsPage(item);
+    }
     private static String searchEndpoint(Painting item){
         return "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search"+
             "&gsrnamespace=6&gsrlimit=10&gsrsearch="+escape(item.file.replace(".jpg",""))+

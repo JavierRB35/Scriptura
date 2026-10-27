@@ -32,6 +32,17 @@ public final class DefinitionQaActivity extends Activity {
         destination.setContentDescription("DESTINO: SIN ABRIR");
         root.addView(destination);
         setContentView(root);
+        android.content.ClipboardManager clipboard=
+            (android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+        clipboard.addPrimaryClipChangedListener(()->{
+            android.content.ClipData clip=clipboard.getPrimaryClip();
+            if(clip!=null&&clip.getItemCount()>0&&clip.getItemAt(0).getText()!=null){
+                String copied=clip.getItemAt(0).getText().toString();
+                String result="COPIADO: "+copied;
+                destination.setText(result);
+                destination.setContentDescription(result);
+            }
+        });
         DefinitionUi.attach(this,word,false,new DefinitionUi.Delegate(){
             @Override public void openExternal(String url){
                 // La misma acción que en MainActivity; interceptada para verificar

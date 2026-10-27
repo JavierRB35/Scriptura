@@ -77,11 +77,20 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - URLs oficiales de mapas satélite: https://developers.google.com/maps/documentation/urls/get-started
 - Google Maps SDK Android (requiere clave y facturación; no utilizado): https://developers.google.com/maps/documentation/android-sdk/usage-and-billing
 
-## Scriptura 0.6.1 — selección y splash
+## Novedades preliminares 0.7.0: índice, mapas y arte
 
-- En el **lector bíblico**, mantén pulsada una palabra: permanece la **selección nativa de Android** con «Copiar», «Compartir» y «Seleccionar todo». La barra añade **«Definir»**.
-- «Definir» abre un globo con un glosario local de términos bíblicos habituales. Si la palabra no está disponible, ofrece abrir Wikcionario. Si Gemini está configurado, también ofrece explicación del **contexto**, siempre tras la confirmación previa al envío a Google.
-- No se fuerza un retraso artificial de dos segundos: la pulsación prolongada respeta la sensibilidad habitual y accesibilidad de Android. La selección de varias palabras se sigue pudiendo copiar y no se interpreta como una única definición.
-- Splash de identidad Scriptura: azul noche, símbolo vectorial libro/luz y lema; arranca una comprobación de Releases privadas **sin bloquear** la entrada. Un fallo de GitHub nunca impide abrir Scriptura; el resultado se presenta como banner en Inicio o notificación autorizada.
-- Portada de Inicio reforzada con ilustración vectorial del propio logo. No se muestran fotografías bíblicas ni ilustraciones históricas sin licencias y contexto aprobados; permanece pendiente la ampliación de imágenes (#1).
-- Conserva las cinco pestañas existentes, `applicationId=com.scriptura.app`, firma y almacenamiento local. El usuario no necesita reinstalar desde cero.
+- **Inicio**: se retiran las tarjetas redundantes de estado de ánimo y búsqueda (ya existen sus pestañas). Permanecen lecturas del día, acceso al índice, galería y actualizaciones.
+- **Mapas fijo**: banda persistente «MAPAS BÍBLICOS» justo encima de las cinco pestañas originales, sin sustituirlas.
+- **Índice de 73 libros**: acceso desde Inicio y Buscar. Cada ficha muestra capítulos, mapa y un extracto abreviado de la introducción editorial extraída localmente del EPUB personal de Navarra. El EPUB privado **no se sube ni se incluye** en APK o GitHub. Algunos libros comparten introducciones editoriales, indicadas en la ficha.
+- **Arte y Biblia**: galería editorial de 62 obras clásicas vinculadas a pasajes, con título, artista y fechas aproximadas; seis fichas por página. Las reproducciones se solicitan en Wikimedia Commons y solo se muestran si el resultado coincide razonablemente con la obra y posee licencia identificada como dominio público o Creative Commons.
+- **Sin clave API de imágenes**: el usuario puede abrir la búsqueda en Wikimedia Commons o la ficha concreta verificada para comprobar derechos y autoría. Una búsqueda que no dé coincidencia fiable no muestra una obra distinta.
+- Son representaciones artísticas históricas de relatos bíblicos, nunca fotografías de acontecimientos bíblicos ni sustituto de exégesis.
+- **Compatibilidad**: cinco pestañas, Java17, SDK34, Gradle8.9, AGP8.7.3, aplicación/firma y datos locales intactos. No pasar a 1.0 hasta validar con EPUB y teléfono real.
+
+## Lectura contextual y splash (0.7.1)
+
+- La selección prolongada utiliza la barra estándar de Android, manteniendo `Copiar`, `Compartir` y `Seleccionar todo`. La acción añadida `Definir` abre un globo con el significado de palabras del glosario bíblico inicial.
+- Para palabras no catalogadas, se ofrece Wikcionario externo. Con clave Gemini configurada, existe explicación contextual opcional con aviso y consentimiento antes de enviar datos.
+- Splash de identidad v2.0 con símbolo vectorial libro y luz, paleta azul noche y oro y lema. Comienza una búsqueda no bloqueante de nuevas releases; si no responde GitHub, la app abre con normalidad.
+- Inicio añade el símbolo del libro como ilustración propia. Se mantienen índice de libros, las obras pictóricas existentes, mapas con base geográfica real, cinco pestañas, EPUB local, seguridad y firma anterior.
+- La lámina gráfica aportada en ZIP v2.0 es conceptual y no una captura ni licencia para distribuir arte de terceros; las imágenes históricas tienen su propio catálogo y crédito.

@@ -34,3 +34,16 @@ Versión 0.3.0: biblioteca con lector y notas de Navarra, búsqueda literal y po
 - Los comentarios extraídos son fragmentos del ejemplar privado y pueden faltar para algunos versículos.
 - Lecturas del calendario: el proyecto externo cubre una ventana de fechas limitada, sus textos son propiedad de CEE. Scriptura abre la web en su propio visor y recupera referencias cuando consigue analizarlas. **No es una API oficial** y sus cambios pueden afectar la extracción.
 - La consulta Gemini solo se valida en el dispositivo con una clave propia y una cuota disponible. Las respuestas no son magisterio de la Iglesia.
+
+## Atlas geográfico preliminar (0.5.0)
+
+- Sección **Lugares bíblicos** desde Inicio, sin añadir una sexta pestaña.
+- Fichas con denominaciones actuales, coordenadas orientativas, referencias bíblicas y nivel de certeza.
+- Itinerarios ilustrativos de Abraham, Jacob, Moisés, Jesús y Pablo con etapas seleccionadas.
+- Atlas por libro para el canon de 73 libros: cuando aún no hay geografía catalogada, se avisa; no se inventan mapas.
+- El botón «Lugares de este pasaje» busca topónimos citados en la selección, pero no es una identificación automática exhaustiva.
+- Los esquemas de coordenadas **no son mapas topográficos ni rutas reales**: conectar puntos no implica conocer el camino histórico.
+- Consulta opcional en OpenStreetMap externo, mediante acción explícita; requiere conexión a internet.
+- Ampliaciones históricas y cartográficas pendientes en [#4](https://github.com/JavierRB35/Scriptura/issues/4).
+
+El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales, el EPUB personal y su contenido no están incluidos en el repositorio.

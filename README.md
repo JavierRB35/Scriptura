@@ -1,26 +1,28 @@
-# Scriptura
+# Scriptura · Biblia católica personal
 
-Aplicación personal Android para la lectura de una Biblia católica de 73 libros, búsquedas y reflexiones asistidas por IA.
+App Android nativa para búsqueda local de la Biblia de la Universidad de Navarra, lectura por libros/capítulos/versículos, favoritos, historial, recomendaciones por estado de ánimo y comentarios bajo demanda mediante Gemini.
 
-## Estado
+**Serie 0.x: desarrollo preliminar. No declarar v1.0 sin autorización del propietario.**
 
-**Desarrollo preliminar: serie 0.x.** No publicar como 1.0 hasta aprobación expresa.
+## Privacidad y licencias
 
-## Reglas de seguridad
+- **No se sube ni distribuye el EPUB protegido**. Cada usuario importa su propio ejemplar adquirido. Se copia y procesa exclusivamente en almacenamiento privado de Android.
+- Las notas/explicaciones de Gemini son generadas por IA, pueden equivocarse y no constituyen doctrina oficial.
+- Gemini recibe únicamente el pasaje y los datos de contexto que el usuario confirma enviar. La cuota gratuita depende del proyecto AI Studio; la aplicación no activa facturación.
+- La clave Gemini queda cifrada con Android Keystore, sin incorporarla al código ni guardarla en GitHub.
+- El calendario litúrgico de la Misa consulta **lecturasdeldia.org**, un proyecto **independiente** que usa datos del leccionario de España. El texto oficial del leccionario es propiedad de la CEE. Los textos se leen en el sitio externo o en la traducción personal importada. Se deben contrastar variaciones locales.
+- Las preferencias, favoritos, historial y consultas almacenadas son locales. No hay cuenta ni servidor propio.
 
-- La Biblia de Navarra es aportada por su propietario e importada localmente: **no se sube al repositorio ni se incluye en el APK público**.
-- No se versionan claves Gemini, keystores `.jks`/`.keystore`, contraseñas ni secretos.
-- Todos los APK de actualización se firman con un **keystore persistente** administrado mediante GitHub Actions Secrets.
-- `applicationId` permanente: `com.scriptura.app`.
-- GitHub Actions compila en JDK 17 con SDK 34 y AGP 8.7.3; la compilación local seguirá preparada para AndroidIDE-Rv2 y Gradle 8.9.
+## Firma estable de las actualizaciones
 
-## Hoja de ruta
+Requiere GitHub Repository Secrets (nunca publicar valores): `SCRIPTURA_KEYSTORE_BASE64`, `SCRIPTURA_KEYSTORE_PASSWORD`, `SCRIPTURA_KEY_PASSWORD`. El alias es `scriptura`. Todos los APK Release usan la misma firma y `applicationId=com.scriptura.app`.
 
-1. Fundación Android y firma reproducible.
-2. Importador de EPUB local y validación por versículos.
-3. Buscador, navegación de libros y comentarios.
-4. Gemini API con credenciales almacenadas en Android Keystore.
-5. Calendario y lecturas litúrgicas validadas (traducción identificada).
-6. Lecturas aleatorias y personalizadas, favoritos e historial.
+La Action `.github/workflows/android-apk.yml` compila, verifica `apksigner`, crea un artefacto y publica una Release preliminar `v0.x.x-build.N` con APK directamente instalable. El `versionCode` crece con `GITHUB_RUN_NUMBER` para permitir actualizaciones sin desinstalar.
 
-**Nunca subir al repositorio el EPUB original ni datos personales.**
+## Compilación en el móvil (solo diagnóstico)
+
+AndroidIDE-Rv2, Java 17, SDK 34, AGP 8.7.3, Gradle 8.9. Ejecuta `sh build-on-phone.sh` dentro de `/storage/emulated/0/Download/Scriptura/`. La APK DEBUG local **no tiene la misma firma** que Release y no se instala sobre ella. Instala siempre la APK firmada publicada en GitHub.
+
+## Desarrollo
+
+Versiones 0.2.x: lector/importador, búsqueda y biblioteca, Gemini y recomendaciones, calendario español e historial. Se requiere verificar funcionamiento del importador con el EPUB real **en el móvil**, permisos y conectividad con la API Google configurada por el propietario.

@@ -27,6 +27,8 @@ public final class MainActivity extends Activity {
     private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private BibleStore store;
     private NavarraNotes notes;
+    private HistoricalContextStore historyContext;
+    private boolean historicalExpanded=false;
     private NavarraIntroductions introductions;
     private boolean introBusy=false, introAttempted=false;
     private String indexBook="Gn";
@@ -111,7 +113,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(DARK);
         getWindow().setNavigationBarColor(BG);
         store=new BibleStore(this);notes=new NavarraNotes(this);
-        introductions=new NavarraIntroductions(this);ai=new GeminiClient(this);
+        introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);ai=new GeminiClient(this);
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
@@ -380,6 +382,7 @@ public final class MainActivity extends Activity {
         addDefinitionAction(bible,p);
         c.addView(bible);
         hint(c,"Selecciona una palabra y pulsa «Definir». Para copiar, utiliza la opción habitual «Copiar».");
+        showHistoricalContext(p);
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
             ()->{store.toggleFavorite(p.ref);render();},false);
@@ -408,6 +411,80 @@ public final class MainActivity extends Activity {
         button(link,"Capítulo siguiente",()->openReference(p.book,p.chapter+1),false);
         hint(link,"La explicación de Gemini es orientativa y nunca sustituye al texto bíblico.");
     }
+
+    /** Sección desplegable dentro del lector, sin introducir pantallas nuevas. */
+    private void showHistoricalContext(BibleStore.Passage passage){
+        LinearLayout wrap=card(column);
+        java.util.List<HistoricalContextStore.Topic> topics;
+        try{
+            topics=historyContext.forPassage(passage.book,passage.text);
+        }catch(Exception ex){
+            hint(wrap,"El catálogo histórico local no está disponible en este momento.");
+            return;
+        }
+        TextView heading=text("▾  Contexto histórico  ·  "+topics.size()+
+                (topics.size()==1?" concepto":" conceptos"),19,DARK,true);
+        heading.setMinHeight(dp(48));
+        heading.setPadding(dp(2),dp(12),dp(2),dp(12));
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setContentDescription("Contexto histórico, "+topics.size()+
+                " conceptos. Toca para desplegar o cerrar.");
+        wrap.addView(heading);
+        LinearLayout details=vertical();
+        wrap.addView(details);
+        if(topics.isEmpty()){
+            hint(details,"No se han detectado expresiones de nuestro catálogo histórico en esta lectura. No se generan explicaciones inventadas.");
+        }else{
+            hint(details,"Términos presentes en este pasaje. Pulsa cada concepto para ampliar su historia y consultar bibliografía.");
+            addGap(details,8);
+            for(HistoricalContextStore.Topic topic:topics){
+                LinearLayout item=vertical();
+                item.setPadding(dp(12),dp(11),dp(12),dp(10));
+                item.setBackground(outlined(BG,12));
+                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,-2);
+                params.bottomMargin=dp(9);details.addView(item,params);
+                TextView term=text("›  "+topic.title,17,DARK,true);
+                term.setMinHeight(dp(40));term.setGravity(Gravity.CENTER_VERTICAL);
+                item.addView(term);
+                item.addView(text(topic.category+" · "+topic.period,12,MUTED,false));
+                addGap(item,5);
+                item.addView(text(topic.brief,15,DARK,false));
+                LinearLayout extra=vertical();
+                extra.setPadding(0,dp(10),0,dp(3));
+                extra.addView(text(topic.detail,14,DARK,false));
+                addGap(extra,6);
+                hint(extra,"Alcance: "+topic.certainty);
+                HistoricalContextStore.Reference ref=historyContext.reference(topic.source);
+                if(ref!=null){
+                    TextView link=text("Bibliografía orientativa: "+ref.label,12,ACCENT,false);
+                    link.setPadding(0,dp(7),0,dp(7));
+                    link.setContentDescription("Abrir fuente bibliográfica: "+ref.label);
+                    link.setOnClickListener(v->{
+                        try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(ref.url)));}
+                        catch(Exception e){showError("No se pudo abrir la fuente bibliográfica.");}
+                    });
+                    extra.addView(link);
+                }
+                extra.setVisibility(View.GONE);
+                item.addView(extra);
+                item.setClickable(true);item.setFocusable(true);
+                item.setContentDescription("Ampliar explicación de "+topic.title);
+                item.setOnClickListener(v->{
+                    boolean opened=extra.getVisibility()!=View.VISIBLE;
+                    extra.setVisibility(opened?View.VISIBLE:View.GONE);
+                    item.setContentDescription((opened?"Cerrar":"Ampliar")+" explicación de "+topic.title);
+                });
+            }
+        }
+        details.setVisibility(historicalExpanded?View.VISIBLE:View.GONE);
+        heading.setOnClickListener(v->{
+            historicalExpanded=!historicalExpanded;
+            details.setVisibility(historicalExpanded?View.VISIBLE:View.GONE);
+            heading.setText((historicalExpanded?"▴":"▾")+"  Contexto histórico  ·  "+topics.size()+
+                (topics.size()==1?" concepto":" conceptos"));
+        });
+    }
+
     private void openReference(String book,int chapter){
         if(chapter<1||chapter>store.chapters(book)){showError("No hay más capítulos en ese sentido.");return;}
         BibleStore.Passage p=store.passage(Books.name(book)+" "+chapter);
@@ -1219,7 +1296,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy(){
         worker.shutdownNow();
-        store.close();notes.close();introductions.close();
+        store.close();notes.close();introductions.close();if(historyContext!=null)historyContext.close();
         super.onDestroy();
     }
 }

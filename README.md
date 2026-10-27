@@ -133,3 +133,14 @@ El lector incluye el desplegable «Contexto histórico», con 100 fichas introdu
 - La Enciclopedia Católica ofrece un recurso de consulta desde perspectiva católica, pero no sustituye los documentos oficiales del Magisterio. Wikipedia y Wikcionario son fuentes colaborativas, no doctrinales.
 - No cambia `applicationId`, versión de la APK ni configuración de compilación o firma. Validar el menú contextual y los enlaces en un móvil Android antes de incorporar a la rama principal.
 
+
+## Consulta de definiciones · 0.7.5
+
+La selección larga del texto bíblico conserva Copiar/Compartir y ofrece Definir. El globo
+es un diálogo accesible y desplazable: evita ocultar las fuentes en móviles pequeños.
+También ofrece un enlace «¿No aparece Definir? Escribir palabra» para quien no consiga
+seleccionar texto en su Android. Wikcionario y Wikipedia usan la página oficial de
+búsqueda, no un artículo ficticio que podría dar 404. La Enciclopedia Católica abre
+solo artículos concretos cuyos enlaces se comprobaron: Fariseos, Saduceos, Apóstoles
+y Pecado (incluidas variantes gramaticales). Para otras palabras no se inventa una URL
+de la Enciclopedia Católica. No se modifica la Biblia privada ni el acceso de GitHub.

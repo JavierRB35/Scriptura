@@ -24,17 +24,32 @@ public class WordMeaningTest {
         assertNull(WordMeaning.selection(s,-1,8));
         assertNull(WordMeaning.selection(s,5,999));
     }
-    @Test public void createsSafeExternalLookupUrls(){
-        assertEquals("https://ec.aciprensa.com/wiki/Especial:Buscar?search=Salvaci%C3%B3n",
-            WordMeaning.catholicSearchUrl("Salvación"));
-        assertEquals("https://es.wikipedia.org/w/index.php?search=ap%C3%B3stoles",
-            WordMeaning.wikipediaSearchUrl("apóstoles"));
-        assertEquals("https://es.wikipedia.org/w/index.php?search=Jes%C3%BAs",
+    @Test public void verifiedCatholicPagesUseDirectArticles(){
+        assertEquals("https://ec.aciprensa.com/wiki/Fariseos",
+            WordMeaning.catholicArticleUrl("fariseos"));
+        assertEquals("https://ec.aciprensa.com/wiki/Saduceos",
+            WordMeaning.catholicArticleUrl("SADUCEO"));
+        assertEquals("https://ec.aciprensa.com/wiki/Ap%C3%B3stoles",
+            WordMeaning.catholicArticleUrl("apóstoles"));
+        assertEquals("https://ec.aciprensa.com/wiki/Pecado",
+            WordMeaning.catholicArticleUrl("pecado"));
+        assertNull(WordMeaning.catholicArticleUrl("cananeos"));
+        assertNull(WordMeaning.catholicArticleUrl("pastores"));
+    }
+    @Test public void officialSearchRoutesPreserveAccents(){
+        assertEquals("https://es.wikipedia.org/wiki/Especial:Buscar?search=Salvaci%C3%B3n",
+            WordMeaning.wikipediaSearchUrl("Salvación"));
+        assertEquals("https://es.wiktionary.org/wiki/Especial:Buscar?search=ap%C3%B3stoles",
+            WordMeaning.wiktionarySearchUrl("apóstoles"));
+        assertEquals("https://es.wikipedia.org/wiki/Especial:Buscar?search=Jes%C3%BAs",
             WordMeaning.wikipediaSearchUrl("Jesús"));
     }
     @Test(expected=IllegalArgumentException.class)
-    public void rejectsPhrasesInExternalLookups(){
-        WordMeaning.catholicSearchUrl("la gracia");
+    public void blocksMultipleWords(){
+        WordMeaning.wikipediaSearchUrl("la gracia");
     }
-
+    @Test(expected=IllegalArgumentException.class)
+    public void blocksUnsafePunctuation(){
+        WordMeaning.wiktionarySearchUrl("fariseo?redirect=https://evil.test");
+    }
 }

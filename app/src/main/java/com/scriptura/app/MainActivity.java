@@ -550,27 +550,24 @@ public final class MainActivity extends Activity {
         TextView title=text(word,22,DARK,true);serif(title);card.addView(title);
         addGap(card,5);
         TextView body=text(local!=null?local:
-            "Aún no hay una definición local para esta palabra. Puedes consultarla en Wikcionario o pedir una explicación del contexto bíblico.",15,DARK,false);
+            "Esta palabra aún no figura en el glosario local. Puedes buscarla en la Enciclopedia Católica, Wikipedia o Wikcionario.",15,DARK,false);
         card.addView(body);
         addGap(card,8);
-        TextView source=text(local!=null?"Fuente: glosario de apoyo de Scriptura. El sentido exacto depende del pasaje.":
-            "La consulta del diccionario se abre externamente y requiere conexión.",12,MUTED,false);
+        TextView source=text(local!=null?
+            "Fuente: glosario orientativo de Scriptura. El significado puede variar según el pasaje.":
+            "Las fuentes externas requieren conexión. Puede que no exista una entrada para todas las palabras.",12,MUTED,false);
         card.addView(source);
         int width=getResources().getDisplayMetrics().widthPixels-dp(36);
         PopupWindow popup=new PopupWindow(card,width,WindowManager.LayoutParams.WRAP_CONTENT,true);
         popup.setBackgroundDrawable(outlined(SURFACE,17));
         popup.setElevation(dp(12));popup.setOutsideTouchable(true);
-        TextView wiktionary=text("Consultar Wikcionario",14,ACCENT,true);
-        wiktionary.setPadding(dp(5),dp(13),dp(5),dp(8));card.addView(wiktionary);
-        wiktionary.setOnClickListener(v->{
-            popup.dismiss();
-            try{
-                String url="https://es.wiktionary.org/wiki/"+
-                    java.net.URLEncoder.encode(word.toLowerCase(java.util.Locale.ROOT),"UTF-8")
-                        .replace("+","%20");
-                startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));
-            }catch(Exception error){showError("No se pudo abrir el diccionario.");}
-        });
+        addDefinitionSource(card,popup,"Consultar Enciclopedia Católica (ACI Prensa)",
+            WordMeaning.catholicSearchUrl(word));
+        addDefinitionSource(card,popup,"Consultar Wikipedia",
+            WordMeaning.wikipediaSearchUrl(word));
+        addDefinitionSource(card,popup,"Consultar Wikcionario",
+            "https://es.wiktionary.org/wiki/"+
+                Uri.encode(word.toLowerCase(java.util.Locale.ROOT)));
         if(ai.configured()){
             TextView contextual=text("Explicar en este pasaje con Gemini",14,ACCENT,true);
             contextual.setPadding(dp(5),dp(10),dp(5),dp(9));card.addView(contextual);
@@ -585,6 +582,23 @@ public final class MainActivity extends Activity {
         card.addView(close);close.setOnClickListener(v->popup.dismiss());
         popup.setContentView(card);
         popup.showAtLocation(anchor,Gravity.CENTER,0,0);
+    }
+
+    /** Abre solamente una URL HTTPS generada por Scriptura tras la acción del usuario. */
+    private void addDefinitionSource(LinearLayout card,PopupWindow popup,String label,String url){
+        TextView action=text(label,14,ACCENT,true);
+        action.setPadding(dp(5),dp(12),dp(5),dp(8));
+        card.addView(action);
+        action.setOnClickListener(v->{
+            popup.dismiss();
+            try{
+                Intent browser=new Intent(Intent.ACTION_VIEW,Uri.parse(url));
+                browser.addCategory(Intent.CATEGORY_BROWSABLE);
+                startActivity(browser);
+            }catch(Exception error){
+                showError("No se pudo abrir la consulta. Comprueba que tienes un navegador instalado.");
+            }
+        });
     }
 
     private void showNavarraNote(BibleStore.Passage p){

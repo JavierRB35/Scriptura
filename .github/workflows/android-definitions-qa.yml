@@ -65,5 +65,7 @@ jobs:
             qa/definitions_report.json
             qa/definitions_screenshot.png
             qa/definitions_dump.xml
+            qa/definitions_after_tap.xml
+            qa/definitions_after_tap.png
           if-no-files-found: warn
           retention-days: 30

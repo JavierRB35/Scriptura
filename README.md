@@ -76,3 +76,12 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - Política de teselas: https://operations.osmfoundation.org/policies/tiles/
 - URLs oficiales de mapas satélite: https://developers.google.com/maps/documentation/urls/get-started
 - Google Maps SDK Android (requiere clave y facturación; no utilizado): https://developers.google.com/maps/documentation/android-sdk/usage-and-billing
+
+## Scriptura 0.6.1 — selección y splash
+
+- En el **lector bíblico**, mantén pulsada una palabra: permanece la **selección nativa de Android** con «Copiar», «Compartir» y «Seleccionar todo». La barra añade **«Definir»**.
+- «Definir» abre un globo con un glosario local de términos bíblicos habituales. Si la palabra no está disponible, ofrece abrir Wikcionario. Si Gemini está configurado, también ofrece explicación del **contexto**, siempre tras la confirmación previa al envío a Google.
+- No se fuerza un retraso artificial de dos segundos: la pulsación prolongada respeta la sensibilidad habitual y accesibilidad de Android. La selección de varias palabras se sigue pudiendo copiar y no se interpreta como una única definición.
+- Splash de identidad Scriptura: azul noche, símbolo vectorial libro/luz y lema; arranca una comprobación de Releases privadas **sin bloquear** la entrada. Un fallo de GitHub nunca impide abrir Scriptura; el resultado se presenta como banner en Inicio o notificación autorizada.
+- Portada de Inicio reforzada con ilustración vectorial del propio logo. No se muestran fotografías bíblicas ni ilustraciones históricas sin licencias y contexto aprobados; permanece pendiente la ampliación de imágenes (#1).
+- Conserva las cinco pestañas existentes, `applicationId=com.scriptura.app`, firma y almacenamiento local. El usuario no necesita reinstalar desde cero.

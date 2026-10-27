@@ -188,6 +188,12 @@ public final class MainActivity extends Activity {
         heroLp.bottomMargin=dp(16);column.addView(hero,heroLp);
         TextView k=text("LEE · EXPLORA · COMPRENDE",11,GOLD,true);
         k.setLetterSpacing(0.08f);hero.addView(k);addGap(hero,9);
+        android.widget.ImageView brandArt=new android.widget.ImageView(this);
+        brandArt.setImageResource(R.drawable.ic_scriptura_foreground);
+        brandArt.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        brandArt.setContentDescription("Libro abierto con una estrella, símbolo de Scriptura");
+        LinearLayout.LayoutParams artParams=new LinearLayout.LayoutParams(-1,dp(154));
+        artParams.topMargin=dp(6);artParams.bottomMargin=dp(4);hero.addView(brandArt,artParams);
         TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
         serif(title);hero.addView(title);addGap(hero,7);
         hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
@@ -285,7 +291,10 @@ public final class MainActivity extends Activity {
         title(column,p.ref);
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
-        bible.setTextIsSelectable(true);c.addView(bible);
+        bible.setTextIsSelectable(true);
+        addDefinitionAction(bible,p);
+        c.addView(bible);
+        hint(c,"Para consultar una palabra, selecciónala y pulsa «Definir». «Copiar» y las demás opciones siguen disponibles.");
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
             ()->{store.toggleFavorite(p.ref);render();},false);
@@ -315,6 +324,81 @@ public final class MainActivity extends Activity {
         BibleStore.Passage p=store.passage(Books.name(book)+" "+chapter);
         if(p!=null)open(p);
     }
+
+    private static final int ACTION_DEFINE_WORD=0x5C120;
+    /** Conserva la barra contextual nativa, incluyendo Copiar, Compartir y Seleccionar todo. */
+    private void addDefinitionAction(TextView bible,BibleStore.Passage passage){
+        bible.setCustomSelectionActionModeCallback(new ActionMode.Callback(){
+            @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
+                return true; // Android sigue creando sus opciones predeterminadas.
+            }
+            @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
+                if(menu.findItem(ACTION_DEFINE_WORD)==null){
+                    MenuItem define=menu.add(Menu.NONE,ACTION_DEFINE_WORD,Menu.NONE,"Definir");
+                    define.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                }
+                return true;
+            }
+            @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){
+                if(item.getItemId()!=ACTION_DEFINE_WORD)return false;
+                String chosen=WordMeaning.selection(
+                    bible.getText().toString(),bible.getSelectionStart(),bible.getSelectionEnd());
+                if(chosen==null){
+                    Toast.makeText(MainActivity.this,"Selecciona una sola palabra para definirla.",Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                mode.finish();
+                showMeaningBalloon(bible,chosen,passage);
+                return true;
+            }
+            @Override public void onDestroyActionMode(ActionMode mode){}
+        });
+    }
+    private void showMeaningBalloon(View anchor,String word,BibleStore.Passage passage){
+        String local=WordMeaning.local(word);
+        LinearLayout card=vertical();
+        card.setBackground(outlined(SURFACE,17));
+        card.setPadding(dp(16),dp(15),dp(16),dp(15));
+        TextView title=text(word,22,DARK,true);serif(title);card.addView(title);
+        addGap(card,5);
+        TextView body=text(local!=null?local:
+            "Aún no hay una definición local para esta palabra. Puedes consultarla en Wikcionario o pedir una explicación del contexto bíblico.",15,DARK,false);
+        card.addView(body);
+        addGap(card,8);
+        TextView source=text(local!=null?"Fuente: glosario de apoyo de Scriptura. El sentido exacto depende del pasaje.":
+            "La consulta del diccionario se abre externamente y requiere conexión.",12,MUTED,false);
+        card.addView(source);
+        int width=getResources().getDisplayMetrics().widthPixels-dp(36);
+        PopupWindow popup=new PopupWindow(card,width,WindowManager.LayoutParams.WRAP_CONTENT,true);
+        popup.setBackgroundDrawable(outlined(SURFACE,17));
+        popup.setElevation(dp(12));popup.setOutsideTouchable(true);
+        TextView wiktionary=text("Consultar Wikcionario",14,ACCENT,true);
+        wiktionary.setPadding(dp(5),dp(13),dp(5),dp(8));card.addView(wiktionary);
+        wiktionary.setOnClickListener(v->{
+            popup.dismiss();
+            try{
+                String url="https://es.wiktionary.org/wiki/"+
+                    java.net.URLEncoder.encode(word.toLowerCase(java.util.Locale.ROOT),"UTF-8")
+                        .replace("+","%20");
+                startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));
+            }catch(Exception error){showError("No se pudo abrir el diccionario.");}
+        });
+        if(ai.configured()){
+            TextView contextual=text("Explicar en este pasaje con Gemini",14,ACCENT,true);
+            contextual.setPadding(dp(5),dp(10),dp(5),dp(9));card.addView(contextual);
+            contextual.setOnClickListener(v->{
+                popup.dismiss();
+                interpret(passage,"Explica el significado de la palabra «"+word+
+                    "» en el contexto de esta referencia; distingue sentido literal, histórico y religioso y reconoce incertidumbres.",true);
+            });
+        }
+        TextView close=text("Cerrar",14,MUTED,false);
+        close.setGravity(Gravity.END);close.setPadding(dp(5),dp(9),dp(5),dp(2));
+        card.addView(close);close.setOnClickListener(v->popup.dismiss());
+        popup.setContentView(card);
+        popup.showAtLocation(anchor,Gravity.CENTER,0,0);
+    }
+
     private void showNavarraNote(BibleStore.Passage p){
         String note=notes.get(p.book,p.chapter,p.first);
         if(note.isEmpty()){

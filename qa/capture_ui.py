@@ -160,12 +160,16 @@ def main():
         screen("07_atlas")
         hit("Recorridos",scroll=True)
         hit("Ver recorrido",scroll=True)
-        assert_text("Recorrido sobre mapa actual",scroll=True)
+        assert_text("Lugares del recorrido",scroll=True)
         adb("shell","input","swipe","420","1320","420","570","450")
         wait(16)
         screen("08_mapa_real_abraham")
         assert_text("teselas de fondo cargadas",scroll=True)
         REPORT["checks"]["real_osm_tile_loaded"]="PASS"
+        assert_text("Etapas y acontecimientos",scroll=True)
+        assert_text("La familia de Abram sale de Ur",scroll=True)
+        assert_text("Leer Gn 11:27-31",scroll=True)
+        REPORT["checks"]["journey_stage_narration_and_reading_link"]="PASS"
         REPORT["checks"]["five_tabs_navigable"]="PASS"
         REPORT["checks"]["atlas_internal_page"]="PASS"
     except Exception as error:

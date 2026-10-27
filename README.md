@@ -107,3 +107,15 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - **Informe y evaluación:** `docs/INFORME_PRIMER_USO_0_7_2.md`. Revisión heurística del código, no estudio de usuarios real. Pendiente QA con EPUB privado en el móvil y pruebas TalkBack.
 
 Conserva JDK17, compileSdk/targetSdk34, Gradle8.9, AGP8.7.3, las cinco pestañas, el acceso fijo a Mapas, `applicationId=com.scriptura.app` y el mismo keystore para actualizar sobre instalaciones existentes.
+
+## Scriptura 0.7.3 · estudio de los lugares y lecturas renovadas
+
+- **Recorridos bíblicos:** cada etapa numerada incluye lugar, acontecimiento narrado, pasajes seleccionados y acciones **Leer el pasaje**, **Situar en Google Maps** y **Conocer el lugar**. Los ocho itinerarios tienen 42 etapas narrativas contextualizadas. Las referencias se abren directamente en el lector del EPUB personal de Navarra; sin EPUB, se ofrece su importación, sin copiar ni publicar la edición.
+- **Puntos del mapa:** al pulsar un marcador de ruta, libro o lugar se abre **Google Maps** con la posición señalada mediante Maps URLs (no OpenStreetMap). La capa cartográfica interactiva dentro de Scriptura sigue siendo OpenStreetMap, con la atribución © OpenStreetMap contributors. No se necesita una clave Google Maps SDK.
+- **Zoom:** doble pulsación sobre el mapa, gesto de pinza con previsualización fluida y controles +/−; el lugar bajo los dedos se conserva al cambiar el nivel de zoom.
+- **Inicio:** dos lecturas propuestas (una del Antiguo y otra del Nuevo Testamento), con una explicación explícita del criterio. **Ver otros dos pasajes** cambia la selección conservando la misma durante la navegación hasta renovar o pasar al día siguiente.
+- **Imagen principal:** cuatro ilustraciones originales de escenas y paisajes evocadores de la Biblia, distribuidas como código gráfico **local** en la APK. Alternan cada día y al renovar Inicio; no muestran de nuevo el logo, que se conserva en la cabecera, ni necesitan conexión.
+- **Textos de ayuda:** se han simplificado mensajes técnicos que distraían del estudio y se han convertido referencias antes estáticas en botones de lectura. Se mantienen únicamente avisos históricos necesarios cuando la identificación de un lugar es discutida o regional y la atribución cartográfica exigida por OpenStreetMap.
+- **Validación:** pruebas unitarias del orden de etapas, relación con marcadores, enlaces a escrituras y coordenadas Google Maps. El emulador comprueba carga de teselas y presenta pantallas auténticas sin EPUB personal. Pendiente comprobar zoom multitáctil en móvil real, lectura del EPUB personal y vínculo desde todas las fichas.
+
+El atlas reproduce lugares de geografía moderna, **no** una reconstrucción fiable de itinerarios antiguos; las etapas siguen un orden narrativo y no se deben interpretar como recorridos históricos exactos. Conserva la serie preliminar, el certificado de firma, `com.scriptura.app`, Java 17, SDK 34, Gradle 8.9 y AGP 8.7.3.

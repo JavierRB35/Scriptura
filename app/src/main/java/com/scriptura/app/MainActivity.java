@@ -225,13 +225,12 @@ public final class MainActivity extends Activity {
         heroLp.bottomMargin=dp(16);column.addView(hero,heroLp);
         TextView k=text("LEE · EXPLORA · COMPRENDE",11,GOLD,true);
         k.setLetterSpacing(0.08f);hero.addView(k);addGap(hero,9);
-        android.widget.ImageView brandArt=new android.widget.ImageView(this);
-        brandArt.setImageResource(R.drawable.ic_scriptura_foreground);
-        brandArt.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        brandArt.setContentDescription("Ilustración del libro luminoso de Scriptura");
-        LinearLayout.LayoutParams brandParams=new LinearLayout.LayoutParams(-1,dp(98));
-        brandParams.topMargin=dp(6);brandParams.bottomMargin=dp(4);
-        hero.addView(brandArt,brandParams);
+        long picture=homeSelectionSeed();
+        HomeSceneView scene=new HomeSceneView(this,
+            getPreferences(0).getInt("home_image_index",0));
+        LinearLayout.LayoutParams sceneParams=new LinearLayout.LayoutParams(-1,dp(150));
+        sceneParams.topMargin=dp(9);sceneParams.bottomMargin=dp(7);
+        hero.addView(scene,sceneParams);
         TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
         serif(title);hero.addView(title);addGap(hero,7);
         hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
@@ -244,7 +243,7 @@ public final class MainActivity extends Activity {
             hint(updateCard,"Scriptura "+available.tag+" · Publicada en GitHub");
             button(updateCard,"Ver y descargar actualización",
                     ()->UpdateChecker.openRelease(this,available),true);
-            hint(updateCard,"Se instalará encima de esta versión manteniendo los datos, siempre que utilice la misma firma.");
+            hint(updateCard,"Puedes consultar las novedades de Scriptura e instalar la actualización cuando quieras.");
         }
         // El acceso privado a GitHub no se presenta como requisito de primer uso:
         // queda voluntario dentro de Ajustes → Actualizaciones.
@@ -256,10 +255,19 @@ public final class MainActivity extends Activity {
             }
         } else {
             hint(column,"Biblia de Navarra · "+store.count()+" versículos importados");
-            Calendar today=Calendar.getInstance();
-            long seed=today.get(Calendar.YEAR)*1000L+today.get(Calendar.DAY_OF_YEAR);
+            long seed=homeSelectionSeed();
+            hint(column,"¿Por qué estos pasajes? Scriptura propone uno del Antiguo Testamento y otro del Nuevo para descubrir distintas partes de la Biblia. No son lecturas litúrgicas ni se eligen por tu estado de ánimo.");
             readingPreview("Antiguo Testamento",store.random(false,seed*911+31));
             readingPreview("Nuevo Testamento",store.random(true,seed*911+53));
+            button(column,"Ver otros dos pasajes",()->{
+                getPreferences(0).edit()
+                    .putLong("home_scene_seed",System.nanoTime())
+                    .putInt("home_scene_day",homeDayKey())
+                    .putInt("home_image_index",
+                        (getPreferences(0).getInt("home_image_index",0)+1)%4)
+                    .apply();
+                render();
+            },true);
         }
         LinearLayout c=card(column);
         section(c,"Lecturas de la misa","Referencias bíblicas del calendario litúrgico.");
@@ -269,9 +277,25 @@ public final class MainActivity extends Activity {
         button(c,"Abrir índice de los 73 libros",()->openIndex(),true);
         c=card(column);section(c,"Arte bíblico","Pintura clásica para comprender la recepción artística de los pasajes.");
         button(c,"Explorar obras pictóricas",()->openGallery(),false);
-        c=card(column);section(c,"Lugares bíblicos","Atlas preliminar, con ubicaciones orientativas.");
-        hint(c,"Atlas de ciudades, regiones y recorridos de personajes de la Biblia. Ubicaciones con niveles de certeza.");
+        c=card(column);section(c,"Lugares bíblicos","Descubre ciudades y recorridos de los relatos.");
+        hint(c,"Explora lo que ocurrió en cada lugar y lee los pasajes relacionados.");
         button(c,"Explorar atlas bíblico",()->openAtlas(0),false);
+    }
+    private int homeDayKey(){
+        Calendar c=Calendar.getInstance();
+        return c.get(Calendar.YEAR)*1000+c.get(Calendar.DAY_OF_YEAR);
+    }
+    private long homeSelectionSeed(){
+        android.content.SharedPreferences prefs=getPreferences(0);
+        int today=homeDayKey();
+        if(prefs.getInt("home_scene_day",-1)!=today){
+            long seed=System.nanoTime()^(System.currentTimeMillis()<<1);
+            prefs.edit().putInt("home_scene_day",today)
+                .putLong("home_scene_seed",seed)
+                .putInt("home_image_index",(int)Math.floorMod(seed,4)).apply();
+            return seed;
+        }
+        return prefs.getLong("home_scene_seed",today*9381761L);
     }
     private void welcomeCard(){
         LinearLayout welcome=card(column);
@@ -379,7 +403,7 @@ public final class MainActivity extends Activity {
         bible.setTextIsSelectable(true);
         addDefinitionAction(bible,p);
         c.addView(bible);
-        hint(c,"Selecciona una palabra y pulsa «Definir». Para copiar, utiliza la opción habitual «Copiar».");
+        hint(c,"Mantén pulsada una palabra para consultar su significado.");
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
             ()->{store.toggleFavorite(p.ref);render();},false);
@@ -406,7 +430,7 @@ public final class MainActivity extends Activity {
         link.addView(text("Lectura del contexto",18,DARK,true));
         button(link,"Capítulo anterior",()->openReference(p.book,p.chapter-1),false);
         button(link,"Capítulo siguiente",()->openReference(p.book,p.chapter+1),false);
-        hint(link,"La explicación de Gemini es orientativa y nunca sustituye al texto bíblico.");
+        hint(link,"Continúa la lectura y descubre el contexto del pasaje.");
     }
     private void openReference(String book,int chapter){
         if(chapter<1||chapter>store.chapters(book)){showError("No hay más capítulos en ese sentido.");return;}
@@ -870,7 +894,7 @@ public final class MainActivity extends Activity {
             BiblicalArt.thumbnail(this,illustration,artwork);
             hint(block,artwork.description);
             hint(block,"Referencia bíblica: "+artwork.reference);
-            hint(block,"Fuente de imágenes: Wikimedia Commons. Solo se cargan miniaturas cuando se verifica la licencia de su archivo. La ficha original contiene los créditos específicos.");
+            hint(block,"Autoría y procedencia de la obra: Wikimedia Commons.");
             button(block,"Ver obra, autoría y derechos",
                 ()->{try{startActivity(new Intent(Intent.ACTION_VIEW,
                     Uri.parse(BiblicalArt.resolvedFilePage(illustration,artwork))));}
@@ -899,7 +923,7 @@ public final class MainActivity extends Activity {
     }
     private void atlas(){
         title(column,"Lugares bíblicos");
-        hint(column,"Atlas preliminar basado en puntos geográficos orientativos. No representa mapas históricos a escala ni caminos reconstruidos.");
+        hint(column,"Explora los lugares donde transcurren los relatos bíblicos y las etapas que mencionan las Escrituras.");
         if(atlasMode==3 && atlasJourney!=null){journeyScreen(atlasJourney);return;}
         if(atlasMode==4 && atlasPlace!=null){placeScreen(atlasPlace);return;}
         LinearLayout menu=card(column);
@@ -916,7 +940,7 @@ public final class MainActivity extends Activity {
         EditText term=input(searchBox,"Jerusalén, Nazaret, Harán…",false);
         term.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         button(searchBox,"Buscar",()->atlasPlaceResults(term.getText().toString()),true);
-        hint(column,BibleGeography.placeCount()+" ubicaciones catalogadas. El índice inicial está en ampliación.");
+        hint(column,"Lugares del Antiguo y Nuevo Testamento");
         atlasPlaceCards(BibleGeography.allPlaces());
     }
     private void atlasPlaceResults(String query){
@@ -933,16 +957,17 @@ public final class MainActivity extends Activity {
         for(BibleGeography.Place p:places){
             LinearLayout box=card(column);
             box.addView(text(p.name,18,DARK,true));
-            hint(box,p.modern+" · "+p.certainty);
-            button(box,"Ver ficha y mapa",()->openPlace(p),false);
+            hint(box,p.description);
+            button(box,"Conocer este lugar",()->openPlace(p),false);
         }
     }
     private void atlasJourneys(){
-        hint(column,"Los puntos están ordenados según episodios seleccionados, pero las líneas que los unen NO indican caminos antiguos conocidos.");
+        hint(column,"Descubre lo que sucedió en cada lugar y lee los relatos correspondientes.");
         for(BibleGeography.Journey j:BibleGeography.allJourneys()){
             LinearLayout box=card(column);
             box.addView(text(j.title,18,DARK,true));
-            hint(box,j.person+" · "+j.stops.length+" etapas · "+j.refs);
+            hint(box,j.person+" · "+j.stops.length+" etapas");
+            hint(box,j.summary);
             button(box,"Ver recorrido",()->openJourney(j),false);
         }
     }
@@ -958,18 +983,26 @@ public final class MainActivity extends Activity {
         java.util.List<BibleGeography.Place> places=BibleGeography.placesForBook(atlasBook);
         java.util.List<BibleGeography.Journey> journeys=BibleGeography.journeysForBook(atlasBook);
         if(places.isEmpty()){
-            hint(column,"Aún no hay lugares verificados/catalogados para este libro. El libro sigue disponible en la Biblioteca; el atlas se ampliará sin inventar ubicaciones.");
+            hint(column,"No tenemos aún lugares identificados para este libro. Puedes continuar su lectura en la biblioteca.");
         } else {
-            hint(column,places.size()+" lugares relacionados con "+Books.name(atlasBook)+" (selección inicial).");
+            hint(column,"Lugares relacionados con "+Books.name(atlasBook));
             if(places.size()>1){
                 LinearLayout mapCard=card(column);
                 mapCard.addView(text("Mapa actual de los lugares",17,DARK,true));
-                GeoMapView mapView=new GeoMapView(this,places,false,this::openPlace);
+                GeoMapView mapView=new GeoMapView(this,places,false,this::openExternalMap);
                 mapCard.addView(mapView);
                 mapControls(mapCard,mapView);
-                hint(mapCard,"Cartografía actual: © OpenStreetMap contributors. Los emplazamientos son orientativos; no se muestran fronteras antiguas.");
+                hint(mapCard,"Toca un punto para localizarlo en Google Maps.");
             }
-            atlasPlaceCards(places);
+            title(column,"Lugares y acontecimientos");
+            for(int i=0;i<places.size();i++){
+                BibleGeography.Place p=places.get(i);
+                LinearLayout detail=card(column);
+                detail.addView(text((i+1)+". "+p.name,18,DARK,true));
+                hint(detail,p.description);
+                renderStudyReferences(detail,p.refs);
+                button(detail,"Ubicar en Google Maps",()->openExternalMap(p),false);
+            }
         }
         if(!journeys.isEmpty()){
             title(column,"Recorridos relacionados");
@@ -980,45 +1013,81 @@ public final class MainActivity extends Activity {
         button(column,"Volver a recorridos",()->openAtlas(1),false);
         title(column,route.title);
         hint(column,route.summary);
-        hint(column,"Referencia bíblica: "+route.refs);
+        java.util.List<JourneyStudy.Stage> stages=JourneyStudy.stages(route);
         java.util.List<BibleGeography.Place> stops=BibleGeography.stops(route);
         if(stops.size()>1){
-            LinearLayout map=card(column);map.addView(text("Recorrido sobre mapa actual",17,DARK,true));
-            GeoMapView mapView=new GeoMapView(this,stops,true,this::openPlace);
+            LinearLayout map=card(column);
+            map.addView(text("Lugares del recorrido",18,DARK,true));
+            GeoMapView mapView=new GeoMapView(this,stops,true,this::openExternalMap);
             map.addView(mapView);
             mapControls(map,mapView);
-            hint(map,"Línea discontinua = orden narrativo de etapas. NO equivale al camino histórico exacto.");
+            hint(map,"Toca un número para situarlo en Google Maps.");
         }
-        for(int i=0;i<stops.size();i++){
-            BibleGeography.Place p=stops.get(i);
-            LinearLayout card=card(column);
-            card.addView(text((i+1)+". "+p.name,17,DARK,true));
-            hint(card,p.modern+" · "+p.certainty);
-            button(card,"Ver ficha del lugar",()->openPlace(p),false);
+        title(column,"Etapas y acontecimientos");
+        if(!stages.isEmpty()){
+            for(int i=0;i<stages.size();i++){
+                JourneyStudy.Stage stage=stages.get(i);
+                BibleGeography.Place p=stage.place;
+                LinearLayout detail=card(column);
+                detail.addView(text((i+1)+". "+p.name,19,DARK,true));
+                hint(detail,p.modern);
+                detail.addView(text(stage.event,16,DARK,false));
+                if(p.certainty.equals(BibleGeography.DEBATED) ||
+                   p.certainty.equals(BibleGeography.REGION))
+                    hint(detail,"La ubicación exacta de este episodio no se conoce con certeza.");
+                renderStudyReferences(detail,stage.scripture);
+                button(detail,"Situar en Google Maps",()->openExternalMap(p),false);
+                button(detail,"Conocer el lugar",()->openPlace(p),false);
+            }
+        }else{
+            for(BibleGeography.Place p:stops){
+                LinearLayout detail=card(column);
+                detail.addView(text(p.name,18,DARK,true));
+                detail.addView(text(p.description,15,DARK,false));
+                renderStudyReferences(detail,p.refs);
+                button(detail,"Situar en Google Maps",()->openExternalMap(p),false);
+            }
         }
     }
     private void placeScreen(BibleGeography.Place p){
         button(column,"Volver a lugares",()->openAtlas(0),false);
         title(column,p.name);
         LinearLayout box=card(column);
-        box.addView(text("Localización actual propuesta",15,ACCENT,true));
         box.addView(text(p.modern,17,DARK,true));
-        hint(box,"Precisión: "+p.certainty);
-        hint(box,p.description);
-        hint(box,"Pasajes para consultar: "+p.refs);
-        GeoMapView localMap=new GeoMapView(this,java.util.Collections.singletonList(p),false,place->openExternalMap(place));
-        box.addView(localMap);
-        mapControls(box,localMap);
-        button(box,"Ver lugar en OpenStreetMap",()->openExternalMap(p),false);
-        hint(box,"Cartografía moderna © OpenStreetMap contributors. El mapa requiere conexión; la identificación histórica puede ser aproximada.");
-        if(store.ready()){
-            String[] tokens=p.refs.split(";");
-            if(tokens.length>0){
-                String query=tokens[0].trim();
-                BibleStore.Passage passage=store.passage(query);
-                if(passage!=null)button(box,"Leer "+passage.ref,()->open(passage),false);
-            }
+        box.addView(text(p.description,16,DARK,false));
+        if(p.certainty.equals(BibleGeography.DEBATED) ||
+           p.certainty.equals(BibleGeography.REGION))
+            hint(box,"La identificación precisa de este lugar sigue abierta al estudio.");
+        GeoMapView mapView=new GeoMapView(this,
+            java.util.Collections.singletonList(p),false,this::openExternalMap);
+        box.addView(mapView);
+        mapControls(box,mapView);
+        button(box,"Situar en Google Maps",()->openExternalMap(p),true);
+        LinearLayout readings=card(column);
+        section(readings,"Relatos que lo mencionan","Abre cada cita para leer el pasaje bíblico.");
+        renderStudyReferences(readings,p.refs);
+    }
+    private void renderStudyReferences(LinearLayout parent,String references){
+        java.util.List<BibleStudyReferences.Link> links=BibleStudyReferences.links(references);
+        if(links.isEmpty())return;
+        for(BibleStudyReferences.Link link:links){
+            button(parent,"Leer "+link.label,()->openStudyReference(link.query),false);
         }
+    }
+    private void openStudyReference(String reference){
+        if(!store.ready()){
+            new AlertDialog.Builder(this).setTitle("Tu lectura bíblica")
+                .setMessage("Para leer "+reference+" con el texto de la Biblia de Navarra, importa tu ejemplar EPUB.")
+                .setNegativeButton("Ahora no",null)
+                .setPositiveButton("Importar mi Biblia",(d,w)->pickEpub()).show();
+            return;
+        }
+        BibleStore.Passage passage=store.passage(reference);
+        if(passage==null){
+            showError("No se encontró "+reference+" en el ejemplar importado.");
+            return;
+        }
+        open(passage);
     }
     private void mapControls(LinearLayout box,GeoMapView map){
         LinearLayout zooms=new LinearLayout(this);
@@ -1036,32 +1105,29 @@ public final class MainActivity extends Activity {
         minus.setOnClickListener(v->map.zoomOut());
         plus.setOnClickListener(v->map.zoomIn());
         box.addView(zooms);
-        button(box,"Reintentar carga del mapa",map::retry,false);
+        button(box,"Actualizar mapa",map::retry,false);
         button(box,"Ver esta zona por satélite en Google Maps",
             ()->openSatellite(map.centerLatitude(),map.centerLongitude(),map.zoomLevel()),false);
-        hint(box,"El satélite se abre en Google Maps y no superpone el itinerario bíblico. En este mapa puedes arrastrar, ampliar y pulsar los puntos.");
+        hint(box,"Desliza para explorar, junta o separa dos dedos para ampliar y toca cada lugar para abrirlo en Google Maps.");
     }
     private void openSatellite(double latitude,double longitude,int zoom){
         // URL oficial de Google Maps. No requiere API key ni SDK facturado.
-        String center=String.format(java.util.Locale.US,"%.6f%%2C%.6f",latitude,longitude);
-        String link="https://www.google.com/maps/@?api=1&map_action=map&center="+center+
-            "&zoom="+Math.min(19,Math.max(3,zoom))+"&basemap=satellite";
+        String link=MapLinks.satellite(latitude,longitude,zoom);
         try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}
         catch(Exception e){showError("No se pudo abrir la vista satélite: "+e.getMessage());}
     }
 
     private void openExternalMap(BibleGeography.Place p){
-        String lat=String.format(java.util.Locale.US,"%.6f",p.lat);
-        String lon=String.format(java.util.Locale.US,"%.6f",p.lon);
-        String url="https://www.openstreetmap.org/?mlat="+lat+"&mlon="+lon+"#map=11/"+lat+"/"+lon;
+        // Búsqueda por coordenadas: Google Maps muestra el marcador en el lugar elegido.
+        String url=MapLinks.point(p.lat,p.lon);
         try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}
-        catch(Exception e){showError("No se pudo abrir el mapa: "+e.getMessage());}
+        catch(Exception e){showError("No se pudo abrir Google Maps.");}
     }
     private void showPassagePlaces(BibleStore.Passage passage){
         java.util.List<BibleGeography.Place> hits=BibleGeography.mentionedInPassage(passage.book,passage.text);
         if(hits.isEmpty()){
             new AlertDialog.Builder(this).setTitle("Lugares del pasaje")
-                .setMessage("El atlas preliminar todavía no ha identificado un lugar catalogado en este fragmento. Puedes consultar el atlas general del libro.")
+                .setMessage("No hemos asociado todavía un lugar a este pasaje. Puedes descubrir otros lugares relacionados con el libro.")
                 .setPositiveButton("Atlas del libro",(d,w)->openBookAtlas(passage.book))
                 .setNegativeButton("Cerrar",null).show();
             return;

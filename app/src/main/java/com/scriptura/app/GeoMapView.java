@@ -10,6 +10,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.MotionEvent;
+import android.view.GestureDetector;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import java.io.File;
@@ -47,6 +48,9 @@ public final class GeoMapView extends View {
     private final Consumer<BibleGeography.Place> onPlace;
     private final boolean route;
     private final ScaleGestureDetector scaleGesture;
+    private final GestureDetector taps;
+    private float previewScale=1f,scaleX,scaleY;
+    private boolean multiTouch=false;
     private final File cache;
     private int zoom=6, loaded=0;
     private double lat=32.5, lon=35.1;
@@ -65,9 +69,29 @@ public final class GeoMapView extends View {
         setContentDescription("Mapa geográfico interactivo con "+places.size()+
                 " lugares bíblicos. Usa la lista de etapas para accesibilidad.");
         scaleGesture=new ScaleGestureDetector(context,new ScaleGestureDetector.SimpleOnScaleGestureListener(){
+            @Override public boolean onScaleBegin(ScaleGestureDetector d){
+                previewScale=1f;scaleX=d.getFocusX();scaleY=d.getFocusY();
+                moved=true;multiTouch=true;return true;
+            }
             @Override public boolean onScale(ScaleGestureDetector d){
-                if(d.getScaleFactor()>1.16f){zoomIn();return true;}
-                if(d.getScaleFactor()<0.86f){zoomOut();return true;}
+                scaleX=d.getFocusX();scaleY=d.getFocusY();
+                previewScale=(float)clamp(previewScale*d.getScaleFactor(),0.35,3.0);
+                invalidate();
+                return true;
+            }
+            @Override public void onScaleEnd(ScaleGestureDetector d){
+                float factor=previewScale;
+                previewScale=1f;
+                if(factor>=1.28f)zoomAt(+1,scaleX,scaleY);
+                else if(factor<=0.78f)zoomAt(-1,scaleX,scaleY);
+                invalidate();
+            }
+        });
+        taps=new GestureDetector(context,new GestureDetector.SimpleOnGestureListener(){
+            @Override public boolean onDown(MotionEvent e){return true;}
+            @Override public boolean onDoubleTap(MotionEvent e){
+                moved=true;
+                zoomAt(+1,e.getX(),e.getY());
                 return true;
             }
         });
@@ -119,8 +143,23 @@ public final class GeoMapView extends View {
     @Override protected void onMeasure(int wSpec,int hSpec){
         setMeasuredDimension(MeasureSpec.getSize(wSpec),dp(315));
     }
-    public void zoomIn(){if(zoom<MAX_ZOOM){zoom++;invalidate();}}
-    public void zoomOut(){if(zoom>MIN_ZOOM){zoom--;invalidate();}}
+    private void zoomAt(int direction,float x,float y){
+        int next=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom+direction));
+        if(next==zoom)return;
+        // Mantener bajo los dedos el mismo punto geográfico.
+        double oldX=worldX(lon,zoom)+(x-getWidth()/2.0);
+        double oldY=worldY(lat,zoom)+(y-getHeight()/2.0);
+        double scale=(double)(1<<next)/(1<<zoom);
+        double max=TILE*(1<<next);
+        double cx=oldX*scale-(x-getWidth()/2.0);
+        double cy=oldY*scale-(y-getHeight()/2.0);
+        zoom=next;
+        lon=worldToLongitude((cx%max+max)%max,zoom);
+        lat=worldToLatitude(clamp(cy,1,max-1),zoom);
+        invalidate();
+    }
+    public void zoomIn(){zoomAt(+1,getWidth()/2f,getHeight()/2f);}
+    public void zoomOut(){zoomAt(-1,getWidth()/2f,getHeight()/2f);}
     public void retry(){
         synchronized(images){retryAfter.clear();}
         failure=false;
@@ -213,6 +252,9 @@ public final class GeoMapView extends View {
         int width=getWidth(),height=getHeight();
         canvas.drawColor(Color.rgb(236,238,233));
         if(width<10||height<10)return;
+        canvas.save();
+        if(Math.abs(previewScale-1f)>0.001f)
+            canvas.scale(previewScale,previewScale,scaleX,scaleY);
         final int count=1<<zoom;
         double centerX=worldX(lon,zoom),centerY=worldY(lat,zoom);
         int startX=(int)Math.floor((centerX-width/2.0)/TILE);
@@ -272,6 +314,7 @@ public final class GeoMapView extends View {
             pen.setTextSize(dp(11));
             canvas.drawText(String.valueOf(i+1),m[0],m[1]+dp(4),pen);
         }
+        canvas.restore();
         // Atribución visible y legible incluso cuando fallan las teselas.
         pen.setStyle(Paint.Style.FILL);
         pen.setColor(Color.argb(238,255,255,255));
@@ -288,9 +331,12 @@ public final class GeoMapView extends View {
     }
     @Override public boolean onTouchEvent(MotionEvent event){
         scaleGesture.onTouchEvent(event);
+        taps.onTouchEvent(event);
+        if(event.getPointerCount()>1)multiTouch=true;
         switch(event.getActionMasked()){
             case MotionEvent.ACTION_DOWN:
-                downX=previousX=event.getX();downY=previousY=event.getY();moved=false;
+                downX=previousX=event.getX();downY=previousY=event.getY();
+                moved=false;multiTouch=false;
                 getParent().requestDisallowInterceptTouchEvent(true);
                 return true;
             case MotionEvent.ACTION_MOVE:
@@ -309,7 +355,7 @@ public final class GeoMapView extends View {
                 return true;
             case MotionEvent.ACTION_UP:
                 getParent().requestDisallowInterceptTouchEvent(false);
-                if(!moved&&!scaleGesture.isInProgress()){
+                if(!moved&&!multiTouch&&!scaleGesture.isInProgress()){
                     for(int i=markerPoints.size()-1;i>=0;i--){
                         float[] p=markerPoints.get(i);
                         if(Math.hypot(event.getX()-p[0],event.getY()-p[1])<dp(26)){

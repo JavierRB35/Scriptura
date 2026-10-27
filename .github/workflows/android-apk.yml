@@ -21,19 +21,31 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar SDK 34
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: Instalar SDK 34 en el runner
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
       - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      - name: Generar Gradle Wrapper completo
+        run: gradle wrapper --gradle-version 8.9 --distribution-type bin --no-daemon --max-workers=1
+
+      - name: Guardar Gradle Wrapper oficial en el repositorio
+        run: |
+          if ! git ls-files --error-unmatch gradle/wrapper/gradle-wrapper.jar >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add gradle/wrapper/gradle-wrapper.jar
+            git commit -m "build: incluir gradle-wrapper.jar oficial 8.9"
+            git push origin HEAD:main
+          fi
+
       - name: Compilar versión de verificación
-        run: gradle :app:assembleDebug --no-daemon --max-workers=1
+        run: sh ./gradlew :app:assembleDebug --no-daemon --max-workers=1
 
       - name: Comprobar configuración de firma
         id: signing
@@ -67,7 +79,7 @@ jobs:
           SCRIPTURA_KEYSTORE_FILE: ${{ runner.temp }}/scriptura/scriptura-release.jks
           SCRIPTURA_KEYSTORE_PASSWORD: ${{ secrets.SCRIPTURA_KEYSTORE_PASSWORD }}
           SCRIPTURA_KEY_PASSWORD: ${{ secrets.SCRIPTURA_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --no-daemon --max-workers=1
+        run: sh ./gradlew :app:assembleRelease --no-daemon --max-workers=1
 
       - name: Verificar firma del APK
         if: steps.signing.outputs.ready == 'true'

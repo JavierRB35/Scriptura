@@ -67,10 +67,27 @@ public final class WordMeaning {
             .replaceAll("\\p{M}+","");
     }
     public static String local(String word){return ENTRIES.get(normalize(word));}
+    /** Validación Unicode sin el modificador (?U), no admitido por algunas versiones de Android. */
     public static boolean oneWord(String selection){
         if(selection==null)return false;
-        String t=selection.trim();
-        return !t.isEmpty()&&t.codePointCount(0,t.length())<=45&&t.matches("(?U)[\\p{L}][\\p{L}\\p{M}'’]*");
+        String word=selection.trim();
+        if(word.isEmpty()||word.codePointCount(0,word.length())>45)return false;
+        int i=0;
+        int first=word.codePointAt(i);
+        if(!Character.isLetter(first))return false;
+        i+=Character.charCount(first);
+        for(;i<word.length();){
+            int cp=word.codePointAt(i);
+            int kind=Character.getType(cp);
+            if(!Character.isLetter(cp)
+                && kind!=Character.NON_SPACING_MARK
+                && kind!=Character.COMBINING_SPACING_MARK
+                && kind!=Character.ENCLOSING_MARK
+                && cp!='\''
+                && cp!='’')return false;
+            i+=Character.charCount(cp);
+        }
+        return true;
     }
     /** Artículos concretos cuya URL canónica se ha comprobado. Sin enlaces especulativos. */
     public static String catholicArticleUrl(String word){

@@ -110,15 +110,28 @@ public final class DefinitionUi {
             ai.setGravity(Gravity.CENTER_VERTICAL);
             ai.setOnClickListener(v->{dialog.dismiss();delegate.explainWithGemini(word);});
         }
-        // Un ScrollView con límite de altura evita que los enlaces queden fuera de pantalla.
+        // Medida segura: nunca acceder a LayoutParams sin comprobar que existe.
+        // El contenido es desplazable incluso cuando la ventana se limita a
+        // una fracción de la altura del teléfono.
         dialog.setOnShowListener(ignored->{
-            int width=(int)(activity.getResources().getDisplayMetrics().widthPixels*.91f);
-            scroll.getLayoutParams().height=Math.min(maxHeight,
-                Math.max(dp(activity,240),content.getMeasuredHeight()));
-            scroll.requestLayout();
-            if(dialog.getWindow()!=null)dialog.getWindow().setLayout(width,-2);
+            try{
+                int width=(int)(activity.getResources().getDisplayMetrics().widthPixels*.91f);
+                android.view.ViewGroup.LayoutParams lp=scroll.getLayoutParams();
+                if(lp!=null){
+                    lp.height=Math.min(maxHeight,
+                        Math.max(dp(activity,240),content.getMeasuredHeight()));
+                    scroll.setLayoutParams(lp);
+                }
+                if(dialog.getWindow()!=null)dialog.getWindow().setLayout(width,-2);
+            }catch(RuntimeException error){
+                android.util.Log.e("ScripturaDefinir","No se pudo ajustar el tamaño del globo",error);
+            }
         });
-        dialog.show();
+        try{dialog.show();}
+        catch(RuntimeException error){
+            android.util.Log.e("ScripturaDefinir","No se pudo mostrar la definición",error);
+            delegate.showError("No se pudo abrir el globo de la definición.");
+        }
     }
     private static TextView addText(Activity activity,LinearLayout dest,String text,int sp,
                                     int color,boolean bold,int space){

@@ -31,10 +31,14 @@ def adb(*args, check=True, timeout=75):
 def wait(seconds=1.1):
     time.sleep(seconds)
 
-def start():
+def start(candidate=False):
     adb("shell", "am", "force-stop", "com.scriptura.app")
-    adb("shell", "am", "start", "-n", "com.scriptura.app/.MainActivity")
+    activity="com.scriptura.app/.SplashActivity" if candidate else "com.scriptura.app/.MainActivity"
+    adb("shell", "am", "start", "-n",activity)
     adb("shell","wm","dismiss-keyguard",check=False)
+    if candidate:
+        wait(.2)
+        screen("01_splash_real")
     wait(5)
 
 def screen(name):
@@ -128,7 +132,7 @@ def main():
         screen("00_ajuste_previo")
         print("CHECK: actualización sobre release anterior con adb install -r")
         app_install(candidate)
-        start()
+        start(candidate=True)
         screen("01_inicio")
         hit("⚙")
         assert_text("Tamaño de letra actual: 20 sp",scroll=True)

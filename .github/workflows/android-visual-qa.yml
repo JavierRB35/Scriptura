@@ -2,7 +2,7 @@ name: Scriptura · capturas y actualización en emulador Android
 
 on:
   push:
-    branches: [feature/identidad-visual-v2]
+    branches: [feature/glosario-palabras-2s]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   screenshots-and-upgrade:
-    if: github.ref == 'refs/heads/feature/identidad-visual-v2'
+    if: github.ref == 'refs/heads/feature/glosario-palabras-2s'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -54,15 +54,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/scriptura-previous"
-          gh release download v0.5.1-build.26 --repo ${{ github.repository }} \
-            --pattern "Scriptura-0.5.1-build.26.apk" \
+          gh release download v0.6.0-build.48 --repo ${{ github.repository }} \
+            --pattern "Scriptura-0.6.0-build.48.apk" \
             --dir "$RUNNER_TEMP/scriptura-previous"
 
       - name: Comparar firma antes de instalar
         run: |
           set -euo pipefail
           VERIFY="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-          OLD="$RUNNER_TEMP/scriptura-previous/Scriptura-0.5.1-build.26.apk"
+          OLD="$RUNNER_TEMP/scriptura-previous/Scriptura-0.6.0-build.48.apk"
           NEW="app/build/outputs/apk/release/app-release.apk"
           "$VERIFY" verify --print-certs "$OLD" > "$RUNNER_TEMP/old-signature.txt"
           "$VERIFY" verify --print-certs "$NEW" > "$RUNNER_TEMP/new-signature.txt"
@@ -97,7 +97,7 @@ jobs:
       - name: Capturar pantallas reales y verificar actualización sin borrar ajustes
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          SCRIPTURA_PREVIOUS_APK: ${{ runner.temp }}/scriptura-previous/Scriptura-0.5.1-build.26.apk
+          SCRIPTURA_PREVIOUS_APK: ${{ runner.temp }}/scriptura-previous/Scriptura-0.6.0-build.48.apk
           SCRIPTURA_CANDIDATE_APK: app/build/outputs/apk/release/app-release.apk
         with:
           api-level: 34
@@ -117,7 +117,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Scriptura-v2-capturas-Android-reales
+          name: Scriptura-v061-capturas-Android-reales
           path: |
             qa/screenshots/*.png
             qa/visual-qa-report.json

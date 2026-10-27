@@ -34,7 +34,8 @@ def wait(seconds=1.1):
 def start():
     adb("shell", "am", "force-stop", "com.scriptura.app")
     adb("shell", "am", "start", "-n", "com.scriptura.app/.MainActivity")
-    wait(2.4)
+    adb("shell","wm","dismiss-keyguard",check=False)
+    wait(5)
 
 def screen(name):
     path = SCREENSHOTS / (name + ".png")
@@ -46,11 +47,23 @@ def screen(name):
     print("SCREENSHOT",path,len(image))
 
 def dump():
-    adb("shell","uiautomator","dump","/sdcard/scriptura_ui.xml",timeout=120)
-    xml=adb("exec-out","cat","/sdcard/scriptura_ui.xml")
-    start=xml.find("<?xml")
-    if start<0:raise RuntimeError("No se pudo obtener XML de UI Automator")
-    return ET.fromstring(xml[start:])
+    # UIAutomator puede tardar varios segundos tras el arranque del emulador.
+    # adb shell cat es más fiable que exec-out en algunas imágenes Android 34.
+    detail=""
+    for attempt in range(5):
+        try:
+            output=adb("shell","uiautomator","dump","/sdcard/scriptura_ui.xml",timeout=65)
+            xml=adb("shell","cat","/sdcard/scriptura_ui.xml",timeout=20)
+            start=xml.find("<?xml")
+            if start>=0:
+                return ET.fromstring(xml[start:])
+            detail="dump="+output[:140].strip()+"; bytes="+str(len(xml))
+        except (subprocess.SubprocessError,ET.ParseError) as error:
+            detail=type(error).__name__
+        if attempt==0:
+            adb("shell","input","keyevent","82",check=False)
+        wait(3)
+    raise RuntimeError("UIAutomator no devolvió XML; "+detail)
 
 def candidates(root,term,strict=False):
     for node in root.iter("node"):
@@ -119,12 +132,14 @@ def main():
         print("CHECK: release firmado anterior")
         app_install(base)
         start()
+        screen("00_version_anterior")
         assert_text("Scriptura")
         make_model_setting()
         screen("00_ajuste_previo")
         print("CHECK: actualización sobre release anterior con adb install -r")
         app_install(candidate)
         start()
+        screen("01_inicio")
         hit("⚙")
         assert_text("Cambiar modelo (gemini-2.5-flash-lite)",scroll=True)
         REPORT["checks"]["settings_persist_after_upgrade"]="PASS"

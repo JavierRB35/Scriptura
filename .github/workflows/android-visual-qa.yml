@@ -54,15 +54,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/scriptura-previous"
-          gh release download v0.5.0-build.12 --repo ${{ github.repository }} \
-            --pattern "Scriptura-0.5.0-build.12.apk" \
+          gh release download v0.5.1-build.26 --repo ${{ github.repository }} \
+            --pattern "Scriptura-0.5.1-build.26.apk" \
             --dir "$RUNNER_TEMP/scriptura-previous"
 
       - name: Comparar firma antes de instalar
         run: |
           set -euo pipefail
           VERIFY="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-          OLD="$RUNNER_TEMP/scriptura-previous/Scriptura-0.5.0-build.12.apk"
+          OLD="$RUNNER_TEMP/scriptura-previous/Scriptura-0.5.1-build.26.apk"
           NEW="app/build/outputs/apk/release/app-release.apk"
           "$VERIFY" verify --print-certs "$OLD" > "$RUNNER_TEMP/old-signature.txt"
           "$VERIFY" verify --print-certs "$NEW" > "$RUNNER_TEMP/new-signature.txt"
@@ -89,7 +89,7 @@ jobs:
       - name: Capturar pantallas reales y verificar actualización sin borrar ajustes
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          SCRIPTURA_PREVIOUS_APK: ${{ runner.temp }}/scriptura-previous/Scriptura-0.5.0-build.12.apk
+          SCRIPTURA_PREVIOUS_APK: ${{ runner.temp }}/scriptura-previous/Scriptura-0.5.1-build.26.apk
           SCRIPTURA_CANDIDATE_APK: app/build/outputs/apk/release/app-release.apk
         with:
           api-level: 34
@@ -101,8 +101,8 @@ jobs:
           ram-size: 1536M
           heap-size: 256M
           disable-animations: true
-          emulator-boot-timeout: 300
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 420
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: python3 qa/capture_ui.py
 
       - name: Adjuntar capturas PNG y resultados de QA

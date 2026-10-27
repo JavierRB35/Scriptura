@@ -110,6 +110,14 @@ public final class MainActivity extends Activity {
             atlasJourney=BibleGeography.journey(state.getString("atlasJourney",""));
         }
         render();
+        if(UpdateChecker.configured(this)){
+            UpdateChecker.schedule(this);
+            worker.execute(()->{
+                UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),false);
+                if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);
+                runOnUiThread(()->{if(!isFinishing()&&page==0)render();});
+            });
+        }
     }
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);state.putInt("page",page);state.putString("mood",mood);
@@ -183,6 +191,20 @@ public final class MainActivity extends Activity {
         TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
         serif(title);hero.addView(title);addGap(hero,7);
         hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
+        addGap(column,2);
+        UpdateChecker.Update available=UpdateChecker.available(this);
+        if(available!=null){
+            LinearLayout updateCard=card(column);
+            updateCard.addView(text("Nueva versión disponible",18,DARK,true));
+            hint(updateCard,"Scriptura "+available.tag+" · Publicada en GitHub");
+            button(updateCard,"Ver y descargar actualización",
+                    ()->UpdateChecker.openRelease(this,available),true);
+            hint(updateCard,"Se instalará encima de esta versión manteniendo los datos, siempre que utilice la misma firma.");
+        }else if(!UpdateChecker.configured(this)){
+            LinearLayout updateCard=card(column);
+            hint(updateCard,"Puedes activar avisos automáticos de nuevas versiones de Scriptura.");
+            button(updateCard,"Configurar avisos de actualización",this::configureUpdateToken,false);
+        }
         if(!store.ready()){
             LinearLayout c=card(column);c.addView(text("Prepara tu biblioteca",20,DARK,true));
             hint(c,"Importa tu ejemplar EPUB de la Biblia de Navarra. Su contenido permanecerá únicamente en este dispositivo.");
@@ -649,12 +671,76 @@ public final class MainActivity extends Activity {
         section(box,"Avisos","Notificaciones diarias opcionales.");
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
         addGap(box,17);
+        addGap(box,17);
+        section(box,"Actualizaciones","Recibir avisos de nuevas APK firmadas.");
+        addGap(box,18);
+        hint(box,"Comprobación al abrir y periódica cada 12 horas. No se instala nada sin tu consentimiento.");
+        hint(box,"El repositorio es privado. Necesitas un token GitHub con acceso SOLO a Scriptura y permiso Contents: Read.");
+        button(box,UpdateChecker.configured(this)?"Modificar acceso privado GitHub":"Activar avisos de actualización",
+            this::configureUpdateToken,false);
+        button(box,"Comprobar actualizaciones ahora",this::checkUpdatesNow,false);
+        String updateError=UpdateChecker.lastError(this);
+        if(!updateError.isEmpty())hint(box,"Última comprobación: "+updateError);
+
         section(box,"Información","Versión preliminar 0.6.0");
         hint(box,"Los comentarios de Navarra son editoriales. Las respuestas de Gemini son interpretaciones generadas con IA. No se transmiten datos personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();
     }
+    /** Token personal opcional y restringido al repo privado. Nunca se registra ni se copia. */
+    private void configureUpdateToken(){
+        EditText edit=new EditText(this);
+        edit.setHint("github_pat_...");
+        edit.setSingleLine(true);
+        edit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        LinearLayout wrap=vertical();
+        wrap.setPadding(dp(22),dp(10),dp(22),dp(0));
+        wrap.addView(edit);
+        TextView explanation=text("En GitHub crea un Fine-grained token limitado a JavierRB35/Scriptura, solo Contents: Read, con caducidad. No uses un token con permisos de escritura. Se guarda cifrado en este móvil.",14,MUTED,false);
+        wrap.addView(explanation);
+        new AlertDialog.Builder(this).setTitle("Acceso a versiones privadas")
+            .setView(wrap)
+            .setNegativeButton("Cancelar",null)
+            .setNeutralButton("Desactivar avisos",(d,w)->{
+                UpdateChecker.clearToken(this);
+                Toast.makeText(this,"Avisos de versiones desactivados",Toast.LENGTH_SHORT).show();
+                render();
+            })
+            .setPositiveButton("Guardar y activar",(d,w)->{
+                try{
+                    UpdateChecker.saveToken(this,edit.getText().toString());
+                    UpdateChecker.requestNotificationPermission(this);
+                    checkUpdatesNow();
+                }catch(Exception err){
+                    showError("No se pudo guardar el acceso. Comprueba el formato del token.");
+                }
+            }).show();
+    }
+    private void checkUpdatesNow(){
+        if(!UpdateChecker.configured(this)){
+            showError("Primero configura un token de GitHub restringido a este repositorio para acceder a sus Releases privadas.");
+            return;
+        }
+        Toast.makeText(this,"Consultando versiones de Scriptura...",Toast.LENGTH_SHORT).show();
+        worker.execute(()->{
+            UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),true);
+            if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);
+            runOnUiThread(()->{
+                if(isFinishing())return;
+                AlertDialog.Builder dialog=new AlertDialog.Builder(this)
+                    .setTitle(result.available()?"Actualización disponible":"Actualizaciones de Scriptura")
+                    .setMessage(result.info)
+                    .setNegativeButton("Cerrar",(d,w)->{if(page==0)render();});
+                if(result.available()){
+                    dialog.setPositiveButton("Abrir GitHub",(d,w)->
+                        UpdateChecker.openRelease(this,result.update));
+                }
+                dialog.show();
+            });
+        });
+    }
+
     private void configureKey(){
         EditText edit=new EditText(this);edit.setHint("Pega tu clave de Google AI Studio");edit.setSingleLine();
         edit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);

@@ -94,3 +94,16 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - Splash de identidad v2.0 con símbolo vectorial libro y luz, paleta azul noche y oro y lema. Comienza una búsqueda no bloqueante de nuevas releases; si no responde GitHub, la app abre con normalidad.
 - Inicio añade el símbolo del libro como ilustración propia. Se mantienen índice de libros, las obras pictóricas existentes, mapas con base geográfica real, cinco pestañas, EPUB local, seguridad y firma anterior.
 - La lámina gráfica aportada en ZIP v2.0 es conceptual y no una captura ni licencia para distribuir arte de terceros; las imágenes históricas tienen su propio catálogo y crédito.
+
+## Scriptura 0.7.2 · experiencia de primer uso
+
+- **Primera apertura:** guía opcional visible en Inicio, que se puede ocultar y recuperar desde Ajustes → Cómo utilizar Scriptura. Importar EPUB no es obligatorio para consultar índice, mapas y arte.
+- **Inicio más sencillo:** se reduce el tamaño del elemento gráfico y el acceso al token privado de actualizaciones deja de distraer a nuevos usuarios; las nuevas versiones disponibles sí se anuncian.
+- **Índice de 73 libros:** búsqueda por nombre sin distinguir acentos ni mayúsculas, selección Antiguo/Nuevo Testamento y filas pulsables compactas. 46 libros antiguos + 27 nuevos (canon católico).
+- **Navegación contextual:** desde una lectura se regresa a Inicio, Para mí, Guardados o al índice según de dónde se abrió. Se restaura el pasaje al recrear la actividad.
+- **Sin EPUB:** cada pantalla explica qué falta y ofrece una acción real para importar, sin bloquear la exploración del índice, los mapas ni las obras.
+- **Introducciones del EPUB Navarra:** SQLite asocia los extractos a la revisión local del EPUB para evitar mostrar introducciones de un archivo anterior; se permiten cargas parciales con ausencia explícita en libros que no se hayan reconocido.
+- **Transparencia:** splash condicional, versión de ajustes derivada de la APK instalada y mensajes de error de token diferenciados. Sin enviar contenido editorial ni credenciales al repositorio.
+- **Informe y evaluación:** `docs/INFORME_PRIMER_USO_0_7_2.md`. Revisión heurística del código, no estudio de usuarios real. Pendiente QA con EPUB privado en el móvil y pruebas TalkBack.
+
+Conserva JDK17, compileSdk/targetSdk34, Gradle8.9, AGP8.7.3, las cinco pestañas, el acceso fijo a Mapas, `applicationId=com.scriptura.app` y el mismo keystore para actualizar sobre instalaciones existentes.

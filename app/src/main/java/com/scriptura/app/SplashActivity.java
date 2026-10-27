@@ -57,7 +57,9 @@ public final class SplashActivity extends Activity {
         mottoLp.topMargin=dp(10);root.addView(motto,mottoLp);
 
         TextView check=new TextView(this);
-        check.setText("Comprobando novedades sin detener tu lectura…");
+        check.setText(UpdateChecker.configured(this)
+            ?"Consultando nuevas versiones sin detener tu lectura…"
+            :"Tu Biblia, mapas y arte · Sin registro obligatorio");
         check.setTextColor(Color.rgb(220,225,232));
         check.setTextSize(12);check.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams checkLp=new LinearLayout.LayoutParams(-1,-2);

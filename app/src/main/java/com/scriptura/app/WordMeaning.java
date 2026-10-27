@@ -95,12 +95,20 @@ public final class WordMeaning {
         return "https://es.wiktionary.org/wiki/Especial:Buscar?search="+encodeSearchTerm(word);
     }
     private static String encodePath(String title){
-        return java.net.URLEncoder.encode(title,java.nio.charset.StandardCharsets.UTF_8).replace("+","%20");
+        return encodeUtf8(title);
     }
     private static String encodeSearchTerm(String word){
         if(!oneWord(word))throw new IllegalArgumentException("Se requiere una sola palabra");
-        return java.net.URLEncoder.encode(word.trim(),java.nio.charset.StandardCharsets.UTF_8)
-            .replace("+","%20");
+        return encodeUtf8(word.trim());
+    }
+    private static String encodeUtf8(String value){
+        // Este overload existe desde Android 1; URLEncoder.encode(String, Charset)
+        // no debe usarse con nuestro minSdk 26.
+        try {
+            return java.net.URLEncoder.encode(value,"UTF-8").replace("+","%20");
+        } catch(java.io.UnsupportedEncodingException impossible){
+            throw new AssertionError(impossible);
+        }
     }
     public static String selection(String original,int start,int end){
         if(original==null||start<0||end>original.length()||start>=end)return null;

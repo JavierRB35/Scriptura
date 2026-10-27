@@ -154,7 +154,7 @@ public final class MainActivity extends Activity {
             int color=selected?GOLD:Color.rgb(231,236,242);
             LinearLayout item=vertical();item.setGravity(Gravity.CENTER);
             item.setContentDescription(names[i]+(selected?", pestaña seleccionada":""));
-            item.setClickable(true);item.setFocusable(true);item.setMinHeight(dp(64));
+            item.setClickable(true);item.setFocusable(true);item.setMinimumHeight(dp(64));
             TextView glyph=text(symbols[i],21,color,selected);glyph.setGravity(Gravity.CENTER);
             TextView label=text(names[i],11,color,selected);label.setGravity(Gravity.CENTER);
             glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);

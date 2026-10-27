@@ -405,7 +405,7 @@ public final class MainActivity extends Activity {
         bible.setTextIsSelectable(true);
         addDefinitionAction(bible,p);
         c.addView(bible);
-        hint(c,"Mantén pulsada una palabra para consultar su significado.");
+        hint(c,"Mantén pulsada una palabra, pulsa «Definir» y elige dónde consultar su significado.");
         showHistoricalContext(p);
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",

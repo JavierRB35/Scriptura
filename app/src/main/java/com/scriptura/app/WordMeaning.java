@@ -72,21 +72,35 @@ public final class WordMeaning {
         String t=selection.trim();
         return !t.isEmpty()&&t.codePointCount(0,t.length())<=45&&t.matches("(?U)[\\p{L}][\\p{L}\\p{M}'’]*");
     }
-    /** Busca el término en la Enciclopedia Católica de ACI Prensa. */
-    public static String catholicSearchUrl(String word){
-        return "https://ec.aciprensa.com/wiki/Especial:Buscar?search="+encodeSearchTerm(word);
+    /** Artículos concretos cuya URL canónica se ha comprobado. Sin enlaces especulativos. */
+    public static String catholicArticleUrl(String word){
+        if(!oneWord(word))throw new IllegalArgumentException("Se requiere una sola palabra");
+        String name;
+        switch(normalize(word)){
+            case "fariseo": case "fariseos": case "farisea": case "fariseas": name="Fariseos"; break;
+            case "saduceo": case "saduceos": name="Saduceos"; break;
+            case "apostol": case "apostoles": name="Apóstoles"; break;
+            case "pecado": case "pecados": name="Pecado"; break;
+            default: return null;
+        }
+        return "https://ec.aciprensa.com/wiki/"+encodePath(name);
     }
-    /** Wikipedia es una fuente general, no una referencia doctrinal católica. */
+    /** La búsqueda genérica anterior no era una URL comprobada y no se utiliza. */
+    public static String catholicSearchUrl(String word){ return catholicArticleUrl(word); }
+    /** Página de búsqueda oficial, evita suponer que todo término tiene artículo directo. */
     public static String wikipediaSearchUrl(String word){
-        return "https://es.wikipedia.org/w/index.php?search="+encodeSearchTerm(word);
+        return "https://es.wikipedia.org/wiki/Especial:Buscar?search="+encodeSearchTerm(word);
+    }
+    public static String wiktionarySearchUrl(String word){
+        return "https://es.wiktionary.org/wiki/Especial:Buscar?search="+encodeSearchTerm(word);
+    }
+    private static String encodePath(String title){
+        return java.net.URLEncoder.encode(title,java.nio.charset.StandardCharsets.UTF_8).replace("+","%20");
     }
     private static String encodeSearchTerm(String word){
         if(!oneWord(word))throw new IllegalArgumentException("Se requiere una sola palabra");
-        try{
-            return java.net.URLEncoder.encode(word.trim(),"UTF-8").replace("+","%20");
-        }catch(java.io.UnsupportedEncodingException impossible){
-            throw new AssertionError(impossible);
-        }
+        return java.net.URLEncoder.encode(word.trim(),java.nio.charset.StandardCharsets.UTF_8)
+            .replace("+","%20");
     }
     public static String selection(String original,int start,int end){
         if(original==null||start<0||end>original.length()||start>=end)return null;

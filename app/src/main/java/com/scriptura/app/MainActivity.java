@@ -406,6 +406,10 @@ public final class MainActivity extends Activity {
         addDefinitionAction(bible,p);
         c.addView(bible);
         hint(c,"Mantén pulsada una palabra, pulsa «Definir» y elige dónde consultar su significado.");
+        TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
+        alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
+        alternative.setOnClickListener(v->askForWord(p));
+        c.addView(alternative);
         showHistoricalContext(p);
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
@@ -513,92 +517,55 @@ public final class MainActivity extends Activity {
         BibleStore.Passage p=store.passage(Books.name(book)+" "+chapter);
         if(p!=null)open(p);
     }
-    private static final int ACTION_DEFINE_WORD=0x5C120;
-    /** Conserva la barra contextual nativa, incluyendo Copiar, Compartir y Seleccionar todo. */
+    /** Acción Definir añadida al menú nativo; Copiar y Compartir no se consumen. */
     private void addDefinitionAction(TextView bible,BibleStore.Passage passage){
-        bible.setCustomSelectionActionModeCallback(new ActionMode.Callback(){
-            @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
-                return true; // Android sigue creando sus opciones predeterminadas.
-            }
-            @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
-                if(menu.findItem(ACTION_DEFINE_WORD)==null){
-                    MenuItem define=menu.add(Menu.NONE,ACTION_DEFINE_WORD,Menu.NONE,"Definir");
-                    define.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        DefinitionUi.attach(this,bible,ai.configured(),new DefinitionUi.Delegate(){
+            @Override public void openExternal(String url){
+                try{
+                    Intent browser=new Intent(Intent.ACTION_VIEW,Uri.parse(url));
+                    browser.addCategory(Intent.CATEGORY_BROWSABLE);
+                    startActivity(browser);
+                }catch(Exception error){
+                    showError("No se pudo abrir el enlace en el navegador.");
                 }
-                return true;
             }
-            @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){
-                if(item.getItemId()!=ACTION_DEFINE_WORD)return false;
-                String chosen=WordMeaning.selection(
-                    bible.getText().toString(),bible.getSelectionStart(),bible.getSelectionEnd());
-                if(chosen==null){
-                    Toast.makeText(MainActivity.this,"Selecciona una sola palabra para definirla.",Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                mode.finish();
-                showMeaningBalloon(bible,chosen,passage);
-                return true;
+            @Override public void explainWithGemini(String word){
+                interpret(passage,"Explica la palabra «"+word+
+                    "» en el contexto de esta referencia; diferencia historia, sentido literal y teología.",true);
             }
-            @Override public void onDestroyActionMode(ActionMode mode){}
+            @Override public void showError(String message){
+                MainActivity.this.showError(message);
+            }
         });
     }
-    private void showMeaningBalloon(View anchor,String word,BibleStore.Passage passage){
-        String local=WordMeaning.local(word);
-        LinearLayout card=vertical();
-        card.setBackground(outlined(SURFACE,17));
-        card.setPadding(dp(16),dp(15),dp(16),dp(15));
-        TextView title=text(word,22,DARK,true);serif(title);card.addView(title);
-        addGap(card,5);
-        TextView body=text(local!=null?local:
-            "Esta palabra aún no figura en el glosario local. Puedes buscarla en la Enciclopedia Católica, Wikipedia o Wikcionario.",15,DARK,false);
-        card.addView(body);
-        addGap(card,8);
-        TextView source=text(local!=null?
-            "Fuente: glosario orientativo de Scriptura. El significado puede variar según el pasaje.":
-            "Las fuentes externas requieren conexión. Puede que no exista una entrada para todas las palabras.",12,MUTED,false);
-        card.addView(source);
-        int width=getResources().getDisplayMetrics().widthPixels-dp(36);
-        PopupWindow popup=new PopupWindow(card,width,WindowManager.LayoutParams.WRAP_CONTENT,true);
-        popup.setBackgroundDrawable(outlined(SURFACE,17));
-        popup.setElevation(dp(12));popup.setOutsideTouchable(true);
-        addDefinitionSource(card,popup,"Consultar Enciclopedia Católica (ACI Prensa)",
-            WordMeaning.catholicSearchUrl(word));
-        addDefinitionSource(card,popup,"Consultar Wikipedia",
-            WordMeaning.wikipediaSearchUrl(word));
-        addDefinitionSource(card,popup,"Consultar Wikcionario",
-            "https://es.wiktionary.org/wiki/"+
-                Uri.encode(word.toLowerCase(java.util.Locale.ROOT)));
-        if(ai.configured()){
-            TextView contextual=text("Explicar en este pasaje con Gemini",14,ACCENT,true);
-            contextual.setPadding(dp(5),dp(10),dp(5),dp(9));card.addView(contextual);
-            contextual.setOnClickListener(v->{
-                popup.dismiss();
-                interpret(passage,"Explica el significado de la palabra «"+word+
-                    "» en el contexto de esta referencia; distingue sentido literal, histórico y religioso y reconoce incertidumbres.",true);
-            });
-        }
-        TextView close=text("Cerrar",14,MUTED,false);
-        close.setGravity(Gravity.END);close.setPadding(dp(5),dp(9),dp(5),dp(2));
-        card.addView(close);close.setOnClickListener(v->popup.dismiss());
-        popup.setContentView(card);
-        popup.showAtLocation(anchor,Gravity.CENTER,0,0);
-    }
-
-    /** Abre solamente una URL HTTPS generada por Scriptura tras la acción del usuario. */
-    private void addDefinitionSource(LinearLayout card,PopupWindow popup,String label,String url){
-        TextView action=text(label,14,ACCENT,true);
-        action.setPadding(dp(5),dp(12),dp(5),dp(8));
-        card.addView(action);
-        action.setOnClickListener(v->{
-            popup.dismiss();
-            try{
-                Intent browser=new Intent(Intent.ACTION_VIEW,Uri.parse(url));
-                browser.addCategory(Intent.CATEGORY_BROWSABLE);
-                startActivity(browser);
-            }catch(Exception error){
-                showError("No se pudo abrir la consulta. Comprueba que tienes un navegador instalado.");
-            }
-        });
+    private void askForWord(BibleStore.Passage passage){
+        EditText entry=new EditText(this);
+        entry.setSingleLine(true);
+        entry.setHint("Palabra bíblica");
+        entry.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
+            android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        LinearLayout form=vertical();
+        form.setPadding(dp(20),dp(4),dp(20),dp(6));
+        form.addView(entry);
+        new AlertDialog.Builder(this).setTitle("Definir una palabra")
+            .setMessage("Puedes consultar una palabra sin usar la selección de texto.")
+            .setView(form)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Definir",(dialog,button)->{
+                String term=entry.getText().toString().trim();
+                DefinitionUi.show(this,term,ai.configured(),new DefinitionUi.Delegate(){
+                    @Override public void openExternal(String url){
+                        try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))
+                            .addCategory(Intent.CATEGORY_BROWSABLE));}
+                        catch(Exception error){showError("No se pudo abrir el navegador.");}
+                    }
+                    @Override public void explainWithGemini(String word){
+                        interpret(passage,"Explica la palabra «"+word+
+                            "» en el contexto de este pasaje con prudencia histórica.",true);
+                    }
+                    @Override public void showError(String message){MainActivity.this.showError(message);}
+                });
+            }).show();
     }
 
     private void showNavarraNote(BibleStore.Passage p){

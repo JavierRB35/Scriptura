@@ -651,6 +651,7 @@ public final class MainActivity extends Activity {
         minus.setOnClickListener(v->map.zoomOut());
         plus.setOnClickListener(v->map.zoomIn());
         box.addView(zooms);
+        button(box,"Reintentar carga del mapa",map::retry,false);
         button(box,"Ver esta zona por satélite en Google Maps",
             ()->openSatellite(map.centerLatitude(),map.centerLongitude(),map.zoomLevel()),false);
         hint(box,"El satélite se abre en Google Maps y no superpone el itinerario bíblico. En este mapa puedes arrastrar, ampliar y pulsar los puntos.");

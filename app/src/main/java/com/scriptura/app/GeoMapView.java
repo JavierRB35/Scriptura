@@ -41,6 +41,8 @@ public final class GeoMapView extends View {
     private final ArrayList<BibleGeography.Place> places=new ArrayList<>();
     private final HashMap<String,Bitmap> images=new HashMap<>();
     private final Set<String> pending=new HashSet<>();
+    private final HashMap<String,Long> retryAfter=new HashMap<>();
+    private static final long FAILURE_RETRY_MS=10L*60*1000;
     private final Paint pen=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Consumer<BibleGeography.Place> onPlace;
     private final boolean route;
@@ -119,7 +121,11 @@ public final class GeoMapView extends View {
     }
     public void zoomIn(){if(zoom<MAX_ZOOM){zoom++;invalidate();}}
     public void zoomOut(){if(zoom>MIN_ZOOM){zoom--;invalidate();}}
-    public void retry(){failure=false;status="Reintentando cargar el mapa...";invalidate();}
+    public void retry(){
+        synchronized(images){retryAfter.clear();}
+        failure=false;
+        invalidate();
+    }
     public double centerLatitude(){return lat;}
     public double centerLongitude(){return lon;}
     public int zoomLevel(){return zoom;}
@@ -130,6 +136,8 @@ public final class GeoMapView extends View {
         final String id=id(z,x,y);
         synchronized(images){
             if(images.containsKey(id)||pending.contains(id))return;
+            Long after=retryAfter.get(id);
+            if(after!=null&&System.currentTimeMillis()<after)return;
             pending.add(id);
         }
         NETWORK.execute(()->{
@@ -176,10 +184,17 @@ public final class GeoMapView extends View {
                     }finally{connection.disconnect();}
                 }
             }catch(Exception ex){error=true;}
+            if(bitmap==null)error=true;
             final Bitmap ready=bitmap;final boolean failed=error;
             post(()->{
                 synchronized(images){
                     pending.remove(id);
+                    if(failed){
+                        // Impide reintentos infinitos cuando falta internet o hay HTTP 403/429.
+                        // Máximo una petición fallida por tesela cada diez minutos.
+                        if(retryAfter.size()>200)retryAfter.clear();
+                        retryAfter.put(id,System.currentTimeMillis()+FAILURE_RETRY_MS);
+                    }else retryAfter.remove(id);
                     if(ready!=null){
                         if(images.size()>100)images.clear();
                         images.put(id,ready);loaded++;

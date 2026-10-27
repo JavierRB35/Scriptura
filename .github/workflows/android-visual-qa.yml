@@ -36,7 +36,7 @@ jobs:
 
       - name: Compilar release candidata con firma real, solo rama propia
         env:
-          GITHUB_RUN_NUMBER: '2000'
+          SCRIPTURA_BUILD_CODE: '2000'
           SCRIPTURA_SIGN_RELEASE: 'true'
           SCRIPTURA_KEYSTORE_FILE: ${{ runner.temp }}/scriptura-release.jks
           SCRIPTURA_KEYSTORE_PASSWORD: ${{ secrets.SCRIPTURA_KEYSTORE_PASSWORD }}
@@ -69,7 +69,15 @@ jobs:
           grep 'Signer #1 certificate SHA-256 digest' "$RUNNER_TEMP/old-signature.txt" > "$RUNNER_TEMP/old-cert.txt"
           grep 'Signer #1 certificate SHA-256 digest' "$RUNNER_TEMP/new-signature.txt" > "$RUNNER_TEMP/new-cert.txt"
           diff -u "$RUNNER_TEMP/old-cert.txt" "$RUNNER_TEMP/new-cert.txt"
-          echo "CERTIFICADO FIRMA SIN CAMBIOS" >> "$GITHUB_STEP_SUMMARY"
+          AAPT="$ANDROID_HOME/build-tools/34.0.0/aapt"
+          OLD_META="$("$AAPT" dump badging "$OLD" | grep '^package:')"
+          NEW_META="$("$AAPT" dump badging "$NEW" | grep '^package:')"
+          echo "Anterior: $OLD_META"
+          echo "Candidata: $NEW_META"
+          OLD_CODE="$(printf '%s' "$OLD_META" | sed -n "s/.*versionCode='\\([0-9]*\\)'.*/\\1/p")"
+          NEW_CODE="$(printf '%s' "$NEW_META" | sed -n "s/.*versionCode='\\([0-9]*\\)'.*/\\1/p")"
+          test -n "$OLD_CODE" && test -n "$NEW_CODE" && test "$NEW_CODE" -gt "$OLD_CODE"
+          echo "CERTIFICADO FIRMA SIN CAMBIOS Y VERSIONCODE ASCENDENTE" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Liberar espacio del runner antes de arrancar Android
         run: |

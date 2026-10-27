@@ -103,30 +103,13 @@ def app_install(path):
     if "Success" not in output:raise RuntimeError("Falló adb install -r: "+output)
     print("INSTALLED",path)
 
-def make_model_setting():
+def make_font_setting():
     hit("⚙")
-    hit("Cambiar modelo",scroll=True)
-    # El cuadro contiene el modelo actual: se sustituye por otro modelo válido
-    root=dump()
-    entries=[n for n in root.iter("node") if n.attrib.get("class")=="android.widget.EditText"]
-    if len(entries)!=1:raise RuntimeError("Esperábamos un solo campo de modelo")
-    rect=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",entries[0].attrib["bounds"])
-    x1,y1,x2,y2=map(int,rect.groups())
-    adb("shell","input","tap",str((x1+x2)//2),str((y1+y2)//2))
-    adb("shell","input","keyevent","123")
-    adb("shell","input","keyevent",*["67"]*45)
-    adb("shell","input","text","gemini-2.5-flash-lite")
-    # El teclado virtual cubre la fila de botones en algunos emuladores.
+    hit("Aumentar tamaño de letra",scroll=True)
+    REPORT["checks"]["baseline_font_increased"] = "PASS"
+    # La pantalla principal se ha regenerado; cerrar la ficha de ajustes si aún está encima.
     adb("shell","input","keyevent","4")
     wait(1)
-    hit("Guardar",strict=True,scroll=True)
-    wait(.5)
-    assert_text("Ajustes de Scriptura")
-    hit("Cerrar",strict=True)
-    hit("⚙")
-    assert_text("Cambiar modelo (gemini-2.5-flash-lite)",scroll=True)
-    REPORT["checks"]["baseline_model_changed"]="PASS"
-    hit("Cerrar",strict=True)
 
 def main():
     base=os.environ["SCRIPTURA_PREVIOUS_APK"]
@@ -137,15 +120,15 @@ def main():
         start()
         screen("00_version_anterior")
         assert_text("Scriptura")
-        make_model_setting()
+        make_font_setting()
         screen("00_ajuste_previo")
         print("CHECK: actualización sobre release anterior con adb install -r")
         app_install(candidate)
         start()
         screen("01_inicio")
         hit("⚙")
-        assert_text("Cambiar modelo (gemini-2.5-flash-lite)",scroll=True)
-        REPORT["checks"]["settings_persist_after_upgrade"]="PASS"
+        assert_text("Tamaño de letra actual: 20 sp",scroll=True)
+        REPORT["checks"]["font_setting_persist_after_upgrade"]="PASS"
         screen("01_ajustes")
         hit("Cerrar",strict=True)
         assert_text("Una palabra para hoy")

@@ -86,3 +86,11 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - **Sin clave API de imágenes**: el usuario puede abrir la búsqueda en Wikimedia Commons o la ficha concreta verificada para comprobar derechos y autoría. Una búsqueda que no dé coincidencia fiable no muestra una obra distinta.
 - Son representaciones artísticas históricas de relatos bíblicos, nunca fotografías de acontecimientos bíblicos ni sustituto de exégesis.
 - **Compatibilidad**: cinco pestañas, Java17, SDK34, Gradle8.9, AGP8.7.3, aplicación/firma y datos locales intactos. No pasar a 1.0 hasta validar con EPUB y teléfono real.
+
+## Lectura contextual y splash (0.7.1)
+
+- La selección prolongada utiliza la barra estándar de Android, manteniendo `Copiar`, `Compartir` y `Seleccionar todo`. La acción añadida `Definir` abre un globo con el significado de palabras del glosario bíblico inicial.
+- Para palabras no catalogadas, se ofrece Wikcionario externo. Con clave Gemini configurada, existe explicación contextual opcional con aviso y consentimiento antes de enviar datos.
+- Splash de identidad v2.0 con símbolo vectorial libro y luz, paleta azul noche y oro y lema. Comienza una búsqueda no bloqueante de nuevas releases; si no responde GitHub, la app abre con normalidad.
+- Inicio añade el símbolo del libro como ilustración propia. Se mantienen índice de libros, las obras pictóricas existentes, mapas con base geográfica real, cinco pestañas, EPUB local, seguridad y firma anterior.
+- La lámina gráfica aportada en ZIP v2.0 es conceptual y no una captura ni licencia para distribuir arte de terceros; las imágenes históricas tienen su propio catálogo y crédito.

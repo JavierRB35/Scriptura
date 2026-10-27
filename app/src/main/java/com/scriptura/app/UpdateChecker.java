@@ -155,7 +155,7 @@ public final class UpdateChecker {
      * Invocar EXCLUSIVAMENTE fuera del hilo principal.
      * force=true omite la ventana de cinco minutos usada para evitar consultas repetidas.
      */
-    public static Result check(Context c,boolean force){
+    public static synchronized Result check(Context c,boolean force){
         if(!configured(c))return new Result(null,
             "Para comprobar versiones del repositorio privado, configura tu acceso de solo lectura en Ajustes.");
         SharedPreferences p=prefs(c);

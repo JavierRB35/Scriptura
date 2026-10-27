@@ -60,3 +60,19 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - El modelo de versiones se comprueba con tests unitarios y no se notifica sobre borradores, tags sueltos ni Releases que carezcan de APK.
 - Limitación de seguridad: aunque cifrado en el Keystore, el token personal es una credencial sensible. Usar una credencial limitada con caducidad; regenerarla al vencer.
 - Para comprobar un APK publicado nuevo, no basta un commit o una compilación de PR: debe existir una **Release** firmada descargable.
+
+## Atlas interactivo sobre cartografía real (candidata 0.6.0)
+
+- Los mapas de libro, recorrido y lugar usan ahora **cartografía OpenStreetMap real**, con desplazamiento, zoom, marcadores pulsables, numeración de etapas y las líneas de recorrido superpuestas. Ya no se dibujan únicamente sobre un fondo vacío.
+- Fuente: © OpenStreetMap contributors, con atribución visible en la propia vista. Se consultan exclusivamente las teselas que muestra el usuario (https://tile.openstreetmap.org/...). La app se identifica mediante un User-Agent propio, emplea HTTPS, almacenamiento temporal >= 7 días y **no** descarga regiones completas ni realiza precargas masivas.
+- La app no necesita una API key, servicio de Google Play, SDK de mapas ni facturación de Google Cloud.
+- Botón **«Ver esta zona por satélite en Google Maps»**: abre Google Maps mediante su URL oficial `map_action=map&basemap=satellite`, sin incrustar el satélite ni trasladar las líneas de itinerario. El satélite externo no precisa clave del Maps SDK.
+- **Sin conexión:** se conservan descripciones, lugares, rutas y teselas previamente visualizadas si continúan en la caché; puede verse un aviso cuando el fondo cartográfico no esté disponible. No constituye un sistema completo de mapas offline.
+- Las líneas discontinuas representan **orden narrativo** de paradas, no carreteras modernas ni caminos bíblicos arqueológicamente demostrados.
+- Cualquier ubicación catalogada como `DEBATED`, `APPROX` o `REGION` conserva su advertencia.
+- El módulo continúa como atlas divulgativo **preliminar**; quedan por ampliar topónimos y geografía de todos los libros, además de probar carga real de teselas y funcionamiento con restricciones de red en dispositivos.
+
+### Referencias de plataforma
+- Política de teselas: https://operations.osmfoundation.org/policies/tiles/
+- URLs oficiales de mapas satélite: https://developers.google.com/maps/documentation/urls/get-started
+- Google Maps SDK Android (requiere clave y facturación; no utilizado): https://developers.google.com/maps/documentation/android-sdk/usage-and-billing

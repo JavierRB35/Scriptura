@@ -10,8 +10,11 @@ android {
         applicationId "com.scriptura.app"
         minSdk 26
         targetSdk 34
-        versionCode = Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
-        versionName = "0.5.1" + (System.getenv("GITHUB_RUN_NUMBER") ? "-build." + System.getenv("GITHUB_RUN_NUMBER") : "")
+        // GitHub reserva GITHUB_RUN_NUMBER y no permite sobrescribirlo en un workflow.
+        // SCRIPTURA_BUILD_CODE se usa solo para las pruebas de actualización en emulador.
+        versionCode = Integer.parseInt(System.getenv("SCRIPTURA_BUILD_CODE") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        versionName = "0.6.0" + ((System.getenv("SCRIPTURA_BUILD_CODE") ?: System.getenv("GITHUB_RUN_NUMBER")) ?
+            "-build." + (System.getenv("SCRIPTURA_BUILD_CODE") ?: System.getenv("GITHUB_RUN_NUMBER")) : "")
     }
 
     signingConfigs {

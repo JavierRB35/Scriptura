@@ -2,7 +2,9 @@ name: Scriptura · compilar y publicar APK firmada
 
 on:
   push:
-    branches: [main, feature/avisos-actualizacion]
+    branches: [main, feature/identidad-visual-v2]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -53,6 +55,7 @@ jobs:
         run: sh ./gradlew :app:testDebugUnitTest --no-daemon --max-workers=1
 
       - name: Comprobar configuración de firma
+        if: github.event_name != 'pull_request'
         id: signing
         env:
           KEY_B64: ${{ secrets.SCRIPTURA_KEYSTORE_BASE64 }}
@@ -70,7 +73,7 @@ jobs:
           fi
 
       - name: Restaurar keystore temporal
-        if: steps.signing.outputs.ready == 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         env:
           KEY_B64: ${{ secrets.SCRIPTURA_KEYSTORE_BASE64 }}
         run: |
@@ -78,7 +81,7 @@ jobs:
           printf '%s' "$KEY_B64" | base64 --decode > "$RUNNER_TEMP/scriptura/scriptura-release.jks"
 
       - name: Compilar APK release firmada
-        if: steps.signing.outputs.ready == 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         env:
           SCRIPTURA_SIGN_RELEASE: 'true'
           SCRIPTURA_KEYSTORE_FILE: ${{ runner.temp }}/scriptura/scriptura-release.jks
@@ -87,18 +90,18 @@ jobs:
         run: sh ./gradlew :app:assembleRelease --no-daemon --max-workers=1
 
       - name: Verificar firma del APK
-        if: steps.signing.outputs.ready == 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         run: |
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Preparar entrega
-        if: steps.signing.outputs.ready == 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.5.1-build.${GITHUB_RUN_NUMBER}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.6.0-build.${GITHUB_RUN_NUMBER}.apk"
 
       - name: Guardar APK firmado en artefactos
-        if: steps.signing.outputs.ready == 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Scriptura-APK-firmado-${{ github.run_number }}
@@ -106,11 +109,11 @@ jobs:
           if-no-files-found: error
 
       - name: Publicar versión preliminar descargable
-        if: github.ref == 'refs/heads/main' && steps.signing.outputs.ready == 'true'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.signing.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v0.5.1-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.5.1-build.${GITHUB_RUN_NUMBER}.apk" \
-            --title "Scriptura 0.5.1 · compilación ${GITHUB_RUN_NUMBER}" \
+          gh release create "v0.6.0-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.6.0-build.${GITHUB_RUN_NUMBER}.apk" \
+            --title "Scriptura 0.6.0 · compilación ${GITHUB_RUN_NUMBER}" \
             --notes "Versión preliminar de desarrollo. APK firmado para actualización sobre instalaciones anteriores firmadas con la misma clave." \
             --prerelease --target "$GITHUB_SHA"

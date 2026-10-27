@@ -20,8 +20,10 @@ import java.util.concurrent.*;
 
 public final class MainActivity extends Activity {
     private static final int PICK_EPUB=1027;
-    private final int DARK=Color.rgb(37,60,52), GOLD=Color.rgb(174,122,49), MUTED=Color.rgb(95,110,104);
-    private final int BG=Color.rgb(250,249,245), SURFACE=Color.WHITE, SOFT=Color.rgb(239,244,239);
+    // Identidad visual v2: valores coincidentes con res/values/scriptura_colors.xml
+    private final int DARK=Color.rgb(13,35,56), GOLD=Color.rgb(218,168,92), MUTED=Color.rgb(71,89,105);
+    private final int BG=Color.rgb(255,252,246), SURFACE=Color.WHITE, SOFT=Color.rgb(245,231,200);
+    private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private BibleStore store;
     private NavarraNotes notes;
     private GeminiClient ai;
@@ -42,10 +44,18 @@ public final class MainActivity extends Activity {
     private GradientDrawable bg(int color,int radius) {
         GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;
     }
+    private GradientDrawable outlined(int color,int radius){
+        GradientDrawable drawable=bg(color,radius);drawable.setStroke(dp(1),OUTLINE);return drawable;
+    }
+    private void serif(TextView t){t.setTypeface(Typeface.create("serif",Typeface.NORMAL));}
+    private void section(LinearLayout box,String heading,String caption) {
+        TextView h=text(heading,20,DARK,false);serif(h);box.addView(h);
+        hint(box,caption);addGap(box,4);
+    }
     private TextView text(String s,int size,int color,boolean bold){
         TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);
-        if(bold)t.setTypeface(null,Typeface.BOLD);
-        t.setLineSpacing(dp(3),1.13f);
+        if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        t.setLineSpacing(dp(4),1.15f);
         return t;
     }
     private void pad(View view,int px){view.setPadding(dp(px),dp(px),dp(px),dp(px));}
@@ -57,22 +67,24 @@ public final class MainActivity extends Activity {
     }
     private void button(LinearLayout box,String label,Runnable action,boolean primary){
         TextView b=text(label,15,primary?Color.WHITE:DARK,true);b.setGravity(Gravity.CENTER);
-        pad(b,13);b.setBackground(bg(primary?DARK:SOFT,14));b.setOnClickListener(v->action.run());
-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(8);box.addView(b,p);
+        b.setMinHeight(dp(48));b.setPadding(dp(14),dp(12),dp(14),dp(12));
+        b.setBackground(primary?bg(DARK,12):outlined(SOFT,12));
+        b.setContentDescription(label);b.setOnClickListener(v->action.run());
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(9);box.addView(b,p);
     }
     private LinearLayout card(LinearLayout dest){
-        LinearLayout l=vertical();pad(l,17);l.setBackground(bg(SURFACE,17));l.setElevation(dp(2));
+        LinearLayout l=vertical();pad(l,17);l.setBackground(outlined(SURFACE,16));
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(13);
         dest.addView(l,lp);return l;
     }
     private void title(LinearLayout l,String s){
-        TextView v=text(s,24,DARK,true);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
+        TextView v=text(s,26,DARK,false);serif(v);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
         p.bottomMargin=dp(14);l.addView(v,p);
     }
     private EditText input(LinearLayout container,String hint,boolean multiline){
         EditText e=new EditText(this);e.setTextColor(DARK);e.setTextSize(16);e.setHint(hint);
-        e.setSingleLine(!multiline);e.setPadding(dp(12),dp(12),dp(12),dp(12));
-        e.setBackground(bg(SOFT,11));
+        e.setSingleLine(!multiline);e.setPadding(dp(14),dp(14),dp(14),dp(14));
+        e.setMinHeight(dp(50));e.setHintTextColor(MUTED);e.setBackground(outlined(BG,12));
         if(multiline){e.setMinLines(3);e.setGravity(Gravity.TOP);}
         else{e.setImeOptions(EditorInfo.IME_ACTION_SEARCH);}
         container.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;
@@ -116,28 +128,70 @@ public final class MainActivity extends Activity {
     private void render(){
         frame=vertical();frame.setBackgroundColor(BG);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-        head.setPadding(dp(20),dp(18),dp(20),dp(12));
-        TextView brand=text("✦  Scriptura",23,DARK,true);head.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        TextView settings=text("⚙",25,DARK,false);pad(settings,8);settings.setOnClickListener(v->showSettings());head.addView(settings);
+        head.setPadding(dp(17),dp(12),dp(16),dp(11));head.setBackgroundColor(SURFACE);
+        android.widget.ImageView mark=new android.widget.ImageView(this);
+        mark.setImageResource(R.drawable.ic_scriptura_foreground);
+        mark.setBackground(bg(DARK,12));
+        mark.setContentDescription("Libro abierto y luz, símbolo de Scriptura");
+        LinearLayout.LayoutParams markParams=new LinearLayout.LayoutParams(dp(48),dp(48));
+        markParams.rightMargin=dp(10);head.addView(mark,markParams);
+        LinearLayout branding=vertical();
+        TextView brand=text("Scriptura",25,DARK,false);serif(brand);branding.addView(brand);
+        TextView sub=text("BIBLIA · CONTEXTO · REFLEXIÓN",9,MUTED,true);
+        sub.setLetterSpacing(0.08f);branding.addView(sub);
+        head.addView(branding,new LinearLayout.LayoutParams(0,-2,1));
+        TextView settings=text("⚙",24,DARK,false);
+        settings.setGravity(Gravity.CENTER);settings.setContentDescription("Abrir ajustes");
+        settings.setOnClickListener(v->showSettings());
+        head.addView(settings,new LinearLayout.LayoutParams(dp(48),dp(48)));
         frame.addView(head);
+        View hairline=new View(this);hairline.setBackgroundColor(OUTLINE);
+        frame.addView(hairline,new LinearLayout.LayoutParams(-1,dp(1)));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
-        column=vertical();column.setPadding(dp(18),dp(8),dp(18),dp(20));
+        column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(SURFACE);
+
+        // Cinco pestañas reales. El lector y el atlas son destinos internos.
+        nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
+        nav.setBackgroundColor(DARK);
         String[] names={"Inicio","Buscar","Misa","Para mí","Guardados"};
+        String[] symbols={"⌂","⌕","✝","♡","★"};
+        int active=page==5?1:(page==6?0:page);
         for(int i=0;i<names.length;i++){
-            final int dest=i;TextView item=text(names[i],12,i==page?DARK:MUTED,i==page);
-            item.setGravity(Gravity.CENTER);pad(item,10);
-            nav.addView(item,new LinearLayout.LayoutParams(0,dp(54),1));
+            final int dest=i;boolean selected=active==i;
+            int color=selected?GOLD:Color.rgb(231,236,242);
+            LinearLayout item=vertical();item.setGravity(Gravity.CENTER);
+            item.setContentDescription(names[i]+(selected?", pestaña seleccionada":""));
+            item.setClickable(true);item.setFocusable(true);item.setMinimumHeight(dp(64));
+            TextView glyph=text(symbols[i],21,color,selected);glyph.setGravity(Gravity.CENTER);
+            TextView label=text(names[i],11,color,selected);label.setGravity(Gravity.CENTER);
+            glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            item.addView(glyph);item.addView(label);
+            if(selected)item.setBackground(bg(Color.rgb(29,54,78),10));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);
+            lp.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(item,lp);
             item.setOnClickListener(v->{page=dest;render();});
         }
-        frame.addView(nav);
-        setContentView(frame);
-        switch(page){case 0:home();break;case 1:search();break;case 2:mass();break;case 3:personal();break;case 4:saved();break;case 5:passagePage();break;case 6:atlas();break;default:home();}
+        frame.addView(nav);setContentView(frame);
+        switch(page){
+            case 0:home();break;case 1:search();break;case 2:mass();break;
+            case 3:personal();break;case 4:saved();break;
+            case 5:passagePage();break;case 6:atlas();break;
+            default:page=0;home();
+        }
     }
+
     private void home(){
-        TextView k=text("LECTURA Y REFLEXIÓN",12,GOLD,true);column.addView(k);
-        title(column,"Una palabra para hoy");
+        LinearLayout hero=vertical();hero.setBackground(bg(DARK,17));pad(hero,20);
+        LinearLayout.LayoutParams heroLp=new LinearLayout.LayoutParams(-1,-2);
+        heroLp.bottomMargin=dp(16);column.addView(hero,heroLp);
+        TextView k=text("LEE · EXPLORA · COMPRENDE",11,GOLD,true);
+        k.setLetterSpacing(0.08f);hero.addView(k);addGap(hero,9);
+        TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
+        serif(title);hero.addView(title);addGap(hero,7);
+        hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
+        addGap(column,2);
         UpdateChecker.Update available=UpdateChecker.available(this);
         if(available!=null){
             LinearLayout updateCard=card(column);
@@ -164,20 +218,20 @@ public final class MainActivity extends Activity {
             readingPreview("Nuevo Testamento",store.random(true,seed*911+53));
         }
         LinearLayout c=card(column);
-        c.addView(text("⛪  Lecturas de la misa",20,DARK,true));
+        section(c,"Lecturas de la misa","Referencias bíblicas del calendario litúrgico.");
         hint(c,Liturgy.label(Calendar.getInstance()));
         button(c,"Leer las lecturas de hoy",()->{page=2;massDay=Calendar.getInstance();render();},true);
-        c=card(column);c.addView(text("¿Cómo te encuentras hoy?",20,DARK,true));
+        c=card(column);section(c,"¿Cómo te encuentras hoy?","Lecturas para reflexionar sobre lo que vives.");
         hint(c,"Busca una lectura para lo que estás viviendo y reflexiona sobre ella.");
         button(c,"Explorar según mi estado de ánimo",()->{page=3;render();},false);
-        c=card(column);c.addView(text("Buscar en los 73 libros",20,DARK,true));
+        c=card(column);section(c,"Buscar en los 73 libros","Consulta referencias, capítulos o palabras.");
         button(c,"Ir al buscador",()->{page=1;render();},false);
-        c=card(column);c.addView(text("⌖  Lugares bíblicos",20,DARK,true));
+        c=card(column);section(c,"Lugares bíblicos","Atlas preliminar, con ubicaciones orientativas.");
         hint(c,"Atlas de ciudades, regiones y recorridos de personajes de la Biblia. Ubicaciones con niveles de certeza.");
         button(c,"Explorar atlas bíblico",()->openAtlas(0),false);
     }
     private void readingPreview(String label,BibleStore.Passage p){
-        LinearLayout c=card(column);c.addView(text(label.toUpperCase(),12,GOLD,true));
+        LinearLayout c=card(column);c.addView(text(label.toUpperCase(),12,ACCENT,true));
         if(p==null){hint(c,"Importa primero tu Biblia.");return;}
         c.addView(text(p.ref,19,DARK,true));
         String summary=p.text.length()>280?p.text.substring(0,280)+"…":p.text;
@@ -227,9 +281,10 @@ public final class MainActivity extends Activity {
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
-        TextView edition=text("BIBLIA DE LA UNIVERSIDAD DE NAVARRA",11,GOLD,true);column.addView(edition);
+        TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         title(column,p.ref);
-        LinearLayout c=card(column);TextView bible=text(p.text,textSize,DARK,false);
+        LinearLayout c=card(column);c.setBackground(outlined(BG,16));
+        TextView bible=text(p.text,textSize,DARK,false);serif(bible);
         bible.setTextIsSelectable(true);c.addView(bible);
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
@@ -337,7 +392,7 @@ public final class MainActivity extends Activity {
         for(int i=0;i<readings.length();i++){
             JSONObject x=readings.getJSONObject(i);
             String type=x.optString("type"),ref=x.optString("ref");
-            LinearLayout box=card(column);box.addView(text(type,13,GOLD,true));
+            LinearLayout box=card(column);box.addView(text(type,13,ACCENT,true));
             box.addView(text(ref,17,DARK,true));
             String local=Liturgy.toLocalQuery(ref);
             if(local.isEmpty())hint(box,"Cita litúrgica compuesta: consulta el texto exacto en la web enlazada.");
@@ -362,8 +417,22 @@ public final class MainActivity extends Activity {
         hint(column,"Selecciona cómo te encuentras. La selección inicial es local; la interpretación por Gemini es opcional.");
         LinearLayout c=card(column);
         String[] moods={"Tranquilidad","Preocupación","Tristeza","Gratitud","Alegría","Dudas","Miedo","Esperanza"};
-        for(String option:moods){
-            button(c,(option.equals(mood)?"● ":"○ ")+option,()->{mood=option;render();},false);
+        for(int i=0;i<moods.length;i+=2){
+            LinearLayout line=new LinearLayout(this);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            for(int j=i;j<Math.min(i+2,moods.length);j++){
+                final String option=moods[j];
+                boolean chosen=option.equals(mood);
+                TextView item=text((chosen?"● ":"○ ")+option,14,chosen?Color.WHITE:DARK,chosen);
+                item.setGravity(Gravity.CENTER);item.setMinHeight(dp(48));
+                item.setPadding(dp(5),dp(10),dp(5),dp(10));
+                item.setBackground(chosen?bg(DARK,11):outlined(SOFT,11));
+                item.setContentDescription(option+(chosen?", seleccionado":""));
+                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
+                params.setMargins(dp(3),dp(4),dp(3),dp(4));line.addView(item,params);
+                item.setOnClickListener(v->{mood=option;render();});
+            }
+            c.addView(line);
         }
         c=card(column);
         c.addView(text("Tu situación (opcional)",16,DARK,true));
@@ -401,11 +470,15 @@ public final class MainActivity extends Activity {
     private void saved(){
         title(column,"Tus lecturas");
         if(!store.ready()){hint(column,"Importa tu Biblia desde Ajustes.");return;}
-        column.addView(text("★ Favoritos",18,GOLD,true));addGap(column,8);
-        for(String ref:store.saved(true))button(column,ref,()->lookup(ref),false);
-        addGap(column,22);
-        column.addView(text("Historial",18,DARK,true));addGap(column,8);
-        for(String ref:store.saved(false))button(column,ref,()->lookup(ref),false);
+        section(column,"★ Favoritos","Pasajes que decidiste guardar.");
+        java.util.List<String> favorites=store.saved(true);
+        if(favorites.isEmpty())hint(column,"Todavía no has guardado ningún pasaje.");
+        for(String ref:favorites)button(column,ref,()->lookup(ref),false);
+        addGap(column,24);
+        section(column,"Historial","Tus consultas recientes.");
+        java.util.List<String> history=store.saved(false);
+        if(history.isEmpty())hint(column,"Las lecturas que abras aparecerán aquí.");
+        for(String ref:history)button(column,ref,()->lookup(ref),false);
     }
     private void pickEpub(){
         Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -505,10 +578,11 @@ public final class MainActivity extends Activity {
             hint(column,places.size()+" lugares relacionados con "+Books.name(atlasBook)+" (selección inicial).");
             if(places.size()>1){
                 LinearLayout mapCard=card(column);
-                mapCard.addView(text("Esquema de ubicaciones",17,DARK,true));
-                GeoSketch sketch=new GeoSketch(this,places,false,this::openPlace);
-                mapCard.addView(sketch);
-                hint(mapCard,"Puntos aproximados. No representa fronteras, relieve ni rutas.");
+                mapCard.addView(text("Mapa actual de los lugares",17,DARK,true));
+                GeoMapView mapView=new GeoMapView(this,places,false,this::openPlace);
+                mapCard.addView(mapView);
+                mapControls(mapCard,mapView);
+                hint(mapCard,"Cartografía actual: © OpenStreetMap contributors. Los emplazamientos son orientativos; no se muestran fronteras antiguas.");
             }
             atlasPlaceCards(places);
         }
@@ -524,9 +598,11 @@ public final class MainActivity extends Activity {
         hint(column,"Referencia bíblica: "+route.refs);
         java.util.List<BibleGeography.Place> stops=BibleGeography.stops(route);
         if(stops.size()>1){
-            LinearLayout map=card(column);map.addView(text("Etapas esquemáticas",17,DARK,true));
-            map.addView(new GeoSketch(this,stops,true,this::openPlace));
-            hint(map,"Línea de puntos = secuencia narrativa. NO reconstruye el recorrido real ni ofrece distancias o tiempos.");
+            LinearLayout map=card(column);map.addView(text("Recorrido sobre mapa actual",17,DARK,true));
+            GeoMapView mapView=new GeoMapView(this,stops,true,this::openPlace);
+            map.addView(mapView);
+            mapControls(map,mapView);
+            hint(map,"Línea discontinua = orden narrativo de etapas. NO equivale al camino histórico exacto.");
         }
         for(int i=0;i<stops.size();i++){
             BibleGeography.Place p=stops.get(i);
@@ -540,14 +616,16 @@ public final class MainActivity extends Activity {
         button(column,"Volver a lugares",()->openAtlas(0),false);
         title(column,p.name);
         LinearLayout box=card(column);
-        box.addView(text("Localización actual propuesta",15,GOLD,true));
+        box.addView(text("Localización actual propuesta",15,ACCENT,true));
         box.addView(text(p.modern,17,DARK,true));
         hint(box,"Precisión: "+p.certainty);
         hint(box,p.description);
         hint(box,"Pasajes para consultar: "+p.refs);
-        box.addView(new GeoSketch(this,java.util.Collections.singletonList(p),false,place->openExternalMap(place)));
-        button(box,"Ver posición en OpenStreetMap",()->openExternalMap(p),true);
-        hint(box,"El mapa de OpenStreetMap muestra geografía actual, no reconstrucción histórica. Requiere internet.");
+        GeoMapView localMap=new GeoMapView(this,java.util.Collections.singletonList(p),false,place->openExternalMap(place));
+        box.addView(localMap);
+        mapControls(box,localMap);
+        button(box,"Ver lugar en OpenStreetMap",()->openExternalMap(p),false);
+        hint(box,"Cartografía moderna © OpenStreetMap contributors. El mapa requiere conexión; la identificación histórica puede ser aproximada.");
         if(store.ready()){
             String[] tokens=p.refs.split(";");
             if(tokens.length>0){
@@ -557,6 +635,36 @@ public final class MainActivity extends Activity {
             }
         }
     }
+    private void mapControls(LinearLayout box,GeoMapView map){
+        LinearLayout zooms=new LinearLayout(this);
+        zooms.setOrientation(LinearLayout.HORIZONTAL);
+        TextView minus=text("−  Alejar",15,DARK,true);
+        TextView plus=text("+  Acercar",15,DARK,true);
+        for(TextView control:new TextView[]{minus,plus}){
+            control.setGravity(Gravity.CENTER);
+            control.setMinHeight(dp(45));
+            control.setBackground(outlined(SOFT,11));
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
+            params.setMargins(dp(4),dp(8),dp(4),dp(0));
+            zooms.addView(control,params);
+        }
+        minus.setOnClickListener(v->map.zoomOut());
+        plus.setOnClickListener(v->map.zoomIn());
+        box.addView(zooms);
+        button(box,"Reintentar carga del mapa",map::retry,false);
+        button(box,"Ver esta zona por satélite en Google Maps",
+            ()->openSatellite(map.centerLatitude(),map.centerLongitude(),map.zoomLevel()),false);
+        hint(box,"El satélite se abre en Google Maps y no superpone el itinerario bíblico. En este mapa puedes arrastrar, ampliar y pulsar los puntos.");
+    }
+    private void openSatellite(double latitude,double longitude,int zoom){
+        // URL oficial de Google Maps. No requiere API key ni SDK facturado.
+        String center=String.format(java.util.Locale.US,"%.6f%%2C%.6f",latitude,longitude);
+        String link="https://www.google.com/maps/@?api=1&map_action=map&center="+center+
+            "&zoom="+Math.min(19,Math.max(3,zoom))+"&basemap=satellite";
+        try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}
+        catch(Exception e){showError("No se pudo abrir la vista satélite: "+e.getMessage());}
+    }
+
     private void openExternalMap(BibleGeography.Place p){
         String lat=String.format(java.util.Locale.US,"%.6f",p.lat);
         String lon=String.format(java.util.Locale.US,"%.6f",p.lon);
@@ -582,17 +690,26 @@ public final class MainActivity extends Activity {
     }
 
     private void showSettings(){
-        LinearLayout box=vertical();box.setPadding(dp(20),dp(12),dp(20),dp(4));
-        box.addView(text("Cuenta Gemini API",17,DARK,true));
-        hint(box,"La clave se cifra con Android Keystore y queda en el móvil. No se sube a GitHub.");
+        LinearLayout box=vertical();box.setPadding(dp(18),dp(12),dp(18),dp(12));
+        section(box,"Tu Biblia","El ejemplar personal se guarda únicamente en este móvil.");
+        button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
+        addGap(box,17);
+        section(box,"Inteligencia artificial","Solo se consulta Gemini con tu autorización previa.");
+        hint(box,"La clave se cifra mediante Android Keystore y no se sube a GitHub.");
         button(box,ai.configured()?"Cambiar clave Gemini":"Introducir clave Gemini",this::configureKey,true);
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
-        button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
+        addGap(box,17);
+        section(box,"Lectura","Ajusta la presentación del texto bíblico.");
+        hint(box,"Tamaño de letra actual: "+textSize+" sp");
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
+        addGap(box,17);
+        section(box,"Avisos","Notificaciones diarias opcionales.");
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
+        addGap(box,17);
+        addGap(box,17);
+        section(box,"Actualizaciones","Recibir avisos de nuevas APK firmadas.");
         addGap(box,18);
-        box.addView(text("Actualizaciones de Scriptura",18,DARK,true));
         hint(box,"Comprobación al abrir y periódica cada 12 horas. No se instala nada sin tu consentimiento.");
         hint(box,"El repositorio es privado. Necesitas un token GitHub con acceso SOLO a Scriptura y permiso Contents: Read.");
         button(box,UpdateChecker.configured(this)?"Modificar acceso privado GitHub":"Activar avisos de actualización",
@@ -600,7 +717,9 @@ public final class MainActivity extends Activity {
         button(box,"Comprobar actualizaciones ahora",this::checkUpdatesNow,false);
         String updateError=UpdateChecker.lastError(this);
         if(!updateError.isEmpty())hint(box,"Última comprobación: "+updateError);
-        hint(box,"Versión preliminar 0.5.1 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
+
+        section(box,"Información","Versión preliminar 0.6.0");
+        hint(box,"Los comentarios de Navarra son editoriales. Las respuestas de Gemini son interpretaciones generadas con IA. No se transmiten datos personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();

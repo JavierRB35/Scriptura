@@ -2,7 +2,7 @@ name: Scriptura · capturas y actualización en emulador Android
 
 on:
   push:
-    branches: [feature/mapas-estudio-inicio-0-7-3]
+    branches: [fix/mapas-qa-scroll-lateral]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   screenshots-and-upgrade:
-    if: github.ref == 'refs/heads/feature/mapas-estudio-inicio-0-7-3'
+    if: github.ref == 'refs/heads/fix/mapas-qa-scroll-lateral'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:

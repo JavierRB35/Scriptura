@@ -52,7 +52,7 @@ def toolbar_tap(position):
     # El emulador Pixel_2 api34 tiene 1080x1920; se comprueba el tamaño y
     # se utiliza una coordenada relativa solo en esta fixture debug.
     size=adb("shell","wm","size")
-    m=re.search(r"(\\d+)x(\\d+)",size)
+    m=re.search(r"([0-9]+)x([0-9]+)",size)
     if not m:raise RuntimeError("Sin dimensiones de pantalla: "+size)
     width,height=map(int,m.groups())
     if not (1050<=width<=1100 and 1850<=height<=1950):

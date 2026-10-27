@@ -134,7 +134,8 @@ def main():
         assert_text("Tamaño de letra actual: 20 sp",scroll=True)
         REPORT["checks"]["font_setting_persist_after_upgrade"]="PASS"
         screen("01_ajustes")
-        hit("Cerrar",strict=True)
+        adb("shell","input","keyevent","4")
+        wait(1)
         assert_text("Una palabra para hoy")
         screen("02_inicio")
         hit("Buscar")

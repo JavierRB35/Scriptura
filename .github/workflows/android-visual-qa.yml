@@ -71,6 +71,15 @@ jobs:
           diff -u "$RUNNER_TEMP/old-cert.txt" "$RUNNER_TEMP/new-cert.txt"
           echo "CERTIFICADO FIRMA SIN CAMBIOS" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Liberar espacio del runner antes de arrancar Android
+        run: |
+          set -euxo pipefail
+          df -h /
+          # Solo se eliminan herramientas del runner efímero que Scriptura no utiliza.
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/share/powershell
+          sudo rm -rf "$ANDROID_HOME/ndk"
+          df -h /
+
       - name: Habilitar aceleración KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

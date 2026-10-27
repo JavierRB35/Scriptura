@@ -99,8 +99,12 @@ def assert_text(term, scroll=False):
     raise RuntimeError("La pantalla no contiene el texto esperado: "+term)
 
 def app_install(path):
-    output=adb("install","-r",path,timeout=120)
-    if "Success" not in output:raise RuntimeError("Falló adb install -r: "+output)
+    process=sh("adb","install","-r",path,check=False,timeout=120)
+    stdout=process.stdout.decode("utf-8","replace")
+    stderr=process.stderr.decode("utf-8","replace")
+    result=(stdout+" "+stderr).strip()
+    if process.returncode!=0 or "Success" not in stdout:
+        raise RuntimeError("Fallo adb install -r: "+result[-700:])
     print("INSTALLED",path)
 
 def make_font_setting():

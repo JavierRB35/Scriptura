@@ -370,7 +370,7 @@ public final class MainActivity extends Activity {
         for(int i=0;i<readings.length();i++){
             JSONObject x=readings.getJSONObject(i);
             String type=x.optString("type"),ref=x.optString("ref");
-            LinearLayout box=card(column);box.addView(text(type,13,GOLD,true));
+            LinearLayout box=card(column);box.addView(text(type,13,ACCENT,true));
             box.addView(text(ref,17,DARK,true));
             String local=Liturgy.toLocalQuery(ref);
             if(local.isEmpty())hint(box,"Cita litúrgica compuesta: consulta el texto exacto en la web enlazada.");
@@ -395,8 +395,22 @@ public final class MainActivity extends Activity {
         hint(column,"Selecciona cómo te encuentras. La selección inicial es local; la interpretación por Gemini es opcional.");
         LinearLayout c=card(column);
         String[] moods={"Tranquilidad","Preocupación","Tristeza","Gratitud","Alegría","Dudas","Miedo","Esperanza"};
-        for(String option:moods){
-            button(c,(option.equals(mood)?"● ":"○ ")+option,()->{mood=option;render();},false);
+        for(int i=0;i<moods.length;i+=2){
+            LinearLayout line=new LinearLayout(this);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            for(int j=i;j<Math.min(i+2,moods.length);j++){
+                final String option=moods[j];
+                boolean chosen=option.equals(mood);
+                TextView item=text((chosen?"● ":"○ ")+option,14,chosen?Color.WHITE:DARK,chosen);
+                item.setGravity(Gravity.CENTER);item.setMinHeight(dp(48));
+                item.setPadding(dp(5),dp(10),dp(5),dp(10));
+                item.setBackground(chosen?bg(DARK,11):outlined(SOFT,11));
+                item.setContentDescription(option+(chosen?", seleccionado":""));
+                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
+                params.setMargins(dp(3),dp(4),dp(3),dp(4));line.addView(item,params);
+                item.setOnClickListener(v->{mood=option;render();});
+            }
+            c.addView(line);
         }
         c=card(column);
         c.addView(text("Tu situación (opcional)",16,DARK,true));
@@ -434,11 +448,15 @@ public final class MainActivity extends Activity {
     private void saved(){
         title(column,"Tus lecturas");
         if(!store.ready()){hint(column,"Importa tu Biblia desde Ajustes.");return;}
-        column.addView(text("★ Favoritos",18,GOLD,true));addGap(column,8);
-        for(String ref:store.saved(true))button(column,ref,()->lookup(ref),false);
-        addGap(column,22);
-        column.addView(text("Historial",18,DARK,true));addGap(column,8);
-        for(String ref:store.saved(false))button(column,ref,()->lookup(ref),false);
+        section(column,"★ Favoritos","Pasajes que decidiste guardar.");
+        java.util.List<String> favorites=store.saved(true);
+        if(favorites.isEmpty())hint(column,"Todavía no has guardado ningún pasaje.");
+        for(String ref:favorites)button(column,ref,()->lookup(ref),false);
+        addGap(column,24);
+        section(column,"Historial","Tus consultas recientes.");
+        java.util.List<String> history=store.saved(false);
+        if(history.isEmpty())hint(column,"Las lecturas que abras aparecerán aquí.");
+        for(String ref:history)button(column,ref,()->lookup(ref),false);
     }
     private void pickEpub(){
         Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -573,7 +591,7 @@ public final class MainActivity extends Activity {
         button(column,"Volver a lugares",()->openAtlas(0),false);
         title(column,p.name);
         LinearLayout box=card(column);
-        box.addView(text("Localización actual propuesta",15,GOLD,true));
+        box.addView(text("Localización actual propuesta",15,ACCENT,true));
         box.addView(text(p.modern,17,DARK,true));
         hint(box,"Precisión: "+p.certainty);
         hint(box,p.description);
@@ -615,16 +633,24 @@ public final class MainActivity extends Activity {
     }
 
     private void showSettings(){
-        LinearLayout box=vertical();box.setPadding(dp(20),dp(12),dp(20),dp(4));
-        box.addView(text("Cuenta Gemini API",17,DARK,true));
-        hint(box,"La clave se cifra con Android Keystore y queda en el móvil. No se sube a GitHub.");
+        LinearLayout box=vertical();box.setPadding(dp(18),dp(12),dp(18),dp(12));
+        section(box,"Tu Biblia","El ejemplar personal se guarda únicamente en este móvil.");
+        button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
+        addGap(box,17);
+        section(box,"Inteligencia artificial","Solo se consulta Gemini con tu autorización previa.");
+        hint(box,"La clave se cifra mediante Android Keystore y no se sube a GitHub.");
         button(box,ai.configured()?"Cambiar clave Gemini":"Introducir clave Gemini",this::configureKey,true);
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
-        button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
+        addGap(box,17);
+        section(box,"Lectura","Ajusta la presentación del texto bíblico.");
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
+        addGap(box,17);
+        section(box,"Avisos","Notificaciones diarias opcionales.");
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
-        hint(box,"Versión preliminar 0.6.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
+        addGap(box,17);
+        section(box,"Información","Versión preliminar 0.6.0");
+        hint(box,"Los comentarios de Navarra son editoriales. Las respuestas de Gemini son interpretaciones generadas con IA. No se transmiten datos personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();

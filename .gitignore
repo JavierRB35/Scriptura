@@ -1,0 +1,12 @@
+/.gradle/
+/.idea/
+/local.properties
+**/build/
+/.signing/
+*.jks
+*.keystore
+*.epub
+*.base64.txt
+*.apk
+*.aab
+*.log

@@ -23,6 +23,10 @@ public final class DefinitionQaActivity extends Activity {
         TextView word=new TextView(this);
         word.setText("Fariseos");
         word.setTextSize(30);word.setTextColor(Color.rgb(13,35,56));
+        // Únicamente en la Activity de QA: desactivar sugerencias dinámicas
+        // de Translate/Smart Text para que la barra tenga posiciones estables.
+        // La aplicación real conserva el clasificador normal de Android.
+        word.setTextClassifier(android.view.textclassifier.TextClassifier.NO_OP);
         word.setPadding(dp(8),dp(32),dp(8),dp(32));
         word.setGravity(Gravity.CENTER);
         root.addView(word,new LinearLayout.LayoutParams(-1,dp(160)));

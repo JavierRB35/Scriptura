@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-APP_NAME="Scriptura-0.1.0-debug"
+APP_NAME="Scriptura-0.3.0-debug"
 cd "$(dirname "$0")"
 export JAVA_OPTS="-Xmx768m -XX:MaxMetaspaceSize=256m -Dfile.encoding=UTF-8"
 sh ./gradlew assembleDebug --no-daemon --max-workers=1 -Pandroid.aapt2FromMavenOverride="$HOME/.androidide/aapt2"

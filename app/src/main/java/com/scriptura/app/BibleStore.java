@@ -71,7 +71,11 @@ public final class BibleStore extends SQLiteOpenHelper {
             int position=0;
             boolean seen=false;
             while(marks.find()){
-                if(p.book!=null && !seen && marks.start()>0)append(p,content.substring(0,marks.start()),false);
+                if(p.book!=null && !seen && marks.start()>0) {
+                    String prefix=content.substring(0,marks.start());
+                    // El encabezado del capítulo no forma parte de un versículo.
+                    if(!prefix.contains("tx-Cap-"))append(p,prefix,false);
+                }
                 if(p.book!=null && seen)append(p,content.substring(position,marks.start()),true);
                 String code=marks.group(1);
                 int ch=Integer.parseInt(marks.group(2));
@@ -98,6 +102,7 @@ public final class BibleStore extends SQLiteOpenHelper {
         }
         SQLiteDatabase db=getWritableDatabase();
         int imported=0;
+        boolean committed=false;
         db.beginTransaction();
         try(ZipFile zip=new ZipFile(tmp)){
             if(zip.getEntry("META-INF/container.xml")==null)throw new IOException("Archivo EPUB no válido");
@@ -132,9 +137,10 @@ public final class BibleStore extends SQLiteOpenHelper {
             }
             putMeta(db,"edition","Sagrada Biblia · Universidad de Navarra (archivo privado)");
             db.setTransactionSuccessful();
+            committed=true;
         }finally{
             db.endTransaction();
-            if(imported>=25000 && tmp.isFile()) {
+            if(committed && tmp.isFile()) {
                 if(permanent.exists())permanent.delete();
                 if(!tmp.renameTo(permanent))tmp.delete();
             }else tmp.delete();

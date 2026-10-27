@@ -84,6 +84,8 @@ public final class MainActivity extends Activity {
     }
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
+        getWindow().setStatusBarColor(DARK);
+        getWindow().setNavigationBarColor(BG);
         store=new BibleStore(this);notes=new NavarraNotes(this);ai=new GeminiClient(this);
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");}
@@ -124,7 +126,8 @@ public final class MainActivity extends Activity {
             hint(c,"También puedes consultar las lecturas de misa por internet sin importar el EPUB.");
         } else {
             hint(column,"Biblia de Navarra · "+store.count()+" versículos importados");
-            long seed=(System.currentTimeMillis()/86_400_000L);
+            Calendar today=Calendar.getInstance();
+            long seed=today.get(Calendar.YEAR)*1000L+today.get(Calendar.DAY_OF_YEAR);
             readingPreview("Antiguo Testamento",store.random(false,seed*911+31));
             readingPreview("Nuevo Testamento",store.random(true,seed*911+53));
         }
@@ -395,7 +398,7 @@ public final class MainActivity extends Activity {
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
-        hint(box,"Versión preliminar 0.2.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
+        hint(box,"Versión preliminar 0.3.0 · El texto de Navarra es privado. No se comparten notas personales automáticamente.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();
@@ -429,6 +432,11 @@ public final class MainActivity extends Activity {
                 if(w==0){Reminders.enable(this);showError("Recordatorio diario configurado. Si Android requiere permiso para notificaciones, concédelo.");}
                 else {Reminders.disable(this);Toast.makeText(this,"Recordatorio desactivado",Toast.LENGTH_SHORT).show();}
             }).show();
+    }
+    @Override public void onBackPressed(){
+        if(page==5){page=1;render();}
+        else if(page!=0){page=0;render();}
+        else super.onBackPressed();
     }
     @Override protected void onDestroy(){worker.shutdownNow();store.close();notes.close();super.onDestroy();}
 }

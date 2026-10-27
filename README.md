@@ -25,4 +25,12 @@ AndroidIDE-Rv2, Java 17, SDK 34, AGP 8.7.3, Gradle 8.9. Ejecuta `sh build-on-pho
 
 ## Desarrollo
 
-Versiones 0.2.x: lector/importador, búsqueda y biblioteca, Gemini y recomendaciones, calendario español e historial. Se requiere verificar funcionamiento del importador con el EPUB real **en el móvil**, permisos y conectividad con la API Google configurada por el propietario.
+Versión 0.3.0: biblioteca con lector y notas de Navarra, búsqueda literal y por palabra, interpretación opcional con Gemini, descubrimiento diario, estados de ánimo, misa por fecha (enlace y referencias desde un proveedor independiente), guardados y recordatorio diario. Se requiere verificar funcionamiento del importador con el EPUB real **en el móvil**, permisos y conectividad con la API Google configurada por el propietario.
+
+## Limitaciones de validación
+
+- La compilación automatizada **no sustituye** comprobar instalación, importación de un EPUB y funcionamiento del teléfono real. Debe verificarse tras instalar.
+- Se comprueba la estructura del EPUB de Navarra aportado, pero **no se adjunta** al repositorio ni a Releases.
+- Los comentarios extraídos son fragmentos del ejemplar privado y pueden faltar para algunos versículos.
+- Lecturas del calendario: el proyecto externo cubre una ventana de fechas limitada, sus textos son propiedad de CEE. Scriptura abre la web en su propio visor y recupera referencias cuando consigue analizarlas. **No es una API oficial** y sus cambios pueden afectar la extracción.
+- La consulta Gemini solo se valida en el dispositivo con una clave propia y una cuota disponible. Las respuestas no son magisterio de la Iglesia.

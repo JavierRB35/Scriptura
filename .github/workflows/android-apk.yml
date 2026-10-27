@@ -92,7 +92,7 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.2.0-build.${GITHUB_RUN_NUMBER}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/Scriptura-0.3.0-build.${GITHUB_RUN_NUMBER}.apk"
 
       - name: Guardar APK firmado en artefactos
         if: steps.signing.outputs.ready == 'true'
@@ -107,7 +107,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v0.2.0-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.2.0-build.${GITHUB_RUN_NUMBER}.apk" \
-            --title "Scriptura 0.2.0 · compilación ${GITHUB_RUN_NUMBER}" \
+          gh release create "v0.3.0-build.${GITHUB_RUN_NUMBER}" "dist/Scriptura-0.3.0-build.${GITHUB_RUN_NUMBER}.apk" \
+            --title "Scriptura 0.3.0 · compilación ${GITHUB_RUN_NUMBER}" \
             --notes "Versión preliminar de desarrollo. APK firmado para actualización sobre instalaciones anteriores firmadas con la misma clave." \
             --prerelease --target "$GITHUB_SHA"

@@ -65,11 +65,15 @@ public final class NavarraNotes extends SQLiteOpenHelper {
         try(ZipFile archive=new ZipFile(epub)){
             db.execSQL("DELETE FROM notes");
             Enumeration<? extends ZipEntry> entries=archive.entries();
+            long uncompressed=0;int processed=0;
             while(entries.hasMoreElements()){
                 ZipEntry ent=entries.nextElement();String name=ent.getName();
                 if(!name.matches("(?i).*?/Text/part\\d+(_split_\\d+)?\\.html"))continue;
                 int number=Integer.parseInt(name.replaceAll("(?i).*?/Text/part(\\d+).*","$1"));
                 if(number<236||ent.getSize()>3_000_000)continue;
+                if(++processed>7000)throw new IOException("Demasiados documentos de comentarios");
+                uncompressed+=Math.max(0,ent.getSize());
+                if(uncompressed>190_000_000)throw new IOException("Se excede el límite de descompresión");
                 ByteArrayOutputStream buffer=new ByteArrayOutputStream();
                 try(InputStream in=archive.getInputStream(ent)){
                     byte[] block=new byte[8192];int read;

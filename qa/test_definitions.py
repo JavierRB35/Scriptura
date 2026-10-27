@@ -86,8 +86,10 @@ def define():
     visible_after=[n.attrib.get("text","") for n in after.iter("node") if n.attrib.get("text")]
     print("AFTER_DEFINE_TAP",json.dumps(visible_after[-24:],ensure_ascii=False))
     if not any("Definición y fuentes" in t for t in visible_after):
-        logs=adb("logcat","-d","-t","350",check=False)
-        print("AFTER_TAP_LOGCAT",logs[-7000:])
+        # Con -t 350 se perdía el crash real entre miles de logs de Google.
+        logs=adb("logcat","-d","-v","time","-s","AndroidRuntime:E",check=False)
+        print("ANDROID_APP_CRASH",logs[-12000:])
+        Path("qa/definitions_crash.txt").write_text(logs[-12000:])
     check("Definición y fuentes","definition_dialog_visible")
     report["checks"]["action_define_opened"]="PASS"
 

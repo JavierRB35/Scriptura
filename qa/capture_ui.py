@@ -80,6 +80,7 @@ def candidates(root,term,strict=False):
                 yield x1,y1,x2,y2,node.attrib
 
 def hit(term, strict=False, scroll=False):
+    # Deslizar por el margen evita desplazar el mapa anidado en el ScrollView.
     for attempt in range(5 if scroll else 1):
         hits=list(candidates(dump(),term,strict))
         if hits:
@@ -88,17 +89,18 @@ def hit(term, strict=False, scroll=False):
             wait()
             return
         if scroll:
-            adb("shell","input","swipe","450","1470","450","570","420")
+            adb("shell","input","swipe","22","1430","22","515","500")
             wait(.6)
     raise RuntimeError("No se encontró el control real: "+term)
 
 def assert_text(term, scroll=False):
+    # Los mapas consumen gestos verticales; usar el margen lateral del contenedor.
     for attempt in range(5 if scroll else 1):
         if list(candidates(dump(),term)):
             print("VISIBLE",term)
             return
         if scroll:
-            adb("shell","input","swipe","450","1470","450","570","420")
+            adb("shell","input","swipe","22","1430","22","515","500")
             wait(.6)
     raise RuntimeError("La pantalla no contiene el texto esperado: "+term)
 

@@ -665,6 +665,7 @@ public final class MainActivity extends Activity {
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
         addGap(box,17);
         section(box,"Lectura","Ajusta la presentación del texto bíblico.");
+        hint(box,"Tamaño de letra actual: "+textSize+" sp");
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         addGap(box,17);

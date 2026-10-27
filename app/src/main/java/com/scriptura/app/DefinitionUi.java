@@ -31,6 +31,9 @@ public final class DefinitionUi {
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,Delegate delegate){
         // No reemplazar ni consumir las acciones nativas Copiar/Compartir/Seleccionar todo.
         textView.setTextIsSelectable(true);
+        // Algunos TextView no se marcan como long-clickable por el motor de
+        // selección; sin este ajuste la pulsación nunca lanza ActionMode.
+        textView.setLongClickable(true);
         textView.setCustomSelectionActionModeCallback(new ActionMode.Callback(){
             private void ensureDefine(Menu menu){
                 if(menu.findItem(DEFINE_ACTION_ID)==null){

@@ -46,30 +46,41 @@ def long_press():
     if not point:raise RuntimeError("No hay TextView de prueba")
     adb("shell","input","swipe",str(point[0]),str(point[1]),str(point[0]),str(point[1]),"1200")
     time.sleep(1.4)
+def toolbar_tap(position):
+    # En Android 14 la barra flotante de selección es una ventana del sistema:
+    # la imagen de screencap la incluye, pero UIAutomator dump NO.
+    # El emulador Pixel_2 api34 tiene 1080x1920; se comprueba el tamaño y
+    # se utiliza una coordenada relativa solo en esta fixture debug.
+    size=adb("shell","wm","size")
+    m=re.search(r"(\\d+)x(\\d+)",size)
+    if not m:raise RuntimeError("Sin dimensiones de pantalla: "+size)
+    width,height=map(int,m.groups())
+    if not (1050<=width<=1100 and 1850<=height<=1950):
+        raise RuntimeError("Geometría de emulador no prevista: "+size)
+    x={"Definir":int(width*.63),"Copy":int(width*.33)}[position]
+    y=int(height*.158)
+    adb("shell","input","tap",str(x),str(y))
+    time.sleep(1)
+
 def define():
     long_press()
-    if not find("Definir"):
-        root=dump()
-        nodes=[{"text":n.attrib.get("text",""),"desc":n.attrib.get("content-desc",""),
-                "class":n.attrib.get("class",""),"clickable":n.attrib.get("clickable","")}
-               for n in root.iter("node")
-               if n.attrib.get("text") or n.attrib.get("content-desc")]
-        print("LONG_PRESS_NODES",json.dumps(nodes[-35:],ensure_ascii=False))
+    root=dump()
+    visible=bool(find("Definir"))
+    if not visible:
+        nodes=[{"text":n.attrib.get("text",""),"desc":n.attrib.get("content-desc","")}
+               for n in root.iter("node") if n.attrib.get("text") or n.attrib.get("content-desc")]
+        print("FLOATING_TOOLBAR_NOT_IN_UIAUTOMATOR",json.dumps(nodes[-10:],ensure_ascii=False))
         Path("qa/definitions_dump.xml").write_text(ET.tostring(root,encoding="unicode"))
-        png=subprocess.run(["adb","exec-out","screencap","-p"],capture_output=True)
+        png=subprocess.run(["adb","exec-out","screencap","-p"],capture_output=True,check=True)
         Path("qa/definitions_screenshot.png").write_bytes(png.stdout)
-        for term in ("More options","Más opciones","More","Más","⋮"):
-            if find(term):
-                hit(term)
-                break
-    check("Definir","action_define_visible")
-    if find("Copiar") or find("Copy"):
-        report["checks"]["native_copy_preserved"]="PASS"
+        # Ya se confirmó visualmente en la captura del QA #5 que aparecen
+        # Copy, Share y Definir sobre el texto seleccionado.
+        toolbar_tap("Definir")
     else:
-        # Algunas versiones envían Copiar al menú flotante de desbordamiento.
-        report["checks"]["native_copy_preserved"]="NOT_VISIBLE"
-    hit("Definir")
+        hit("Definir")
     check("Definición y fuentes","definition_dialog_visible")
+    report["checks"]["action_define_opened"]="PASS"
+
 def run():
     apk="app/build/outputs/apk/debug/app-debug.apk"
     print(adb("install","-r",apk,timeout=120))
@@ -84,8 +95,11 @@ def run():
         check("DESTINO: "+part,"opened_"+label.replace(" ","_").lower())
     snap=subprocess.run(["adb","exec-out","screencap","-p"],capture_output=True,check=True)
     Path("qa/definitions_screenshot.png").write_bytes(snap.stdout)
-    if report["checks"].get("native_copy_preserved")!="PASS":
-        raise RuntimeError("Copiar no se mostró en la barra durante la prueba; requiere revisión")
+    # Comprobar Copiar de forma funcional: pulsar el control real y pedir a la
+    # Activity de QA que confirme que Android actualizó el portapapeles.
+    long_press()
+    toolbar_tap("Copy")
+    check("COPIADO: Fariseos","native_copy_preserved")
 try:
     run()
     report["outcome"]="PASS"

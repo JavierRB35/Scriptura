@@ -15,6 +15,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.*;
 import org.json.*;
 import java.text.*;
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -26,6 +27,9 @@ public final class MainActivity extends Activity {
     private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private BibleStore store;
     private NavarraNotes notes;
+    private NavarraIntroductions introductions;
+    private boolean introBusy=false, introAttempted=false;
+    private String indexBook="Gn";
     private GeminiClient ai;
     private LinearLayout column,frame,nav;
     private TextView caption;
@@ -102,10 +106,12 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().setStatusBarColor(DARK);
         getWindow().setNavigationBarColor(BG);
-        store=new BibleStore(this);notes=new NavarraNotes(this);ai=new GeminiClient(this);
+        store=new BibleStore(this);notes=new NavarraNotes(this);
+        introductions=new NavarraIntroductions(this);ai=new GeminiClient(this);
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
+            indexBook=state.getString("indexBook","Gn");
             atlasPlace=BibleGeography.place(state.getString("atlasPlace",""));
             atlasJourney=BibleGeography.journey(state.getString("atlasJourney",""));
         }
@@ -122,6 +128,7 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);state.putInt("page",page);state.putString("mood",mood);
         state.putInt("atlasMode",atlasMode);state.putString("atlasBook",atlasBook);
+        state.putString("indexBook",indexBook);
         state.putString("atlasPlace",atlasPlace==null?"":atlasPlace.id);
         state.putString("atlasJourney",atlasJourney==null?"":atlasJourney.id);
     }
@@ -151,12 +158,23 @@ public final class MainActivity extends Activity {
         column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
+        // Acceso persistente a Mapas, separado de las cinco pestañas existentes.
+        TextView mapsFixed=text("⌖  MAPAS BÍBLICOS  ·  Explorar lugares y recorridos",14,DARK,true);
+        mapsFixed.setGravity(Gravity.CENTER);
+        mapsFixed.setMinHeight(dp(44));
+        mapsFixed.setBackground(outlined(SOFT,12));
+        mapsFixed.setContentDescription("Abrir Mapas bíblicos");
+        LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
+        fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
+        frame.addView(mapsFixed,fixedParams);
+        mapsFixed.setOnClickListener(v->openAtlas(0));
+
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setBackgroundColor(DARK);
         String[] names={"Inicio","Buscar","Misa","Para mí","Guardados"};
         String[] symbols={"⌂","⌕","✝","♡","★"};
-        int active=page==5?1:(page==6?0:page);
+        int active=(page==5||page==7||page==9)?1:(page==6||page==8?0:page);
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
             int color=selected?GOLD:Color.rgb(231,236,242);
@@ -178,6 +196,8 @@ public final class MainActivity extends Activity {
             case 0:home();break;case 1:search();break;case 2:mass();break;
             case 3:personal();break;case 4:saved();break;
             case 5:passagePage();break;case 6:atlas();break;
+            case 7:bibleIndex();break;case 8:artGallery();break;
+            case 9:bookOverview();break;
             default:page=0;home();
         }
     }
@@ -221,11 +241,10 @@ public final class MainActivity extends Activity {
         section(c,"Lecturas de la misa","Referencias bíblicas del calendario litúrgico.");
         hint(c,Liturgy.label(Calendar.getInstance()));
         button(c,"Leer las lecturas de hoy",()->{page=2;massDay=Calendar.getInstance();render();},true);
-        c=card(column);section(c,"¿Cómo te encuentras hoy?","Lecturas para reflexionar sobre lo que vives.");
-        hint(c,"Busca una lectura para lo que estás viviendo y reflexiona sobre ella.");
-        button(c,"Explorar según mi estado de ánimo",()->{page=3;render();},false);
-        c=card(column);section(c,"Buscar en los 73 libros","Consulta referencias, capítulos o palabras.");
-        button(c,"Ir al buscador",()->{page=1;render();},false);
+        c=card(column);section(c,"Biblioteca · 73 libros","Índice con introducciones editoriales de tu ejemplar de Navarra.");
+        button(c,"Abrir índice de los 73 libros",()->openIndex(),true);
+        c=card(column);section(c,"Arte bíblico","Pintura clásica para comprender la recepción artística de los pasajes.");
+        button(c,"Explorar obras pictóricas",()->openGallery(),false);
         c=card(column);section(c,"Lugares bíblicos","Atlas preliminar, con ubicaciones orientativas.");
         hint(c,"Atlas de ciudades, regiones y recorridos de personajes de la Biblia. Ubicaciones con niveles de certeza.");
         button(c,"Explorar atlas bíblico",()->openAtlas(0),false);
@@ -240,13 +259,19 @@ public final class MainActivity extends Activity {
     }
     private void search(){
         title(column,"Buscar en la Biblia");
-        if(!store.ready()){hint(column,"Importa tu Biblia primero desde Ajustes.");return;}
+        if(!store.ready()){
+            hint(column,"Importa tu Biblia primero desde Ajustes. Puedes consultar el índice sin EPUB.");
+            button(column,"Abrir índice de los 73 libros",this::openIndex,false);
+            return;
+        }
         LinearLayout c=card(column);
         EditText term=input(c,"Ej. Juan 3:16-18 · Salmo 23 · Génesis",false);
         term.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         term.setOnEditorActionListener((v,id,event)->{lookup(term.getText().toString());return true;});
         button(c,"Buscar referencia o palabra",()->lookup(term.getText().toString()),true);
-        button(c,"Explorar los 73 libros",this::browseBooks,false);
+        button(c,"Índice de libros y sus introducciones",this::openIndex,false);
+        button(c,"Elegir capítulo",this::browseBooks,false);
+        button(c,"Galería de arte bíblico",this::openGallery,false);
         title(column,"Consultas recientes");
         for(String ref:store.saved(false)){
             button(column,ref,()->lookup(ref),false);
@@ -304,6 +329,10 @@ public final class MainActivity extends Activity {
         button(c,"Profundizar o preguntar",()->ask(p),false);
         button(c,"⌖  Lugares de este pasaje",()->showPassagePlaces(p),false);
         button(c,"Atlas del libro "+Books.name(p.book),()->openBookAtlas(p.book),false);
+        button(c,"Índice: "+Books.name(p.book),()->openBookInfo(p.book),false);
+        java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
+        if(!related.isEmpty())
+            button(c,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
         LinearLayout link=card(column);
         link.addView(text("Lectura del contexto",18,DARK,true));
         button(link,"Capítulo anterior",()->openReference(p.book,p.chapter-1),false);
@@ -494,10 +523,153 @@ public final class MainActivity extends Activity {
             async("Importando y verificando 73 libros...",()->{
                 int n=store.importEpub(uri);
                 int comments=notes.importFromPrivateEpub();
-                return n+" versículos y "+comments+" comentarios importados desde tu EPUB personal";
+                int intros=0;
+                try{intros=introductions.importPrivateEpub();}
+                catch(Exception error){android.util.Log.w("Scriptura","No se pudieron extraer las introducciones",error);}
+                return n+" versículos, "+comments+" comentarios y "+intros+" introducciones de libros extraídas de tu EPUB personal";
             },msg->{new AlertDialog.Builder(this).setTitle("Biblioteca preparada")
                 .setMessage(msg).setPositiveButton("Continuar",(d,w)->{page=0;render();}).show();});
         }
+    }
+
+    private void openIndex(){page=7;render();}
+    private void openBookInfo(String book){indexBook=book;page=9;render();}
+    private void openGallery(){galleryBook="";galleryOffset=0;page=8;render();}
+    private void openGalleryFor(String book){page=8;galleryBook=book;galleryOffset=0;render();}
+    private String galleryBook="";
+    private int galleryOffset=0;
+
+    /**
+     * El libro privado no se lee ni se descarga de Internet.
+     * Se reconstruye el índice editorial una sola vez desde el EPUB ya importado.
+     */
+    private void ensureIntroductions(){
+        if(introductions.count()>0||introBusy||introAttempted)return;
+        File check=new File(getFilesDir(),"biblia-usuario.epub");
+        if(!check.isFile())return;
+        introBusy=true;introAttempted=true;
+        worker.execute(()->{
+            try{
+                introductions.importPrivateEpub();
+                runOnUiThread(()->{
+                    introBusy=false;
+                    if(!isFinishing()&&(page==7||page==9))render();
+                });
+            }catch(Exception error){
+                android.util.Log.w("Scriptura","Extracción editorial no disponible",error);
+                runOnUiThread(()->{introBusy=false;
+                    if(!isFinishing()&&(page==7||page==9))
+                        Toast.makeText(this,"No se pudo extraer la introducción del EPUB. Puedes reintentarlo.",Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+    private void bibleIndex(){
+        title(column,"Índice de la Biblia");
+        hint(column,"Los 73 libros del canon católico. Selecciona uno para ver un extracto de su introducción editorial y acceder a su lectura.");
+        ensureIntroductions();
+        if(introBusy)hint(column,"Extrayendo las introducciones de tu EPUB privado…");
+        if(introductions.count()==0){
+            hint(column,"El índice está disponible sin conexión. Para las introducciones de Navarra es necesario importar tu EPUB personal.");
+            if(!store.ready())button(column,"Importar Biblia de Navarra",this::pickEpub,true);
+            else button(column,"Reintentar extracción editorial",()->{introAttempted=false;ensureIntroductions();},false);
+        }else hint(column,introductions.count()+" fichas editoriales importadas de tu archivo privado.");
+        boolean wasNew=false;
+        for(String code:Books.NAMES.keySet()){
+            if(Books.isNew(code)&&!wasNew){
+                wasNew=true;section(column,"Nuevo Testamento","");addGap(column,4);
+            }else if(!wasNew && code.equals("Gn")){
+                section(column,"Antiguo Testamento","");addGap(column,4);
+            }
+            final String selected=code;
+            LinearLayout block=card(column);
+            TextView row=text(Books.name(code),17,DARK,true);block.addView(row);
+            String excerpt=introductions.textFor(code);
+            if(!excerpt.isEmpty()){
+                TextView snippet=text(excerpt,13,MUTED,false);
+                snippet.setMaxLines(2);
+                block.addView(snippet);
+            }
+            button(block,"Ver introducción y capítulos",()->openBookInfo(selected),false);
+        }
+    }
+    private void bookOverview(){
+        String code=indexBook;
+        title(column,Books.name(code));
+        button(column,"Volver al índice",this::openIndex,false);
+        ensureIntroductions();
+        LinearLayout block=card(column);
+        section(block,"Introducción editorial","Extraída de tu ejemplar personal de la Sagrada Biblia, Universidad de Navarra.");
+        String introduction=introductions.textFor(code);
+        if(introduction.isEmpty()){
+            hint(block,introBusy?"Preparando la introducción de tu EPUB…":
+                "No se encontró una introducción específica importada. No se generará un resumen ficticio.");
+            button(block,"Reintentar extracción",()->{introAttempted=false;ensureIntroductions();},false);
+        }else{
+            String source=introductions.sourceBook(code);
+            if(!code.equals(source))hint(block,"Introducción conjunta: "+Books.name(source)+" y "+Books.name(code)+".");
+            TextView preview=text(introduction,16,DARK,false);
+            serif(preview);preview.setTextIsSelectable(true);block.addView(preview);
+            hint(block,"Extracto editorial abreviado; no sustituye la introducción íntegra de la obra.");
+        }
+        block=card(column);section(block,"Leer la Biblia","Consulta capítulos y pasajes del libro.");
+        if(store.ready()){
+            button(block,"Seleccionar capítulo",()->browseChapters(code),true);
+            button(block,"Comenzar por el capítulo 1",()->lookup(Books.name(code)+" 1"),false);
+        }else button(block,"Importar mi ejemplar EPUB",this::pickEpub,false);
+        block=card(column);
+        section(block,"Lugares y arte","Contexto geográfico y artístico relacionado.");
+        button(block,"Mapa de "+Books.name(code),()->openBookAtlas(code),false);
+        if(!BiblicalArt.byBook(code).isEmpty())
+            button(block,"Obras pictóricas relacionadas",()->openGalleryFor(code),false);
+    }
+    private void artGallery(){
+        title(column,"Arte y Biblia");
+        hint(column,"Selección inicial de pintura clásica. Son interpretaciones artísticas posteriores a los relatos bíblicos, no imágenes de los hechos originales.");
+        if(!galleryBook.isEmpty()){
+            button(column,"Mostrar toda la galería",()->{galleryBook="";galleryOffset=0;render();},false);
+            hint(column,"Obras relacionadas con "+Books.name(galleryBook));
+        }
+        java.util.List<BiblicalArt.Painting> items=galleryBook.isEmpty()?
+            BiblicalArt.all():BiblicalArt.byBook(galleryBook);
+        if(items.isEmpty())hint(column,"No hay todavía obras catalogadas para este libro.");
+        int count=items.size();
+        if(galleryOffset>=count)galleryOffset=0;
+        int finish=Math.min(count,galleryOffset+6);
+        hint(column,count+" obras catalogadas · mostrando "+(count==0?0:galleryOffset+1)+"–"+finish+
+            ". Solo se cargan las miniaturas de esta página.");
+        if(galleryOffset>0)button(column,"← Obras anteriores",()->{
+            galleryOffset=Math.max(0,galleryOffset-6);render();
+        },false);
+        for(int i=galleryOffset;i<finish;i++){
+            BiblicalArt.Painting artwork=items.get(i);
+            LinearLayout block=card(column);
+            TextView heading=text(artwork.title,20,DARK,false);serif(heading);block.addView(heading);
+            hint(block,artwork.author+" · "+artwork.date);
+            ImageView illustration=new ImageView(this);
+            illustration.setAdjustViewBounds(true);
+            illustration.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            illustration.setBackground(outlined(SOFT,12));
+            illustration.setMinimumHeight(dp(180));
+            illustration.setContentDescription("Reproducción artística: "+artwork.title+" de "+artwork.author);
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,dp(210));
+            params.topMargin=dp(8);block.addView(illustration,params);
+            BiblicalArt.thumbnail(this,illustration,artwork);
+            hint(block,artwork.description);
+            hint(block,"Referencia bíblica: "+artwork.reference);
+            hint(block,"Fuente de imágenes: Wikimedia Commons. Solo se cargan miniaturas cuando se verifica la licencia de su archivo. La ficha original contiene los créditos específicos.");
+            button(block,"Ver obra, autoría y derechos",
+                ()->{try{startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse(BiblicalArt.resolvedFilePage(illustration,artwork))));}
+                     catch(Exception error){showError("No se pudo abrir Wikimedia Commons.");}},false);
+            button(block,"Leer "+artwork.reference,()->{
+                if(store.ready())lookup(artwork.reference);
+                else showError("Importa tu Biblia EPUB para abrir el pasaje.");
+            },false);
+        }
+        if(finish<count)button(column,"Siguientes 6 obras →",()->{
+            galleryOffset=finish;render();
+        },true);
     }
 
     private void openAtlas(int mode){
@@ -809,6 +981,8 @@ public final class MainActivity extends Activity {
     }
     @Override public void onBackPressed(){
         if(page==5){page=1;render();}
+        else if(page==9){page=7;render();}
+        else if(page==7||page==8){page=0;render();}
         else if(page==6){
             if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
             else {page=0;render();}

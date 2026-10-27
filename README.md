@@ -76,3 +76,13 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 - Política de teselas: https://operations.osmfoundation.org/policies/tiles/
 - URLs oficiales de mapas satélite: https://developers.google.com/maps/documentation/urls/get-started
 - Google Maps SDK Android (requiere clave y facturación; no utilizado): https://developers.google.com/maps/documentation/android-sdk/usage-and-billing
+
+## Novedades preliminares 0.7.0: índice, mapas y arte
+
+- **Inicio**: se retiran las tarjetas redundantes de estado de ánimo y búsqueda (ya existen sus pestañas). Permanecen lecturas del día, acceso al índice, galería y actualizaciones.
+- **Mapas fijo**: banda persistente «MAPAS BÍBLICOS» justo encima de las cinco pestañas originales, sin sustituirlas.
+- **Índice de 73 libros**: acceso desde Inicio y Buscar. Cada ficha muestra capítulos, mapa y un extracto abreviado de la introducción editorial extraída localmente del EPUB personal de Navarra. El EPUB privado **no se sube ni se incluye** en APK o GitHub. Algunos libros comparten introducciones editoriales, indicadas en la ficha.
+- **Arte y Biblia**: galería editorial de 62 obras clásicas vinculadas a pasajes, con título, artista y fechas aproximadas; seis fichas por página. Las reproducciones se solicitan en Wikimedia Commons y solo se muestran si el resultado coincide razonablemente con la obra y posee licencia identificada como dominio público o Creative Commons.
+- **Sin clave API de imágenes**: el usuario puede abrir la búsqueda en Wikimedia Commons o la ficha concreta verificada para comprobar derechos y autoría. Una búsqueda que no dé coincidencia fiable no muestra una obra distinta.
+- Son representaciones artísticas históricas de relatos bíblicos, nunca fotografías de acontecimientos bíblicos ni sustituto de exégesis.
+- **Compatibilidad**: cinco pestañas, Java17, SDK34, Gradle8.9, AGP8.7.3, aplicación/firma y datos locales intactos. No pasar a 1.0 hasta validar con EPUB y teléfono real.

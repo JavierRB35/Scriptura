@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="scriptura_navy">#0D2338</color>
+    <color name="scriptura_gold">#DAA85C</color>
+    <color name="scriptura_parchment">#F5E7C8</color>
+    <color name="scriptura_slate_blue">#587A9A</color>
+    <color name="scriptura_charcoal">#1E2428</color>
+    <color name="scriptura_light_gray">#E5E7E8</color>
+    <color name="scriptura_paper">#FFFCF6</color>
+</resources>

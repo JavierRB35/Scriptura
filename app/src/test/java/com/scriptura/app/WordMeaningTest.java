@@ -24,4 +24,17 @@ public class WordMeaningTest {
         assertNull(WordMeaning.selection(s,-1,8));
         assertNull(WordMeaning.selection(s,5,999));
     }
+    @Test public void createsSafeExternalLookupUrls(){
+        assertEquals("https://ec.aciprensa.com/wiki/Especial:Buscar?search=Salvaci%C3%B3n",
+            WordMeaning.catholicSearchUrl("Salvación"));
+        assertEquals("https://es.wikipedia.org/w/index.php?search=ap%C3%B3stoles",
+            WordMeaning.wikipediaSearchUrl("apóstoles"));
+        assertEquals("https://es.wikipedia.org/w/index.php?search=Jes%C3%BAs",
+            WordMeaning.wikipediaSearchUrl("Jesús"));
+    }
+    @Test(expected=IllegalArgumentException.class)
+    public void rejectsPhrasesInExternalLookups(){
+        WordMeaning.catholicSearchUrl("la gracia");
+    }
+
 }

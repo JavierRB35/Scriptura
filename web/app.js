@@ -152,64 +152,77 @@ async function openDocument(id) {
     +'</div></div>');
 }
 async function renderReader() {
-  const r=state.reader;
-  if(!r)return;
+  const r=state.reader;if(!r)return;
   title(r.name);
-  state.selection=null;
-  state.noteDraftQuote=null;
-  state.noteEditingId=null;
+  state.selection=null;state.noteDraftQuote=null;state.noteEditingId=null;
+  state.visibleNotes=[];state.visibleLinks=[];
   const isPdf=r.kind==="pdf";
-  const nav=r.kind==="bible"
+  const navigation=r.kind==="bible"
     ?action("reader-prev","‹ Anterior")+action("reader-next","Siguiente ›")
     :r.kind==="epub"
     ?action("reader-prev","‹ Sección anterior",r.index===0?'disabled':'')
       +action("reader-next","Siguiente sección ›",r.index+1>=r.total?'disabled':'')
     :action("reader-prev","‹ Página anterior",r.page===1?'disabled':'')
       +action("reader-next","Página siguiente ›");
-  const bibleSelectors=r.kind==="bible"
+  const selectors=r.kind==="bible"
     ?'<div class="reader-selectors"><label for="reader-book">Libro'
       +'<select id="reader-book" aria-label="Seleccionar libro">'
-      +state.books.filter(b=>b.chapters>0).map(b=>'<option value="'+esc(b.code)+'"'+(r.book===b.code?' selected':'')+'>'+esc(b.name)+'</option>').join('')
+      +state.books.filter(b=>b.chapters>0).map(b=>'<option value="'+esc(b.code)+'"'+(r.book===b.code?' selected':'')+'>'+esc(b.name)+'</option>').join("")
       +'</select></label><label for="reader-chapter">Capítulo'
       +'<select id="reader-chapter" aria-label="Seleccionar capítulo">'
       +Array.from({length:state.books.find(b=>b.code===r.book)?.chapters||1},(_,i)=>'<option value="'+(i+1)+'"'
-        +(r.chapter===i+1?' selected':'')+'>'+(i+1)+'</option>').join('')
-      +'</select></label></div>':'';
+        +(r.chapter===i+1?' selected':'')+'>'+(i+1)+'</option>').join("")
+      +'</select></label></div>'
+    :'<div class="reader-current-location">'+esc(r.name)+'</div>';
   const body=isPdf
     ?'<iframe title="Documento PDF" class="pdf-reader" src="'+fileUrl(r.doc.id)+'#page='+r.page+'"></iframe>'
     :'<div class="reader-text" id="reader-text" tabindex="0"></div>';
   content('<div class="reader-head"><div><div class="eyebrow">'+esc(r.kind.toUpperCase())+'</div>'
-    +'<h2>'+esc(r.name)+'</h2></div>'+action("open-library","Volver a Biblioteca")
-    +'</div><div class="reader-toolbar" id="reader-toolbar" role="toolbar" aria-label="Controles de lectura">'
-    +bibleSelectors+'<div class="reader-buttons">'+nav
-    +action("link-current","Vincular recurso","","primary-button")
-    +(r.kind==="bible"?action("favorite","☆ Favorito"):"")
-    +'</div></div>'
-    +'<div class="reader-layout"><article class="reading-surface"><p class="reader-hint">'
-    +(isPdf?"PDF: los vínculos se guardan por página y cita indicada manualmente."
-      :"Selecciona un fragmento para asociarle una anotación o un recurso. Los controles de lectura permanecen visibles.")
-    +'</p>'+body+'</article>'
-    +'<aside class="aside-card reader-aside" aria-label="Anotaciones y recursos del pasaje">'
-    +'<section class="notes-section"><h3>Mis anotaciones</h3>'
-    +'<p class="muted aside-intro">Escribe sobre este capítulo o vincula la nota a un fragmento seleccionado.</p>'
-    +'<label for="note-editor">Anotación personal</label>'
-    +'<textarea id="note-editor" rows="5" maxlength="10000" placeholder="Observaciones, dudas, ideas o reflexiones…"></textarea>'
-    +(isPdf?'<label for="pdf-note-quote">Cita de la página (opcional)</label>'
-      +'<input id="pdf-note-quote" type="text" maxlength="1600" placeholder="Texto al que se refiere la nota">':'')
+    +'<h2>'+esc(r.name)+'</h2></div>'+action("open-library","Volver a Biblioteca")+'</div>'
+    +'<div class="reader-toolbar" id="reader-toolbar" role="toolbar" aria-label="Controles de lectura">'
+    +'<div class="reader-toolbar-top">'+selectors
+    +'<div class="reader-page-buttons">'+navigation+'</div></div>'
+    +'<div class="reader-toolbar-bottom"><span class="reader-tools-label">ESTUDIAR EL TEXTO</span>'
+    +'<div class="reader-context-actions">'
+    +action("new-note","✎ Escribir nota","","ghost-button")
+    +action("quick-url","↗ Vincular URL","","ghost-button")
+    +action("quick-doc","▧ Vincular documento","","ghost-button")
+    +(r.kind==="bible"?action("favorite","☆ Favorito","","ghost-button"):"")
+    +'</div></div></div>'
+    +'<div class="reader-layout"><article class="reading-surface">'
+    +'<div class="reader-hint">'
+    +(isPdf?"En PDF, indica la página y copia el fragmento en la nota o vínculo."
+      :"Selecciona una frase con el ratón: aparecerán acciones para crear una nota o vincular una URL/documento.")
+    +'</div>'
+    +(!isPdf?'<div class="mark-legend"><span class="legend-note">Nota</span><span class="legend-link">Recurso / URL</span><span class="legend-both">Ambos</span></div>':"")
+    +body+'</article>'
+    +'<aside class="aside-card reader-aside" aria-label="Notas y recursos">'
+    +'<div id="highlight-details" class="highlight-details" hidden></div>'
+    +'<section class="notes-section" id="reader-notes"><h3>Mis anotaciones</h3>'
+    +'<p class="muted aside-intro">Para vincular una nota a una frase, selecciónala y pulsa «Anotar selección».</p>'
     +'<div id="note-selected-quote" class="note-selection-preview" hidden></div>'
+    +'<label for="note-editor">Escribe tu anotación</label>'
+    +'<textarea id="note-editor" rows="5" maxlength="10000" placeholder="Reflexiones, dudas, contexto histórico…"></textarea>'
+    +(isPdf?'<label for="pdf-note-quote">Cita de la página (opcional)</label>'
+      +'<input id="pdf-note-quote" type="text" maxlength="1600" placeholder="Fragmento al que se refiere la nota">':"")
     +'<div class="notes-actions">'
-    +(!isPdf?action("attach-note-selection","Usar selección",'',"ghost-button small-btn"):"")
-    +action("clear-note","Nueva / limpiar",'',"ghost-button small-btn")
+    +(!isPdf?action("attach-note-selection","Anotar selección",'',"ghost-button small-btn"):"")
     +action("save-note","Guardar nota",'',"primary-button small-btn")
+    +action("clear-note","Limpiar / nueva",'',"ghost-button small-btn")
     +'</div><div id="passage-notes" class="notes-list" aria-live="polite">'
     +empty("Cargando anotaciones…")+'</div></section>'
-    +'<section class="references-section"><h3>Imágenes, documentos y URL</h3>'
-    +'<div id="passage-links" aria-live="polite">'
-    +empty("Cargando vínculos…")+'</div></section></aside></div>');
-  if(!isPdf) {
+    +'<section class="references-section" id="reader-links"><h3>Imágenes, documentos y URL</h3>'
+    +'<div id="passage-links" aria-live="polite">'+empty("Cargando vínculos…")+'</div></section>'
+    +'</aside></div>'
+    +'<div id="selection-actions" class="selection-actions" hidden role="toolbar" aria-label="Acciones para el texto seleccionado">'
+    +action("quick-note","✎ Añadir nota",'',"primary-button small-btn")
+    +action("quick-url","↗ Vincular URL",'',"ghost-button small-btn")
+    +action("quick-doc","▧ Vincular archivo",'',"ghost-button small-btn")+'</div>');
+  if(!isPdf){
     $("#reader-text").textContent=r.text||"";
     $("#reader-text").addEventListener("mouseup",captureSelection);
     $("#reader-text").addEventListener("keyup",captureSelection);
+    $("#reader-text").addEventListener("click",openMarkDetails);
   }
   await Promise.all([showLinksForReader(),showNotesForReader()]);
 }

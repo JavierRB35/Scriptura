@@ -620,7 +620,7 @@ public final class MainActivity extends Activity {
         for(StudyAnnotations.Item item:visible){
             String label="✎  "+annotationType(item)+" · v. "+item.verse;
             if(!item.body.trim().isEmpty()){
-                String snippet=item.body.trim().replace('\\n',' ');
+                String snippet=item.body.trim().replace('\n',' ');
                 label+=" · "+(snippet.length()>65?snippet.substring(0,65)+"…":snippet);
             }
             TextView marker=text(label,14,DARK,true);

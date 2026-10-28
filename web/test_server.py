@@ -110,6 +110,41 @@ class WebTests(unittest.TestCase):
         bad=dict(new,url="javascript:alert(1)")
         code,_=self.request("/api/references","POST",bad)
         self.assertEqual(code,400)
+    def test_03b_svg_import_and_safe_rendering(self):
+        image=(b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 80">'
+            b'<rect width="150" height="80" fill="#dbeafe"/>'
+            b'<text x="5" y="22" font-size="16">Doce tribus</text></svg>')
+        ident=self.upload("12_tribus_de_Israel.svg",image,"Mapas")
+        self.__class__.svg_id=ident
+        code,data=self.request("/api/documents/"+str(ident)+"/file")
+        self.assertEqual(code,200)
+        self.assertIn(b"Doce tribus",data)
+        self.assertTrue(data.startswith(b"<?xml"))
+        target=str(self.epub_id)+":0"
+        code,raw=self.request("/api/references","POST",{
+            "kind":"epub","target":target,"start":10,"end":27,
+            "quote":"texto seleccionado","resource_kind":"document","document_id":ident})
+        self.assertEqual(code,201,raw)
+    def test_03c_svg_rejects_active_content(self):
+        cases=[
+            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+            b'<svg xmlns="http://www.w3.org/2000/svg"><rect width="40" onload="alert(1)"/></svg>',
+            b'<svg xmlns="http://www.w3.org/2000/svg"><use href="https://evil.example/img.svg"/></svg>',
+            b'<!DOCTYPE svg [<!ENTITY ex SYSTEM "file:///tmp/secret">]><svg xmlns="http://www.w3.org/2000/svg"/>',
+            b'<svg xmlns="http://www.w3.org/2000/svg"><foreignObject/></svg>'
+        ]
+        from urllib.parse import urlencode
+        for i,svg in enumerate(cases):
+            with self.subTest(i=i):
+                status,raw=self.request("/api/upload?"+urlencode({
+                    "filename":"unsafe%d.svg"%i,"category":"Mapas"}),
+                    "POST",svg,{"Content-Type":"application/octet-stream"})
+                self.assertEqual(status,400,raw)
+        self.assertFalse(any(x["name"].startswith("unsafe") for x in self.get_json("/api/documents")))
+    def test_03d_highlight_js_is_available(self):
+        status,body=self.request("/annotations.js")
+        self.assertEqual(status,200)
+        self.assertIn(b"rangeFromOffsets",body)
     def test_04_pdf_and_backup(self):
         ident=self.upload("ejemplo.pdf",b"%PDF-1.4\n%%EOF\n")
         code,body=self.request("/api/references","POST",{

@@ -27,6 +27,7 @@ public final class MainActivity extends Activity {
     private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private BibleStore store;
     private NavarraNotes notes;
+    private StudyAnnotations studyAnnotations;
     private HistoricalContextStore historyContext;
     private boolean historicalExpanded=false;
     private NavarraIntroductions introductions;
@@ -41,6 +42,7 @@ public final class MainActivity extends Activity {
     private TextView caption;
     private int page=0;
     private int atlasMode=0;
+    private boolean atlasReturnToStudy=false;
     private String atlasBook="Gn";
     private BibleGeography.Place atlasPlace;
     private BibleGeography.Journey atlasJourney;
@@ -112,11 +114,12 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().setStatusBarColor(DARK);
         getWindow().setNavigationBarColor(BG);
-        store=new BibleStore(this);notes=new NavarraNotes(this);
+        store=new BibleStore(this);notes=new NavarraNotes(this);studyAnnotations=new StudyAnnotations(this);
         introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);ai=new GeminiClient(this);
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
+            atlasReturnToStudy=state.getBoolean("atlasReturnToStudy",false);
             indexBook=state.getString("indexBook","Gn");
             indexQuery=state.getString("indexQuery","");
             indexScope=state.getInt("indexScope",0);
@@ -140,6 +143,7 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);state.putInt("page",page);state.putString("mood",mood);
         state.putInt("atlasMode",atlasMode);state.putString("atlasBook",atlasBook);
+        state.putBoolean("atlasReturnToStudy",atlasReturnToStudy);
         state.putString("indexBook",indexBook);
         state.putString("indexQuery",indexQuery);
         state.putInt("indexScope",indexScope);
@@ -186,7 +190,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
         fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
         frame.addView(mapsFixed,fixedParams);
-        mapsFixed.setOnClickListener(v->openAtlas(0));
+        mapsFixed.setOnClickListener(v->{atlasReturnToStudy=false;openAtlas(0);});
 
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
@@ -208,7 +212,7 @@ public final class MainActivity extends Activity {
             if(selected)item.setBackground(bg(Color.rgb(29,54,78),10));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);
             lp.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(item,lp);
-            item.setOnClickListener(v->{page=dest;render();});
+            item.setOnClickListener(v->{atlasReturnToStudy=false;page=dest;render();});
         }
         frame.addView(nav);setContentView(frame);
         switch(page){
@@ -398,7 +402,6 @@ public final class MainActivity extends Activity {
         historicalExpanded=false;
         selected=p;store.record(p.ref);page=5;render();
     }
-
     /**
      * Flechas de lectura junto al título y al pie del texto: los controles
      * no quedan enterrados bajo las acciones de estudio o favoritos.
@@ -450,14 +453,16 @@ public final class MainActivity extends Activity {
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
         bible.setTextIsSelectable(true);
+        applyStudyMarks(bible,p);
         addDefinitionAction(bible,p);
         c.addView(bible);
         chapterNavigation(c,p,true);
-        hint(c,"Mantén pulsada una palabra, pulsa «Definir» y elige dónde consultar su significado.");
+        hint(c,"Mantén pulsado el texto y elige «Anotar» o «Definir». Toca un fragmento resaltado para abrir su nota completa.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
         alternative.setOnClickListener(v->askForWord(p));
         c.addView(alternative);
+        showStudyAnnotations(c,p);
         showHistoricalContext(p);
         c=card(column);
         button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
@@ -472,6 +477,7 @@ public final class MainActivity extends Activity {
             i.putExtra(Intent.EXTRA_TEXT,p.ref+"\n"+p.text+"\nBiblia de Navarra");
             startActivity(Intent.createChooser(i,"Compartir pasaje"));
         },false);
+        button(c,"Añadir nota a un versículo",()->manualStudyAnnotation(p),false);
         button(c,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
         button(c,"✦  Interpretación con Gemini",()->interpret(p,"Explica este pasaje de forma breve y fiel a su contexto.",false),true);
         button(c,"Profundizar o preguntar",()->ask(p),false);
@@ -579,8 +585,238 @@ public final class MainActivity extends Activity {
             @Override public void showError(String message){
                 MainActivity.this.showError(message);
             }
+        },(quote,start,end)->{
+            AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(
+                passage.text,start,end);
+            if(anchor==null){
+                showError("Selecciona texto dentro de un solo versículo. Para una nota general, usa «Añadir nota a un versículo».");
+                return;
+            }
+            editStudyAnnotation(passage,anchor,null);
         });
     }
+
+    /** Annotations belong to a precise verse in the user-imported EPUB. */
+    private static String annotationType(StudyAnnotations.Item item){
+        if(StudyAnnotations.ATLAS.equals(item.kind))return "Atlas bíblico";
+        if(StudyAnnotations.MAP.equals(item.kind))return "Mapa";
+        if(StudyAnnotations.WEB.equals(item.kind))return "Web";
+        return "Nota";
+    }
+    private void applyStudyMarks(TextView bible,BibleStore.Passage passage){
+        java.util.List<StudyAnnotations.Item> all=
+            studyAnnotations.forChapter(passage.book,passage.chapter);
+        android.text.SpannableString marked=new android.text.SpannableString(passage.text);
+        final java.util.ArrayList<StudyAnnotations.Item> visible=new java.util.ArrayList<>();
+        final java.util.ArrayList<AnnotationAnchors.Range> ranges=new java.util.ArrayList<>();
+        for(StudyAnnotations.Item item:all){
+            AnnotationAnchors.Range range=AnnotationAnchors.inDisplay(
+                passage.text,item.verse,item.offset,item.quote);
+            if(range==null)continue;
+            int color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?Color.rgb(207,236,216):
+                StudyAnnotations.WEB.equals(item.kind)?Color.rgb(208,229,252):
+                Color.rgb(255,234,174);
+            marked.setSpan(new android.text.style.BackgroundColorSpan(color),
+                range.start,range.end,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            marked.setSpan(new android.text.style.UnderlineSpan(),
+                range.start,range.end,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            visible.add(item);ranges.add(range);
+        }
+        bible.setText(marked,TextView.BufferType.SPANNABLE);
+        if(visible.isEmpty())return;
+        final float[] initial={0f,0f};
+        final int slop=ViewConfiguration.get(this).getScaledTouchSlop();
+        bible.setOnTouchListener((view,event)->{
+            if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
+                initial[0]=event.getX();initial[1]=event.getY();
+                return false; // Do not interfere with native long-press selection.
+            }
+            if(event.getActionMasked()!=MotionEvent.ACTION_UP)return false;
+            if(event.getEventTime()-event.getDownTime()>ViewConfiguration.getLongPressTimeout()/2
+                ||Math.abs(event.getX()-initial[0])>slop
+                ||Math.abs(event.getY()-initial[1])>slop)return false;
+            int offset=bible.getOffsetForPosition(event.getX(),event.getY());
+            java.util.ArrayList<StudyAnnotations.Item> touched=new java.util.ArrayList<>();
+            for(int i=0;i<ranges.size();i++)
+                if(offset>=ranges.get(i).start&&offset<ranges.get(i).end)
+                    touched.add(visible.get(i));
+            if(touched.isEmpty())return false;
+            if(touched.size()==1)showStudyAnnotation(passage,touched.get(0));
+            else{
+                String[] labels=new String[touched.size()];
+                for(int i=0;i<labels.length;i++)
+                    labels[i]=annotationType(touched.get(i))+" · versículo "+touched.get(i).verse;
+                new AlertDialog.Builder(this).setTitle("Anotaciones de este fragmento")
+                    .setItems(labels,(dialog,index)->showStudyAnnotation(passage,touched.get(index)))
+                    .setNegativeButton("Cerrar",null).show();
+            }
+            return true;
+        });
+    }
+    private void showStudyAnnotations(LinearLayout parent,BibleStore.Passage passage){
+        java.util.ArrayList<StudyAnnotations.Item> visible=new java.util.ArrayList<>();
+        for(StudyAnnotations.Item item:studyAnnotations.forChapter(passage.book,passage.chapter))
+            if(item.verse>=passage.first&&item.verse<=passage.last)visible.add(item);
+        if(visible.isEmpty())return;
+        addGap(parent,12);
+        parent.addView(text("MIS ANOTACIONES · "+visible.size(),12,ACCENT,true));
+        for(StudyAnnotations.Item item:visible){
+            String label="✎  "+annotationType(item)+" · v. "+item.verse;
+            if(!item.body.trim().isEmpty()){
+                String snippet=item.body.trim().replace('\n',' ');
+                label+=" · "+(snippet.length()>65?snippet.substring(0,65)+"…":snippet);
+            }
+            TextView marker=text(label,14,DARK,true);
+            marker.setBackground(outlined(SURFACE,9));marker.setPadding(dp(10),dp(12),dp(10),dp(12));
+            marker.setMinHeight(dp(48));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+            lp.topMargin=dp(7);parent.addView(marker,lp);
+            marker.setOnClickListener(v->showStudyAnnotation(passage,item));
+        }
+    }
+    private void manualStudyAnnotation(BibleStore.Passage passage){
+        java.util.List<Integer> numbers=AnnotationAnchors.verseNumbers(passage.text);
+        if(numbers.isEmpty()){showError("No se han encontrado versículos en esta lectura.");return;}
+        String[] labels=new String[numbers.size()];
+        for(int i=0;i<labels.length;i++)labels[i]="Versículo "+numbers.get(i);
+        new AlertDialog.Builder(this).setTitle("¿Qué versículo quieres anotar?")
+            .setItems(labels,(dialog,which)->editStudyAnnotation(passage,
+                new AnnotationAnchors.Anchor(numbers.get(which),0,""),null))
+            .setNegativeButton("Cancelar",null).show();
+    }
+    private static boolean studyLinkIsSafe(String value){
+        try{
+            Uri url=Uri.parse(value);
+            String scheme=url.getScheme();
+            return ("https".equalsIgnoreCase(scheme)||"http".equalsIgnoreCase(scheme))
+                &&url.getHost()!=null&&!url.getHost().isEmpty()
+                &&url.getUserInfo()==null;
+        }catch(RuntimeException ex){return false;}
+    }
+    private void openStudyUrl(String url){
+        if(!studyLinkIsSafe(url)){showError("Este enlace no es una URL web válida.");return;}
+        try{
+            Intent intent=new Intent(Intent.ACTION_VIEW,Uri.parse(url));
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            startActivity(intent);
+        }catch(RuntimeException ex){showError("No hay ninguna aplicación disponible para abrir el enlace.");}
+    }
+    private void showStudyAnnotation(BibleStore.Passage passage,StudyAnnotations.Item item){
+        LinearLayout body=vertical();pad(body,16);
+        TextView ref=text(Books.name(item.book)+" "+item.chapter+":"+item.verse,13,ACCENT,true);
+        body.addView(ref);
+        if(!item.quote.isEmpty()){
+            addGap(body,10);
+            TextView q=text("«"+item.quote+"»",15,DARK,false);
+            serif(q);q.setTextIsSelectable(true);body.addView(q);
+        }
+        addGap(body,12);
+        String description=item.body.trim().isEmpty()?
+            (StudyAnnotations.ATLAS.equals(item.kind)?"Mapa bíblico de este libro":
+                StudyAnnotations.MAP.equals(item.kind)?"Mapa vinculado":"Enlace vinculado")
+            :item.body;
+        TextView full=text(description,16,DARK,false);
+        full.setTextIsSelectable(true);body.addView(full);
+        ScrollView scroll=new ScrollView(this);
+        scroll.addView(body);
+        AlertDialog popup=new AlertDialog.Builder(this)
+            .setTitle(annotationType(item)+" · Scriptura")
+            .setView(scroll).setNegativeButton("Cerrar",null).create();
+        if(StudyAnnotations.ATLAS.equals(item.kind)){
+            addGap(body,8);
+            button(body,"Abrir atlas de "+Books.name(item.book),()->{
+                popup.dismiss();atlasReturnToStudy=true;openBookAtlas(item.book);
+            },true);
+        }
+        if(!item.url.isEmpty()){
+            addGap(body,8);
+            button(body,StudyAnnotations.MAP.equals(item.kind)?"Abrir mapa":"Abrir página web",
+                ()->openStudyUrl(item.url),true);
+        }
+        addGap(body,8);
+        button(body,"Editar anotación",()->{
+            popup.dismiss();
+            editStudyAnnotation(passage,new AnnotationAnchors.Anchor(item.verse,item.offset,item.quote),item);
+        },false);
+        button(body,"Eliminar anotación",()->{
+            new AlertDialog.Builder(this).setTitle("Eliminar anotación")
+                .setMessage("Esta nota se borrará del dispositivo. ¿Continuar?")
+                .setNegativeButton("Cancelar",null)
+                .setPositiveButton("Eliminar",(d,w)->{
+                    studyAnnotations.delete(item.id);popup.dismiss();render();
+                }).show();
+        },false);
+        popup.show();
+    }
+    private void editStudyAnnotation(BibleStore.Passage passage,AnnotationAnchors.Anchor anchor,
+                                     StudyAnnotations.Item editing){
+        LinearLayout content=vertical();pad(content,17);
+        content.addView(text(Books.name(passage.book)+" "+passage.chapter+":"+anchor.verse,
+            15,ACCENT,true));
+        if(!anchor.quote.isEmpty()){
+            addGap(content,8);
+            String quote=anchor.quote.length()>320?anchor.quote.substring(0,320)+"…":anchor.quote;
+            TextView fragment=text("«"+quote+"»",14,MUTED,false);
+            content.addView(fragment);
+        }
+        addGap(content,12);
+        content.addView(text("Tipo de anotación",13,DARK,true));
+        Spinner type=new Spinner(this);
+        String[] choices={"Nota escrita","Mapa externo (URL)","Página web","Atlas de Scriptura"};
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,choices);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        type.setAdapter(adapter);
+        content.addView(type);
+        EditText note=input(content,"Escribe aquí tu anotación completa",true);
+        if(editing!=null)note.setText(editing.body);
+        addGap(content,8);
+        EditText url=input(content,"https://... enlace a mapa o web",false);
+        if(editing!=null)url.setText(editing.url);
+        int initial=editing==null?0:StudyAnnotations.MAP.equals(editing.kind)?1:
+            StudyAnnotations.WEB.equals(editing.kind)?2:
+            StudyAnnotations.ATLAS.equals(editing.kind)?3:0;
+        type.setSelection(initial);
+        url.setVisibility(initial==1||initial==2?View.VISIBLE:View.GONE);
+        type.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(AdapterView<?> v,View view,int i,long id){
+                url.setVisibility(i==1||i==2?View.VISIBLE:View.GONE);
+            }
+            @Override public void onNothingSelected(AdapterView<?> v){}
+        });
+        ScrollView scroll=new ScrollView(this);scroll.addView(content);
+        AlertDialog popup=new AlertDialog.Builder(this)
+            .setTitle(editing==null?"Nueva anotación":"Editar anotación")
+            .setView(scroll).setNegativeButton("Cancelar",null)
+            .setPositiveButton("Guardar",null).create();
+        popup.setOnShowListener(ignored->popup.getButton(AlertDialog.BUTTON_POSITIVE)
+            .setOnClickListener(v->{
+                int selection=type.getSelectedItemPosition();
+                String kind=selection==1?StudyAnnotations.MAP:
+                    selection==2?StudyAnnotations.WEB:
+                    selection==3?StudyAnnotations.ATLAS:StudyAnnotations.NOTE;
+                String comment=note.getText().toString().trim();
+                String link=(selection==1||selection==2)?url.getText().toString().trim():"";
+                if(selection==0&&comment.isEmpty()){
+                    note.setError("Escribe el contenido de la nota");return;
+                }
+                if((selection==1||selection==2)&&!studyLinkIsSafe(link)){
+                    url.setError("Introduce una URL http/https válida");return;
+                }
+                try{
+                    studyAnnotations.save(editing==null?0:editing.id,
+                        passage.book,passage.chapter,anchor.verse,anchor.offset,
+                        anchor.quote,kind,comment,link);
+                    popup.dismiss();
+                    Toast.makeText(this,"Anotación guardada",Toast.LENGTH_SHORT).show();
+                    render();
+                }catch(RuntimeException error){
+                    showError("No se pudo guardar la anotación: "+error.getMessage());
+                }
+            }));
+        popup.show();
+    }
+
     private void askForWord(BibleStore.Passage passage){
         EditText entry=new EditText(this);
         entry.setSingleLine(true);
@@ -1384,7 +1620,9 @@ public final class MainActivity extends Activity {
         else if(page==9){page=7;render();}
         else if(page==7||page==8){page=0;render();}
         else if(page==6){
-            if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
+            if(atlasReturnToStudy&&selected!=null){
+                atlasReturnToStudy=false;page=5;render();
+            }else if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
             else {page=0;render();}
         }
         else if(page!=0){page=0;render();}
@@ -1392,7 +1630,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy(){
         worker.shutdownNow();
-        store.close();notes.close();introductions.close();if(historyContext!=null)historyContext.close();
+        store.close();notes.close();studyAnnotations.close();introductions.close();if(historyContext!=null)historyContext.close();
         super.onDestroy();
     }
 }

@@ -223,6 +223,42 @@ public final class MainActivity extends Activity {
         state.putString("atlasPlace",atlasPlace==null?"":atlasPlace.id);
         state.putString("atlasJourney",atlasJourney==null?"":atlasJourney.id);
     }
+    /** Accesos directos únicamente de Inicio. El resto de vistas no cambia. */
+    private void discoveryTabs(){
+        String[] labels={"Hoy","Misa","Libros","Arte","Mapas"};
+        LinearLayout bar=new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setPadding(dp(10),dp(5),dp(10),dp(5));
+        bar.setBackgroundColor(SURFACE);
+        for(int i=0;i<labels.length;i++){
+            final int destination=i;
+            TextView tab=text(labels[i],12,i==0?DARK:MUTED,i==0);
+            tab.setGravity(Gravity.CENTER);
+            tab.setMinHeight(dp(48));
+            tab.setSingleLine(true);
+            tab.setBackground(i==0?bg(SOFT,10):bg(SURFACE,10));
+            tab.setContentDescription("Abrir sección "+labels[i]+(i==0?", seleccionada":""));
+            tab.setFocusable(true);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);
+            p.leftMargin=dp(2);p.rightMargin=dp(2);
+            bar.addView(tab,p);
+            tab.setOnClickListener(v->{
+                switch(destination){
+                    case 0:break;
+                    case 1:massDay=Calendar.getInstance();page=2;render();break;
+                    case 2:openIndex();break;
+                    case 3:openGallery();break;
+                    case 4:atlasReturnToStudy=false;openAtlas(0);break;
+                    default:break;
+                }
+            });
+        }
+        frame.addView(bar);
+        View divider=new View(this);
+        divider.setBackgroundColor(OUTLINE);
+        frame.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
+    }
+
     private void render(){
         frame=vertical();frame.setBackgroundColor(BG);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
@@ -246,6 +282,7 @@ public final class MainActivity extends Activity {
         frame.addView(head);
         View hairline=new View(this);hairline.setBackgroundColor(OUTLINE);
         frame.addView(hairline,new LinearLayout.LayoutParams(-1,dp(1)));
+        if(page==0)discoveryTabs();
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
         readingScroll=scroll;
         column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
@@ -261,7 +298,7 @@ public final class MainActivity extends Activity {
         mapsFixed.setTooltipText("Atlas de lugares y recorridos");
         LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
         fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
-        frame.addView(mapsFixed,fixedParams);
+        if(page!=0)frame.addView(mapsFixed,fixedParams);
         mapsFixed.setOnClickListener(v->{atlasReturnToStudy=false;openAtlas(0);});
 
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
@@ -305,70 +342,50 @@ public final class MainActivity extends Activity {
         }
     }
 
+    /**
+     * Inicio es exclusivamente el descubrimiento diario. Misa, Biblioteca, Arte
+     * y Mapas son destinos directos de la barra superior; no se apilan aquí.
+     */
     private void home(){
-        LinearLayout hero=vertical();hero.setBackground(bg(NAV_BG,17));pad(hero,20);
-        LinearLayout.LayoutParams heroLp=new LinearLayout.LayoutParams(-1,-2);
-        heroLp.bottomMargin=dp(16);column.addView(hero,heroLp);
-        TextView k=text("LEE · EXPLORA · COMPRENDE",11,GOLD,true);
-        k.setLetterSpacing(0.08f);hero.addView(k);addGap(hero,9);
-        if(displayMode!=DisplayModes.BATTERY){
-            HomeSceneView scene=new HomeSceneView(this,
-                getPreferences(0).getInt("home_image_index",0));
-            LinearLayout.LayoutParams sceneParams=new LinearLayout.LayoutParams(-1,dp(150));
-            sceneParams.topMargin=dp(9);sceneParams.bottomMargin=dp(7);
-            hero.addView(scene,sceneParams);
-        }
-        TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
-        serif(title);hero.addView(title);addGap(hero,7);
-        hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
-        addGap(column,2);
+        homeSelectionSeed();
+        TextView eyebrow=text("LECTURA DEL DÍA",11,ACCENT,true);
+        eyebrow.setLetterSpacing(0.08f);column.addView(eyebrow);
+        addGap(column,4);
+        TextView heading=text("Dos pasajes para hoy",24,DARK,false);
+        serif(heading);column.addView(heading);
+        hint(column,"Un pasaje del Antiguo y otro del Nuevo Testamento. No son lecturas de misa.");
+        addGap(column,13);
+
         if(!getPreferences(0).getBoolean(GUIDE_DONE,false))welcomeCard();
         UpdateChecker.Update available=UpdateChecker.available(this);
         if(available!=null){
             LinearLayout updateCard=card(column);
-            updateCard.addView(text("Nueva versión disponible",18,DARK,true));
+            updateCard.addView(text("Nueva versión disponible",17,DARK,true));
             hint(updateCard,"Scriptura "+available.tag+" · APK oficial firmada");
             button(updateCard,"Actualizar",()->{
                 UpdateChecker.markPrompted(this,available);
                 updateInstaller.start(available);
             },true);
-            hint(updateCard,"La aplicación descargará y verificará el APK. Android te pedirá confirmar la instalación.");
         }
-        // El acceso privado a GitHub no se presenta como requisito de primer uso:
-        // queda voluntario dentro de Ajustes → Actualizaciones.
         if(!store.ready()){
-            if(getPreferences(0).getBoolean(GUIDE_DONE,false)){
-                LinearLayout c=card(column);c.addView(text("Prepara tu biblioteca",20,DARK,true));
-                hint(c,"Puedes explorar libros, mapas y arte sin EPUB. Para leer los textos completos y las notas de Navarra, importa tu ejemplar personal.");
-                button(c,"Importar mi Biblia EPUB",this::pickEpub,true);
-            }
-        } else {
-            hint(column,"Biblia de Navarra · "+store.count()+" versículos importados");
-            long seed=homeSelectionSeed();
-            hint(column,"¿Por qué estos pasajes? Scriptura propone uno del Antiguo Testamento y otro del Nuevo para descubrir distintas partes de la Biblia. No son lecturas litúrgicas ni se eligen por tu estado de ánimo.");
-            readingPreview("Antiguo Testamento",store.random(false,seed*911+31));
-            readingPreview("Nuevo Testamento",store.random(true,seed*911+53));
-            button(column,"Ver otros dos pasajes",()->{
-                getPreferences(0).edit()
-                    .putLong("home_scene_seed",System.nanoTime())
-                    .putInt("home_scene_day",homeDayKey())
-                    .putInt("home_image_index",
-                        (getPreferences(0).getInt("home_image_index",0)+1)%4)
-                    .apply();
-                render();
-            },true);
+            LinearLayout c=card(column);
+            c.addView(text("Prepara tu biblioteca",19,DARK,true));
+            hint(c,"Importa tu EPUB personal de Navarra para leer los pasajes completos. Los libros, las obras y los mapas ya se pueden explorar desde arriba.");
+            button(c,"Importar mi Biblia EPUB",this::pickEpub,true);
+            return;
         }
-        LinearLayout c=card(column);
-        section(c,"Lecturas de la misa","Referencias bíblicas del calendario litúrgico.");
-        hint(c,Liturgy.label(Calendar.getInstance()));
-        button(c,"Leer las lecturas de hoy",()->{page=2;massDay=Calendar.getInstance();render();},true);
-        c=card(column);section(c,"Biblioteca · 73 libros","Índice con introducciones editoriales de tu ejemplar de Navarra.");
-        button(c,"Abrir índice de los 73 libros",()->openIndex(),true);
-        c=card(column);section(c,"Arte bíblico","Pintura clásica para comprender la recepción artística de los pasajes.");
-        button(c,"Explorar obras pictóricas",()->openGallery(),false);
-        c=card(column);section(c,"Lugares bíblicos","Descubre ciudades y recorridos de los relatos.");
-        hint(c,"Explora lo que ocurrió en cada lugar y lee los pasajes relacionados.");
-        button(c,"Explorar atlas bíblico",()->openAtlas(0),false);
+        long seed=homeSelectionSeed();
+        readingPreview("Antiguo Testamento",store.random(false,seed*911+31));
+        readingPreview("Nuevo Testamento",store.random(true,seed*911+53));
+        button(column,"Mostrar otros dos pasajes",()->{
+            getPreferences(0).edit()
+                .putLong("home_scene_seed",System.nanoTime())
+                .putInt("home_scene_day",homeDayKey())
+                .apply();
+            render();
+        },false);
+        addGap(column,9);
+        hint(column,"Explora más desde las secciones superiores: Misa, Libros, Arte y Mapas.");
     }
     private int homeDayKey(){
         Calendar c=Calendar.getInstance();
@@ -386,22 +403,16 @@ public final class MainActivity extends Activity {
         }
         return prefs.getLong("home_scene_seed",today*9381761L);
     }
+    /** Ayuda inicial breve; la guía completa sigue disponible en Ajustes. */
     private void welcomeCard(){
         LinearLayout welcome=card(column);
-        section(welcome,"Empieza a descubrir Scriptura",
-            "Puedes explorar mapas, pinturas e índice sin registrarte ni configurar claves.");
-        hint(welcome,"1. Importa tu EPUB de Navarra si quieres leer el texto completo y sus notas.");
-        hint(welcome,"2. Consulta un libro desde el índice o descubre lugares en Mapas.");
-        hint(welcome,"3. Las cinco pestañas inferiores reúnen búsqueda, misa, lecturas y favoritos.");
+        welcome.addView(text("Bienvenido a Scriptura",17,DARK,true));
+        hint(welcome,"Explora cada sección desde la barra superior. La guía completa está en Ajustes.");
         if(!store.ready())button(welcome,"Importar mi Biblia (opcional)",()->{
             getPreferences(0).edit().putBoolean(GUIDE_DONE,true).apply();
             pickEpub();
-        },true);
-        button(welcome,"Explorar los 73 libros",()->{
-            getPreferences(0).edit().putBoolean(GUIDE_DONE,true).apply();
-            openIndex();
         },false);
-        button(welcome,"Entendido · ocultar esta guía",()->{
+        button(welcome,"Entendido",()->{
             getPreferences(0).edit().putBoolean(GUIDE_DONE,true).apply();
             render();
         },false);
@@ -423,13 +434,24 @@ public final class MainActivity extends Activity {
                 page=0;render();
             }).show();
     }
+    /** Tarjeta compacta: todo el bloque abre el lector, sin botones gigantes. */
     private void readingPreview(String label,BibleStore.Passage p){
-        LinearLayout c=card(column);c.addView(text(label.toUpperCase(),12,ACCENT,true));
-        if(p==null){hint(c,"Importa primero tu Biblia.");return;}
-        c.addView(text(p.ref,19,DARK,true));
-        String summary=p.text.length()>280?p.text.substring(0,280)+"…":p.text;
-        c.addView(text(summary,15,MUTED,false));
-        button(c,"Leer y reflexionar",()->open(p),false);
+        LinearLayout c=card(column);
+        c.setPadding(dp(15),dp(13),dp(15),dp(13));
+        c.addView(text(label.toUpperCase(Locale.ROOT),11,ACCENT,true));
+        if(p==null){hint(c,"No hay un pasaje disponible.");return;}
+        TextView reference=text(p.ref,19,DARK,true);
+        c.addView(reference);
+        TextView excerpt=text(p.text,14,MUTED,false);
+        excerpt.setMaxLines(3);
+        excerpt.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        c.addView(excerpt);
+        addGap(c,7);
+        c.addView(text("Leer y reflexionar  ›",13,ACCENT,true));
+        c.setClickable(true);
+        c.setFocusable(true);
+        c.setContentDescription(label+", "+p.ref+". Leer y reflexionar");
+        c.setOnClickListener(v->open(p));
     }
     private void search(){
         title(column,"Leer y buscar en la Biblia");

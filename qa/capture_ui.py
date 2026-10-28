@@ -82,7 +82,7 @@ def dump():
                     waits=[n for n in root.iter("node")
                            if n.attrib.get("text","") in ("Wait","Esperar")]
                     if waits:
-                        m=re.match(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]",
+                        m=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",
                                    waits[0].attrib.get("bounds",""))
                         if m:
                             x1,y1,x2,y2=map(int,m.groups())

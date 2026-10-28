@@ -398,16 +398,61 @@ public final class MainActivity extends Activity {
         historicalExpanded=false;
         selected=p;store.record(p.ref);page=5;render();
     }
+
+    /**
+     * Flechas de lectura junto al título y al pie del texto: los controles
+     * no quedan enterrados bajo las acciones de estudio o favoritos.
+     */
+    private void chapterNavigation(LinearLayout parent,BibleStore.Passage passage,boolean afterText){
+        LinearLayout bar=new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams row=new LinearLayout.LayoutParams(-1,-2);
+        if(afterText)row.topMargin=dp(16);
+        else row.bottomMargin=dp(12);
+        parent.addView(bar,row);
+
+        int chapter=passage.chapter;
+        boolean hasPrevious=chapter>1;
+        boolean hasNext=chapter<store.chapters(passage.book);
+        TextView previous=chapterArrow("←","Capítulo anterior",passage.book,chapter-1,hasPrevious);
+        TextView next=chapterArrow("→","Capítulo siguiente",passage.book,chapter+1,hasNext);
+        bar.addView(previous,new LinearLayout.LayoutParams(dp(48),dp(48)));
+
+        TextView heading=text(afterText?"Capítulo "+chapter:passage.ref,
+            afterText?14:26,DARK,afterText);
+        if(!afterText)serif(heading);
+        heading.setGravity(Gravity.CENTER);
+        heading.setPadding(dp(4),0,dp(4),0);
+        bar.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
+        bar.addView(next,new LinearLayout.LayoutParams(dp(48),dp(48)));
+    }
+
+    private TextView chapterArrow(String symbol,String action,String book,int target,boolean available){
+        TextView arrow=text(symbol,29,available?DARK:MUTED,true);
+        arrow.setGravity(Gravity.CENTER);
+        arrow.setMinHeight(dp(48));
+        arrow.setBackground(outlined(available?SOFT:BG,12));
+        arrow.setContentDescription(available?action+", "+Books.name(book)+" "+target:
+            "No hay "+action.toLowerCase(java.util.Locale.ROOT));
+        arrow.setEnabled(available);
+        arrow.setFocusable(available);
+        arrow.setAlpha(available?1f:0.35f);
+        if(available)arrow.setOnClickListener(v->openReference(book,target));
+        return arrow;
+    }
+
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
         TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
-        title(column,p.ref);
+        chapterNavigation(column,p,false);
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
         bible.setTextIsSelectable(true);
         addDefinitionAction(bible,p);
         c.addView(bible);
+        chapterNavigation(c,p,true);
         hint(c,"Mantén pulsada una palabra, pulsa «Definir» y elige dónde consultar su significado.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
@@ -436,11 +481,6 @@ public final class MainActivity extends Activity {
         java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
         if(!related.isEmpty())
             button(c,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
-        LinearLayout link=card(column);
-        link.addView(text("Lectura del contexto",18,DARK,true));
-        button(link,"Capítulo anterior",()->openReference(p.book,p.chapter-1),false);
-        button(link,"Capítulo siguiente",()->openReference(p.book,p.chapter+1),false);
-        hint(link,"Continúa la lectura y descubre el contexto del pasaje.");
     }
     /** Sección desplegable dentro del lector, sin introducir pantallas nuevas. */
     private void showHistoricalContext(BibleStore.Passage passage){

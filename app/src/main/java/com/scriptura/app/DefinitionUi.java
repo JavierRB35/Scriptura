@@ -36,16 +36,25 @@ public final class DefinitionUi {
     }
     private static final int ANNOTATE_ACTION_ID=0x5C121;
     private static final int UNDERLINE_ACTION_ID=0x5C122;
+    private static final int GEMINI_FRAGMENT_ACTION_ID=0x5C123;
+    public interface FragmentHandler {
+        void onExplainSelection(String selected,int start,int end);
+    }
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,Delegate delegate){
-        attach(activity,textView,geminiEnabled,delegate,null,null);
+        attach(activity,textView,geminiEnabled,delegate,null,null,null);
     }
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
                               Delegate delegate,SelectionHandler selectionHandler){
-        attach(activity,textView,geminiEnabled,delegate,selectionHandler,null);
+        attach(activity,textView,geminiEnabled,delegate,selectionHandler,null,null);
     }
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
                               Delegate delegate,SelectionHandler selectionHandler,
                               UnderlineHandler underlineHandler){
+        attach(activity,textView,geminiEnabled,delegate,selectionHandler,underlineHandler,null);
+    }
+    public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
+                              Delegate delegate,SelectionHandler selectionHandler,
+                              UnderlineHandler underlineHandler,FragmentHandler fragmentHandler){
         // No reemplazar ni consumir las acciones nativas Copiar/Compartir/Seleccionar todo.
         textView.setTextIsSelectable(true);
         // Algunos TextView no se marcan como long-clickable por el motor de
@@ -71,19 +80,36 @@ public final class DefinitionUi {
                     underline.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
                 }
             }
+            private void ensureExplainFragment(Menu menu){
+                if(fragmentHandler!=null&&menu.findItem(GEMINI_FRAGMENT_ACTION_ID)==null){
+                    MenuItem explain=menu.add(Menu.NONE,GEMINI_FRAGMENT_ACTION_ID,
+                        Menu.CATEGORY_SECONDARY,"Interpretar con Gemini");
+                    explain.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+                }
+            }
             @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
                 ensureAnnotate(menu);
                 ensureUnderline(menu);
+                ensureExplainFragment(menu);
                 return true;
             }
             @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
                 ensureAnnotate(menu);
                 ensureUnderline(menu);
+                ensureExplainFragment(menu);
                 return true;
             }
             @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){
+                if(item.getItemId()==GEMINI_FRAGMENT_ACTION_ID&&fragmentHandler!=null){
+                    int start=textView.getSelectionStart(),end=textView.getSelectionEnd();
+                    if(start<0||end<=start)return true;
+                    String selected=textView.getText().subSequence(start,end).toString();
+                    mode.finish();
+                    fragmentHandler.onExplainSelection(selected,start,end);
+                    return true;
+                }
                 if(item.getItemId()==UNDERLINE_ACTION_ID&&underlineHandler!=null){
                     final int start=textView.getSelectionStart(),end=textView.getSelectionEnd();
                     if(start<0||end<=start)return true;

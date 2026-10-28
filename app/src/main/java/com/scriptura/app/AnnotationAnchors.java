@@ -69,6 +69,14 @@ public final class AnnotationAnchors {
         for(Verse v:verses(displayed))values.add(v.number);
         return values;
     }
+    /** Offset of the verse's text in the rendered passage, useful for restoring reading position. */
+    public static int verseStart(String displayed,int verse){
+        if(displayed==null||verse<1)return -1;
+        for(Verse value:verses(displayed)){
+            if(value.number==verse)return value.start;
+        }
+        return -1;
+    }
     public static int firstVerse(String displayed){
         List<Verse> verses=verses(displayed);
         return verses.isEmpty()?-1:verses.get(0).number;

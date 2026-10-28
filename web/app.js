@@ -80,7 +80,7 @@ function renderHome() {
     +'<div class="grid">'
     +'<button class="tile" data-action="open-bible"><strong>Versículos de la Biblia</strong><span class="number">'+Number(stats.verses||0).toLocaleString("es")+'</span><span class="small">Solo desde tu EPUB privado de Navarra</span></button>'
     +'<button class="tile" data-action="open-library"><strong>Documentos guardados</strong><span class="number">'+Number(stats.documents||0)+'</span><span class="small">EPUB, PDF, mapas, imágenes y otros</span></button>'
-    +'<button class="tile" data-action="open-links"><strong>Imágenes vinculadas</strong><span class="number">'+Number(stats.links||0)+'</span><span class="small">Vínculos tradicionales; las nuevas referencias aparecen en Vínculos</span></button>'
+    +'<button class="tile" data-action="open-links"><strong>Recursos vinculados</strong><span class="number">'+Number(stats.links||0)+'</span><span class="small">Documentos, imágenes y URL asociados a lecturas</span></button>'
     +'</div><div class="card section"><h2>Cómo empezar</h2>'
     +'<div class="step"><span>1</span><p>Importa tu propio EPUB o PDF desde <strong>Biblioteca</strong>. También puedes guardar mapas, fotografías y documentos de apoyo.</p></div>'
     +'<div class="step"><span>2</span><p>Abre un libro o capítulo, <strong>selecciona un fragmento de texto</strong> y elige Vincular recurso.</p></div>'
@@ -245,6 +245,77 @@ async function showLinksForReader() {
   const holder=$("#passage-links"); if(!holder)return;
   const rows=[...extra.map(x=>({...x,source:"extra"})),...images.map(x=>({...x,source:"legacy"}))];
   holder.innerHTML=rows.length?rows.map(linkRow).join(""):empty("Aún no hay recursos vinculados.");
+}
+
+async function showNotesForReader() {
+  const r=state.reader;if(!r)return;
+  const data=await api("/api/notes?"+qp({kind:r.kind,target:r.target}));
+  if(!state.reader||r!==state.reader||!$("#passage-notes"))return;
+  state.visibleNotes=data;
+  $("#passage-notes").innerHTML=data.length?data.map(note=>
+    '<div class="note-item">'+(note.quote?'<blockquote class="note-quote">“'+esc(short(note.quote,210))+'”</blockquote>':'<span class="tag">Nota general</span>')
+    +'<p class="note-body">'+esc(note.body)+'</p><small class="muted">'+esc(note.updated)+'</small>'
+    +'<div class="notes-actions">'
+    +(note.quote&&note.start_offset!==null?action("go-note","Ver cita",'data-start="'+note.start_offset+'" data-end="'+note.end_offset+'"',"ghost-button small-btn"):"")
+    +action("edit-note","Editar",'data-id="'+note.id+'"',"ghost-button small-btn")
+    +action("delete-note","Eliminar",'data-id="'+note.id+'"',"danger-button small-btn")+'</div></div>').join("")
+    :empty("Sin anotaciones. Escribe la primera arriba.");
+}
+function clearNote() {
+  state.noteEditingId=null;state.noteDraftQuote=null;
+  if($("#note-editor"))$("#note-editor").value="";
+  const quote=$("#note-selected-quote");
+  if(quote){quote.textContent="";quote.hidden=true;}
+  if($("#pdf-note-quote"))$("#pdf-note-quote").value="";
+}
+function attachNoteSelection() {
+  const r=state.reader,sel=state.selection;
+  if(!r||!sel||sel.kind!==r.kind||sel.target!==r.target)
+    throw Error("Selecciona primero un fragmento del texto.");
+  state.noteDraftQuote={...sel};
+  $("#note-selected-quote").textContent="Cita: “"+short(sel.quote,220)+"”";
+  $("#note-selected-quote").hidden=false;
+  $("#note-editor").focus();
+}
+async function saveNote() {
+  const r=state.reader,text=$("#note-editor")?.value.trim();
+  if(!r||!text)throw Error("Escribe una anotación antes de guardarla.");
+  if(state.noteEditingId) {
+    await api("/api/notes/"+state.noteEditingId+"/update","POST",{body:text});
+    toast("Anotación actualizada.");
+  } else {
+    const sel=state.noteDraftQuote,quote=sel?.quote||(r.kind==="pdf"?$("#pdf-note-quote")?.value.trim():"");
+    await api("/api/notes","POST",{kind:r.kind,target:r.target,body:text,quote:quote||"",
+      start:sel?.start??null,end:sel?.end??null});
+    toast("Anotación guardada.");
+  }
+  clearNote();await showNotesForReader();
+}
+function editNote(id) {
+  const note=(state.visibleNotes||[]).find(x=>x.id===Number(id));
+  if(!note)throw Error("Anotación no encontrada.");
+  state.noteEditingId=note.id;$("#note-editor").value=note.body;
+  const quote=$("#note-selected-quote");quote.hidden=!note.quote;
+  quote.textContent=note.quote?'Editando nota de “'+short(note.quote,220)+'”':"";
+  $("#note-editor").focus();
+}
+async function deleteNote(id) {
+  if(!confirm("¿Eliminar esta anotación definitivamente?"))return;
+  await api("/api/notes/"+id,"DELETE");
+  if(state.noteEditingId===Number(id))clearNote();
+  await showNotesForReader();toast("Anotación eliminada.");
+}
+function locateText(start,end) {
+  const node=$("#reader-text")?.firstChild;
+  if(!node||node.nodeType!==Node.TEXT_NODE||end<=start||end>node.textContent.length)return;
+  const range=document.createRange();range.setStart(node,start);range.setEnd(node,end);
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+  const marker=document.createElement("span");
+  try{
+    range.surroundContents(marker);
+    marker.scrollIntoView({block:"center",behavior:"smooth"});
+    marker.replaceWith(...marker.childNodes);
+  }catch(_){$("#reader-text").scrollIntoView({block:"start"});}
 }
 function safeUrl(url) {
   try {const parsed=new URL(url);return ["http:","https:"].includes(parsed.protocol)?parsed.href:"";}catch(_){return "";}
@@ -421,15 +492,7 @@ async function goLink(btn) {
     if(kind==="pdf")await openPdf(doc,Number(number));
     else await openEpub(doc,Number(number));
   }
-  if(kind!=="pdf"&&btn.dataset.start!==""&&end>start) {
-    const el=$("#reader-text");const text=el?.firstChild;
-    if(text?.nodeType===Node.TEXT_NODE&&end<=text.textContent.length) {
-      const range=document.createRange();range.setStart(text,start);range.setEnd(text,end);
-      const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
-      const before=range.cloneRange(); const marker=document.createElement("span");
-      try{range.surroundContents(marker);marker.scrollIntoView({block:"center"});marker.replaceWith(...marker.childNodes);}catch(_){el.scrollIntoView();}
-    }
-  }
+  if(kind!=="pdf"&&btn.dataset.start!==""&&end>start)locateText(start,end);
 }
 async function openReference(ref) {
   const match=ref.match(/^(.+)\s+(\d+)$/);
@@ -445,6 +508,10 @@ $("#cancel-dialog").addEventListener("click",()=>$("#link-dialog").close());
 $("#resource-type").addEventListener("change",switchResource);
 $("#link-form").addEventListener("submit",event=>busy(saveLink(event)));
 $("#content").addEventListener("submit",event=>{if(event.target.id==="upload-form")busy(upload(event));});
+$("#content").addEventListener("change",event=>{
+  if(event.target.id==="reader-book")busy(openBible(event.target.value,1));
+  if(event.target.id==="reader-chapter")busy(openBible(state.reader.book,Number(event.target.value)));
+});
 $("#content").addEventListener("click",event=>{
   const btn=event.target.closest("[data-action]");if(!btn)return;
   const job=async()=>{
@@ -463,6 +530,12 @@ $("#content").addEventListener("click",event=>{
       case "reader-prev":await moveReader(-1);break;
       case "reader-next":await moveReader(1);break;
       case "link-current":await beginLink();break;
+      case "attach-note-selection":attachNoteSelection();break;
+      case "clear-note":clearNote();break;
+      case "save-note":await saveNote();break;
+      case "edit-note":editNote(btn.dataset.id);break;
+      case "delete-note":await deleteNote(btn.dataset.id);break;
+      case "go-note":locateText(Number(btn.dataset.start),Number(btn.dataset.end));break;
       case "favorite":
         const saved=await api("/api/favorites","POST",{ref:state.reader.name.replace(" · capítulo "," ")});
         toast(saved.favorite?"Añadido a favoritos.":"Quitado de favoritos.");break;

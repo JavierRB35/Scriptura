@@ -125,6 +125,19 @@ class WebTests(unittest.TestCase):
             "kind":"epub","target":target,"start":10,"end":27,
             "quote":"texto seleccionado","resource_kind":"document","document_id":ident})
         self.assertEqual(code,201,raw)
+    def test_03b2_svg_metadata_from_editor_is_inert(self):
+        image=(b'<svg xmlns="http://www.w3.org/2000/svg"'
+            b' xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">'
+            b'<sodipodi:namedview id="editor-view"/>'
+            b'<metadata><title>Metadata</title></metadata>'
+            b'<defs><marker id="arrow"><path d="M0 0 L10 5 L0 10" fill="#222"/></marker></defs>'
+            b'<path d="M5 5 L30 30" stroke="#111" marker-end="url(#arrow)"/></svg>')
+        ident=self.upload("mapa-editor.svg",image,"Mapas")
+        status,raw=self.request("/api/documents/"+str(ident)+"/file")
+        self.assertEqual(status,200)
+        self.assertIn(b"marker-end",raw)
+        self.assertNotIn(b"namedview",raw)
+        self.assertNotIn(b"Metadata",raw)
     def test_03c_svg_rejects_active_content(self):
         cases=[
             b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',

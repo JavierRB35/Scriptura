@@ -48,6 +48,15 @@ Versión 0.3.0: biblioteca con lector y notas de Navarra, búsqueda literal y po
 
 El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales, el EPUB personal y su contenido no están incluidos en el repositorio.
 
+## Lector bíblico · subrayados y regreso al versículo — 0.7.8
+
+- La pestaña inferior «Buscar» pasa a llamarse **Biblia**. La búsqueda sigue disponible y la cabecera de la sección se titula «Leer y buscar en la Biblia».
+- En el lector del EPUB de Navarra, seleccionar texto de un solo versículo y elegir **Subrayar** en el menú de selección nativo. No hace falta crear una nota. El subrayado se guarda como tipo `UNDERLINE` en la base local existente de anotaciones y se dibuja como línea bajo el texto, sin fondo.
+- Pulsar el texto subrayado, o su entrada en «Mis subrayados y notas», permite **Quitar subrayado**, con confirmación; las notas previas permanecen intactas.
+- Después de guardar o eliminar una anotación, el lector vuelve al **versículo correspondiente**, sin saltar al inicio del capítulo. El desplazamiento se calcula sobre el texto ya maquetado de la lectura actual.
+- Mantener la misma firma Release y `applicationId` para actualizar 0.7.7 sin reinstalar ni perder EPUB, favoritos o anotaciones.
+- La validación automatizada comprueba los anclajes y compilación, pero debe probarse la selección y el foco con el EPUB real y la interfaz Android.
+
 ## Actualización integrada — 0.7.7
 
 - Al encontrar una nueva Release APK firmada, Scriptura muestra un aviso opcional con los botones **Actualizar** y **Más tarde**, además de una notificación Android de alta prioridad con acción **Actualizar** (si se ha concedido el permiso).

@@ -89,16 +89,20 @@ function renderHome() {
 }
 function renderBibleIndex() {
   const available=state.books.some(b=>b.chapters>0);
-  const html='<div class="card"><h2>Los 73 libros de la Biblia</h2>'
-    +'<p class="muted">Se importan únicamente los versículos de tu propio EPUB de Navarra. La edición no se distribuye con la aplicación.</p>'
-    +(!available?'<p class="pill">No hay texto bíblico importado. Añade el EPUB desde Biblioteca y selecciona «Importar como Biblia de Navarra».</p>':'')
-    +'<div class="form-row"><div class="field grow"><label>Buscar por palabra</label><input id="bible-term" type="search" placeholder="Ej.: esperanza"></div>'
-    +action("search-bible","Buscar","","primary-button")+'</div><div id="search-results"></div></div>'
-    +'<div class="card"><h2>Índice de libros</h2><div class="grid">'
-    +state.books.map(b=>'<button class="tile" data-action="read-bible" data-book="'+esc(b.code)+'" data-chapter="1">'
-      +'<strong>'+esc(b.name)+'</strong><span class="small">'+(b.chapters?b.chapters+" capítulos":"Sin texto importado")+'</span></button>').join("")
-    +'</div></div>';
-  content(html);
+  content('<section class="bible-index-intro"><h2>Los 73 libros de la Biblia</h2>'
+    +'<p class="muted">La Biblia se importa desde tu propio EPUB de Navarra; su contenido no se distribuye.</p>'
+    +(!available?'<p class="pill">Importa tu Biblia desde Biblioteca para poder leerla.</p>':'')+'</section>'
+    +'<div class="bible-search-sticky" role="search"><label for="bible-term">Buscar palabras en la Biblia</label>'
+    +'<div class="bible-search-row"><input id="bible-term" type="search" placeholder="Ej.: esperanza, misericordia">'
+    +action("search-bible","Buscar","","primary-button")+'</div></div>'
+    +'<div id="search-results"></div>'
+    +'<section class="card"><h2>Índice de libros</h2><p class="muted">Selecciona un libro para comenzar a leer.</p>'
+    +'<div class="book-grid">'
+    +state.books.map(b=>'<button class="tile book-tile" data-action="read-bible" data-book="'+esc(b.code)+'" data-chapter="1"'
+      +(b.chapters?'':' disabled')
+      +'><span class="book-title">'+esc(b.name)+'</span><span class="book-count">'+
+       (b.chapters?b.chapters+' capítulos':'Sin texto importado')+'</span></button>').join("")
+    +'</div></section>');
 }
 async function searchBible() {
   const query=($("#bible-term")?.value||"").trim();
@@ -147,34 +151,62 @@ async function renderReader() {
   if(!r)return;
   title(r.name);
   state.selection=null;
+  state.noteDraftQuote=null;
+  state.noteEditingId=null;
   const isPdf=r.kind==="pdf";
   const nav=r.kind==="bible"
-    ?action("reader-prev","‹ Anterior",'data-kind="bible"')
-      +action("reader-next","Siguiente ›",'data-kind="bible"')
+    ?action("reader-prev","‹ Anterior")+action("reader-next","Siguiente ›")
     :r.kind==="epub"
     ?action("reader-prev","‹ Sección anterior",r.index===0?'disabled':'')
       +action("reader-next","Siguiente sección ›",r.index+1>=r.total?'disabled':'')
     :action("reader-prev","‹ Página anterior",r.page===1?'disabled':'')
       +action("reader-next","Página siguiente ›");
+  const bibleSelectors=r.kind==="bible"
+    ?'<div class="reader-selectors"><label for="reader-book">Libro'
+      +'<select id="reader-book" aria-label="Seleccionar libro">'
+      +state.books.filter(b=>b.chapters>0).map(b=>'<option value="'+esc(b.code)+'"'+(r.book===b.code?' selected':'')+'>'+esc(b.name)+'</option>').join('')
+      +'</select></label><label for="reader-chapter">Capítulo'
+      +'<select id="reader-chapter" aria-label="Seleccionar capítulo">'
+      +Array.from({length:state.books.find(b=>b.code===r.book)?.chapters||1},(_,i)=>'<option value="'+(i+1)+'"'
+        +(r.chapter===i+1?' selected':'')+'>'+(i+1)+'</option>').join('')
+      +'</select></label></div>':'';
   const body=isPdf
     ?'<iframe title="Documento PDF" class="pdf-reader" src="'+fileUrl(r.doc.id)+'#page='+r.page+'"></iframe>'
     :'<div class="reader-text" id="reader-text" tabindex="0"></div>';
   content('<div class="reader-head"><div><div class="eyebrow">'+esc(r.kind.toUpperCase())+'</div>'
-    +'<h2>'+esc(r.name)+'</h2></div>'+action("open-library","Biblioteca")
-    +'</div><div class="toolbar">'+nav
+    +'<h2>'+esc(r.name)+'</h2></div>'+action("open-library","Volver a Biblioteca")
+    +'</div><div class="reader-toolbar" id="reader-toolbar" role="toolbar" aria-label="Controles de lectura">'
+    +bibleSelectors+'<div class="reader-buttons">'+nav
     +action("link-current","Vincular recurso","","primary-button")
     +(r.kind==="bible"?action("favorite","☆ Favorito"):"")
-    +'</div><div class="reader-layout"><div class="reading-surface"><p class="muted" style="font-size:12px">'
-    +(isPdf?"Para PDF, indica la página y transcribe el fragmento en el diálogo de vinculación."
-      :"Selecciona con el ratón un fragmento y pulsa «Vincular recurso». Se guarda su posición en esta sección.")
-    +'</p>'+body+'</div><aside class="aside-card"><h3>Referencias de este pasaje</h3><div id="passage-links">'
-    +empty("Cargando vínculos…")+'</div></aside></div>');
+    +'</div></div>'
+    +'<div class="reader-layout"><article class="reading-surface"><p class="reader-hint">'
+    +(isPdf?"PDF: los vínculos se guardan por página y cita indicada manualmente."
+      :"Selecciona un fragmento para asociarle una anotación o un recurso. Los controles de lectura permanecen visibles.")
+    +'</p>'+body+'</article>'
+    +'<aside class="aside-card reader-aside" aria-label="Anotaciones y recursos del pasaje">'
+    +'<section class="notes-section"><h3>Mis anotaciones</h3>'
+    +'<p class="muted aside-intro">Escribe sobre este capítulo o vincula la nota a un fragmento seleccionado.</p>'
+    +'<label for="note-editor">Anotación personal</label>'
+    +'<textarea id="note-editor" rows="5" maxlength="10000" placeholder="Observaciones, dudas, ideas o reflexiones…"></textarea>'
+    +(isPdf?'<label for="pdf-note-quote">Cita de la página (opcional)</label>'
+      +'<input id="pdf-note-quote" type="text" maxlength="1600" placeholder="Texto al que se refiere la nota">':'')
+    +'<div id="note-selected-quote" class="note-selection-preview" hidden></div>'
+    +'<div class="notes-actions">'
+    +(!isPdf?action("attach-note-selection","Usar selección",'',"ghost-button small-btn"):"")
+    +action("clear-note","Nueva / limpiar",'',"ghost-button small-btn")
+    +action("save-note","Guardar nota",'',"primary-button small-btn")
+    +'</div><div id="passage-notes" class="notes-list" aria-live="polite">'
+    +empty("Cargando anotaciones…")+'</div></section>'
+    +'<section class="references-section"><h3>Imágenes, documentos y URL</h3>'
+    +'<div id="passage-links" aria-live="polite">'
+    +empty("Cargando vínculos…")+'</div></section></aside></div>');
   if(!isPdf) {
     $("#reader-text").textContent=r.text||"";
     $("#reader-text").addEventListener("mouseup",captureSelection);
     $("#reader-text").addEventListener("keyup",captureSelection);
   }
-  await showLinksForReader();
+  await Promise.all([showLinksForReader(),showNotesForReader()]);
 }
 function captureSelection() {
   const element=$("#reader-text"), r=state.reader, selection=window.getSelection();

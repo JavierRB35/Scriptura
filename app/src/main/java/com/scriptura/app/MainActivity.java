@@ -648,7 +648,76 @@ public final class MainActivity extends Activity {
             }catch(RuntimeException error){
                 showError("No se pudo guardar el subrayado.");
             }
-        });
+        },(quote,start,end)->interpretSelectedFragment(passage,start,end));
+    }
+
+    /** Consulta puntual con texto acotado; no redibuja el lector ni modifica el EPUB. */
+    private void interpretSelectedFragment(BibleStore.Passage passage,int start,int end){
+        GeminiSelection.Fragment fragment=GeminiSelection.fromSelection(
+            passage.text,Books.name(passage.book),passage.chapter,start,end);
+        if(fragment==null){
+            showError("Selecciona texto bíblico válido (hasta 1.200 caracteres) para interpretarlo.");
+            return;
+        }
+        if(!ai.configured()){
+            showError("Configura primero tu clave de Gemini en ⚙ Ajustes.");
+            return;
+        }
+        final ScrollView originalScroll=readingScroll;
+        final int savedY=originalScroll==null?0:originalScroll.getScrollY();
+        new AlertDialog.Builder(this)
+            .setTitle("Interpretar selección con Gemini")
+            .setMessage("Se enviará a Google Gemini el fragmento seleccionado, "+
+                "su referencia y parte del texto cercano para contextualizarlo. "+
+                "No se envían tu EPUB completo ni tus notas personales. "+
+                "Google puede tratar estas consultas según sus condiciones del servicio. "+
+                "¿Quieres continuar?")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Consultar",(d,w)->{
+                LinearLayout content=vertical();
+                pad(content,16);
+                content.addView(text(fragment.reference,14,ACCENT,true));
+                TextView quoteText=text("«"+fragment.quote+"»",15,DARK,false);
+                serif(quoteText);
+                content.addView(quoteText);
+                addGap(content,15);
+                TextView explanation=text("Consultando Gemini…",16,DARK,false);
+                explanation.setTextIsSelectable(true);
+                content.addView(explanation);
+                ScrollView modalScroll=new ScrollView(this);
+                modalScroll.addView(content);
+                AlertDialog result=new AlertDialog.Builder(this)
+                    .setTitle("Interpretación · "+fragment.reference)
+                    .setView(modalScroll)
+                    .setPositiveButton("Cerrar",null)
+                    .create();
+                result.setOnDismissListener(ignored->{
+                    // No render(); la lectura original permanece tal cual y se repone su scroll.
+                    if(page==5&&selected!=null&&selected.ref.equals(passage.ref)&&
+                            originalScroll!=null&&readingScroll==originalScroll)
+                        originalScroll.post(()->{
+                            if(readingScroll==originalScroll)originalScroll.scrollTo(0,savedY);
+                        });
+                });
+                result.show();
+                worker.execute(()->{
+                    try{
+                        String answer=ai.explain(fragment.reference,fragment.context,
+                            "Texto de lectura bíblica personal, sin notas privadas.",
+                            GeminiSelection.question(fragment));
+                        runOnUiThread(()->{
+                            if(!isFinishing()&&!isDestroyed()&&result.isShowing())
+                                explanation.setText(answer);
+                        });
+                    }catch(Exception error){
+                        runOnUiThread(()->{
+                            if(!isFinishing()&&!isDestroyed()&&result.isShowing())
+                                explanation.setText("Gemini no ha podido responder. "+
+                                    "Comprueba la conexión, tu clave o la cuota disponible.");
+                        });
+                    }
+                });
+            }).show();
     }
 
     /** Reload the passage while returning to the actual verse, not the chapter heading. */

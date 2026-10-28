@@ -46,3 +46,65 @@
 @media(max-width:1230px){.reader-layout{grid-template-columns:minmax(0,1fr) 320px}.reader-toolbar{align-items:stretch}.reader-buttons{justify-content:flex-start}}
 @media(max-width:990px){.book-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.reader-layout{grid-template-columns:1fr}.reader-aside{position:static;max-height:none;overflow:visible}.reader-toolbar{top:0}}
 @media(max-width:740px){.reader-toolbar{padding:10px;gap:8px}.reader-selectors{width:100%;flex-basis:100%}.reader-buttons{gap:6px}.reader-buttons button{font-size:12px;padding:8px 9px}.book-grid{grid-template-columns:1fr}.book-tile{min-height:78px}.bible-search-sticky{padding:12px}.reader-aside{padding:17px}.bible-index-intro{padding-top:8px}}
+
+
+/* Scriptura Web 0.1.2 — navegación agrupada y referencias directamente en el texto */
+.reader-toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:0;overflow:visible;background:#fffdf9;border-color:#e5d7bf;top:0}
+.reader-toolbar-top,.reader-toolbar-bottom{display:flex;align-items:end;justify-content:space-between;gap:15px;padding:12px 16px;flex-wrap:wrap}
+.reader-toolbar-bottom{align-items:center;border-top:1px solid #eee5d8;background:#faf6ee;border-radius:0 0 13px 13px;padding-top:8px;padding-bottom:8px}
+.reader-tools-label{font-size:10px;font-weight:800;letter-spacing:.1em;color:#8d6e45;white-space:nowrap;flex:0 0 auto}
+.reader-selectors{display:flex;flex:1 1 460px;gap:10px;min-width:250px}
+.reader-selectors label{min-width:110px}
+.reader-selectors label:first-child{min-width:210px}
+.reader-page-buttons,.reader-context-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.reader-page-buttons .ghost-button{white-space:nowrap;min-height:41px}
+.reader-context-actions{justify-content:flex-start}
+.reader-context-actions .ghost-button{min-height:37px;padding:8px 13px;white-space:nowrap}
+.reader-current-location{font:normal 16px Georgia,serif;color:var(--navy);margin:0 auto 10px 0}
+.reader-layout{grid-template-columns:minmax(0,1fr) minmax(300px,345px);gap:16px}
+.reading-surface{padding:24px clamp(20px,2.6vw,40px)}
+.reader-aside{top:156px;max-height:calc(100vh - 170px)}
+.mark-legend{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:18px;font-size:12px;color:#526172}
+.mark-legend span{padding:3px 9px;border-radius:6px;border-bottom:2px solid transparent}
+.legend-note{background:#fff0b8;border-color:#b87c13!important}
+.legend-link{background:#dbeeff;border-color:#2f7ebd!important}
+.legend-both{background:#ebddfa;border-color:#8058a8!important}
+.study-mark{border-radius:3px;cursor:pointer;outline-offset:2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.study-mark.has-note{background:#fff0ad;border-bottom:2px solid #d79a22;color:inherit}
+.study-mark.has-link{background:#dcefff;border-bottom:2px solid #5197cc;color:inherit}
+.study-mark.has-note.has-link{background:#eadcf9;border-bottom:2px solid #8663b4}
+.study-mark:hover,.study-mark:focus-visible{outline:2px solid #557c96;outline-offset:1px;filter:brightness(.97)}
+.selection-actions{position:fixed;z-index:90;display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#fff;box-shadow:0 12px 35px #09223b38;border:1px solid #b9c6d0;border-radius:11px;padding:7px;max-width:calc(100vw - 24px)}
+.selection-actions[hidden],.highlight-details[hidden]{display:none!important}
+.selection-actions button{white-space:nowrap}
+.highlight-details{background:#f3f6f9;border:1px solid #aebfcf;padding:12px;border-radius:12px;margin-bottom:17px;font-size:13px}
+.highlight-details strong{display:block;font-size:15px;color:#0d2338}
+.highlight-quote{font:italic 14px/1.5 Georgia,serif;color:#4f5965;border-left:2px solid #8d9fb2;padding:6px 10px;background:#fff;border-radius:4px}
+.highlight-entry{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:8px 0;border-top:1px solid #dde5ed}
+.highlight-entry>span:nth-child(2){flex:1 1 110px;min-width:0;overflow-wrap:anywhere}
+.highlight-entry button{flex:0 0 auto}
+.study-focused{outline:3px solid #dba957;outline-offset:2px;transition:outline-color 1s}
+.note-item,.link-entry{scroll-margin-top:160px}
+#reader-text{white-space:pre-wrap}
+@media(max-width:1320px){
+  .reader-layout{grid-template-columns:minmax(0,1fr) 305px}
+  .reader-toolbar-top{align-items:stretch}
+  .reader-page-buttons{justify-content:flex-start}
+  .reader-context-actions button{font-size:12px;padding:8px 9px}
+}
+@media(max-width:1040px){
+  .reader-layout{grid-template-columns:1fr}
+  .reader-aside{position:static;max-height:none;overflow:visible}
+}
+@media(max-width:740px){
+  .reader-toolbar-top,.reader-toolbar-bottom{padding:9px}
+  .reader-selectors{flex-basis:100%;gap:6px;min-width:0}
+  .reader-selectors label{min-width:0}
+  .reader-selectors label:first-child{min-width:0}
+  .reader-tools-label{display:none}
+  .reader-context-actions,.reader-page-buttons{gap:5px}
+  .reader-page-buttons button,.reader-context-actions button{font-size:11px;padding:7px 8px}
+  .selection-actions{gap:3px;padding:5px;left:10px!important;right:10px;max-width:none}
+  .selection-actions button{flex:1 0 auto;font-size:11px;padding:7px}
+  .reading-surface{padding:18px 16px}
+}

@@ -31,10 +31,16 @@
   <div id="toast" role="status" aria-live="polite"></div>
   <dialog id="link-dialog" aria-labelledby="link-dialog-title">
     <form method="dialog" id="link-form">
-      <div class="dialog-head"><div><div class="eyebrow">ANOTACIÓN VISUAL</div><h2 id="link-dialog-title">Asociar imagen</h2></div><button type="button" class="icon-btn" id="close-dialog" aria-label="Cerrar">×</button></div>
+      <div class="dialog-head"><div><div class="eyebrow">ANOTACIÓN VISUAL</div><h2 id="link-dialog-title">Vincular un recurso</h2></div><button type="button" class="icon-btn" id="close-dialog" aria-label="Cerrar">×</button></div>
       <p id="selected-quote" class="quote-preview"></p>
-      <label for="link-image">Imagen de la biblioteca</label>
-      <select id="link-image" required></select>
+      <label for="resource-type">Tipo de recurso</label>
+      <select id="resource-type"><option value="document">Documento, mapa o imagen</option><option value="url">Página web (URL)</option></select>
+      <div id="document-input"><label for="link-image">Archivo de la biblioteca</label>
+      <select id="link-image"></select></div>
+      <div id="url-input" hidden><label for="link-url">URL http/https</label>
+      <input id="link-url" type="url" placeholder="https://...">
+      <label for="link-label">Nombre de la referencia</label>
+      <input id="link-label" type="text" maxlength="180"></div>
       <label for="link-note">Comentario (opcional)</label>
       <textarea id="link-note" rows="3" placeholder="Por qué se relaciona esta imagen con el texto"></textarea>
       <div class="dialog-actions"><button type="button" class="ghost-button" id="cancel-dialog">Cancelar</button><button id="save-link" type="submit" class="primary-button">Guardar vínculo</button></div>

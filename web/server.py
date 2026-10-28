@@ -405,7 +405,7 @@ def validate_file(path, ext):
         raise ValueError("WEBP no válido")
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ScripturaWeb/0.1"
+    server_version = "ScripturaWeb/0.1.2"
     def log_message(self, fmt, *args):
         sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), fmt % args))
 
@@ -487,7 +487,7 @@ class Handler(BaseHTTPRequestHandler):
                 mime = "text/html; charset=utf-8" if p in ("/","/index.html") else ("text/javascript; charset=utf-8" if p in ("/app.js","/annotations.js") else "text/css; charset=utf-8")
                 return self.respond(200,file.read_bytes(),mime)
             if p == "/api/health":
-                return self.respond(200,{"ok":True,"version":"0.1"})
+                return self.respond(200,{"ok":True,"version":"0.1.2"})
             with conn() as c:
                 if p == "/api/status":
                     return self.respond(200,{

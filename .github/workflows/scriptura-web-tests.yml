@@ -1,0 +1,28 @@
+name: Scriptura Web · QA local
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/scriptura-web-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit and HTTP integration tests
+        working-directory: web
+        run: python -m unittest -v test_server.py
+      - name: Validate Python syntax
+        run: python -m compileall -q web
+      - name: Validate JavaScript syntax
+        run: node --check web/app.js

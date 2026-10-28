@@ -54,7 +54,12 @@ async function refresh() {
   ]);
   state.status=status;state.books=books;state.docs=docs;
 }
+function confirmLeaveReader() {
+  const draft=$("#note-editor")?.value.trim();
+  return !draft||window.confirm("Hay una anotación sin guardar. ¿Salir de esta lectura y descartarla?");
+}
 function navigate(page) {
+  if(!confirmLeaveReader())return;
   state.page=page;
   document.querySelectorAll(".nav-button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
   const names={home:"Inicio",bible:"Biblia",library:"Biblioteca",links:"Vínculos",saved:"Guardados",help:"Ayuda"};
@@ -509,8 +514,14 @@ $("#resource-type").addEventListener("change",switchResource);
 $("#link-form").addEventListener("submit",event=>busy(saveLink(event)));
 $("#content").addEventListener("submit",event=>{if(event.target.id==="upload-form")busy(upload(event));});
 $("#content").addEventListener("change",event=>{
-  if(event.target.id==="reader-book")busy(openBible(event.target.value,1));
-  if(event.target.id==="reader-chapter")busy(openBible(state.reader.book,Number(event.target.value)));
+  if(event.target.id==="reader-book"||event.target.id==="reader-chapter"){
+    if(!confirmLeaveReader()){
+      event.target.value=event.target.id==="reader-book"?state.reader.book:String(state.reader.chapter);
+      return;
+    }
+    if(event.target.id==="reader-book")busy(openBible(event.target.value,1));
+    else busy(openBible(state.reader.book,Number(event.target.value)));
+  }
 });
 $("#content").addEventListener("click",event=>{
   const btn=event.target.closest("[data-action]");if(!btn)return;
@@ -527,8 +538,8 @@ $("#content").addEventListener("click",event=>{
       case "edit-doc":await editDoc(btn.dataset.id);break;
       case "delete-doc":await deleteDoc(btn.dataset.id);break;
       case "import-bible":await importBible(btn.dataset.id);break;
-      case "reader-prev":await moveReader(-1);break;
-      case "reader-next":await moveReader(1);break;
+      case "reader-prev":if(confirmLeaveReader())await moveReader(-1);break;
+      case "reader-next":if(confirmLeaveReader())await moveReader(1);break;
       case "link-current":await beginLink();break;
       case "attach-note-selection":attachNoteSelection();break;
       case "clear-note":clearNote();break;
@@ -544,7 +555,7 @@ $("#content").addEventListener("click",event=>{
         await api("/api/"+(btn.dataset.source==="legacy"?"links":"references")+"/"+btn.dataset.id,"DELETE");
         toast("Vínculo eliminado.");if(state.reader&&$("#passage-links"))await showLinksForReader();
         else await renderLinksPage();break;
-      case "go-link":await goLink(btn);break;
+      case "go-link":if(confirmLeaveReader())await goLink(btn);break;
       case "open-reference":await openReference(btn.dataset.ref);break;
     }
   };busy(job());

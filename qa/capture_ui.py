@@ -66,13 +66,31 @@ def dump():
     # UIAutomator puede tardar varios segundos tras el arranque del emulador.
     # adb shell cat es más fiable que exec-out en algunas imágenes Android 34.
     detail=""
-    for attempt in range(5):
+    for attempt in range(9):
         try:
             output=adb("shell","uiautomator","dump","/sdcard/scriptura_ui.xml",timeout=65)
             xml=adb("shell","cat","/sdcard/scriptura_ui.xml",timeout=20)
             start=xml.find("<?xml")
             if start>=0:
-                return ET.fromstring(xml[start:])
+                root=ET.fromstring(xml[start:])
+                visible=[n.attrib.get("text","") for n in root.iter("node")]
+                if any("isn't responding" in v or "no responde" in v.lower()
+                       for v in visible):
+                    # Solo en el emulador de CI: no pulsar nunca "Close app".
+                    # Un aviso ANR del proceso SYSTEM puede superponerse a la
+                    # interfaz correcta de Scriptura después del arranque.
+                    waits=[n for n in root.iter("node")
+                           if n.attrib.get("text","") in ("Wait","Esperar")]
+                    if waits:
+                        m=re.match(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]",
+                                   waits[0].attrib.get("bounds",""))
+                        if m:
+                            x1,y1,x2,y2=map(int,m.groups())
+                            adb("shell","input","tap",str((x1+x2)//2),str((y1+y2)//2),check=False)
+                            print("QA: descartado aviso ANR del sistema pulsando Esperar")
+                            wait(2.5)
+                            continue
+                return root
             detail="dump="+output[:140].strip()+"; bytes="+str(len(xml))
         except (subprocess.SubprocessError,ET.ParseError) as error:
             detail=type(error).__name__

@@ -119,8 +119,18 @@ def app_install(path):
 
 def make_font_setting():
     hit("⚙")
-    hit("Aumentar tamaño de letra",scroll=True)
-    REPORT["checks"]["baseline_font_increased"] = "PASS"
+    # Ajustes se presenta en un AlertDialog centrado. Los gestos en el margen
+    # x=22 sirven para el atlas, pero quedan FUERA del diálogo de Ajustes.
+    for attempt in range(8):
+        if list(candidates(dump(),"Aumentar tamaño de letra")):
+            hit("Aumentar tamaño de letra")
+            REPORT["checks"]["baseline_font_increased"]="PASS"
+            break
+        adb("shell","input","swipe","500","1230","500","475","420")
+        wait(.6)
+    else:
+        screen("00_ajustes_diagnostico")
+        raise RuntimeError("No se encontró Aumentar tamaño de letra dentro de Ajustes")
     # La pantalla principal se ha regenerado; cerrar la ficha de ajustes si aún está encima.
     adb("shell","input","keyevent","4")
     wait(1)

@@ -31,12 +31,21 @@ public final class DefinitionUi {
     public interface SelectionHandler {
         void onAnnotate(String quote,int start,int end);
     }
+    public interface UnderlineHandler {
+        void onUnderline(String quote,int start,int end);
+    }
     private static final int ANNOTATE_ACTION_ID=0x5C121;
+    private static final int UNDERLINE_ACTION_ID=0x5C122;
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,Delegate delegate){
-        attach(activity,textView,geminiEnabled,delegate,null);
+        attach(activity,textView,geminiEnabled,delegate,null,null);
     }
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
                               Delegate delegate,SelectionHandler selectionHandler){
+        attach(activity,textView,geminiEnabled,delegate,selectionHandler,null);
+    }
+    public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
+                              Delegate delegate,SelectionHandler selectionHandler,
+                              UnderlineHandler underlineHandler){
         // No reemplazar ni consumir las acciones nativas Copiar/Compartir/Seleccionar todo.
         textView.setTextIsSelectable(true);
         // Algunos TextView no se marcan como long-clickable por el motor de
@@ -55,17 +64,34 @@ public final class DefinitionUi {
                     annotate.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
                 }
             }
+            private void ensureUnderline(Menu menu){
+                if(underlineHandler!=null&&menu.findItem(UNDERLINE_ACTION_ID)==null){
+                    MenuItem underline=menu.add(Menu.NONE,UNDERLINE_ACTION_ID,
+                        Menu.CATEGORY_SECONDARY,"Subrayar");
+                    underline.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                }
+            }
             @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
                 ensureAnnotate(menu);
+                ensureUnderline(menu);
                 return true;
             }
             @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
                 ensureAnnotate(menu);
+                ensureUnderline(menu);
                 return true;
             }
             @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){
+                if(item.getItemId()==UNDERLINE_ACTION_ID&&underlineHandler!=null){
+                    final int start=textView.getSelectionStart(),end=textView.getSelectionEnd();
+                    if(start<0||end<=start)return true;
+                    String selected=textView.getText().subSequence(start,end).toString();
+                    mode.finish();
+                    underlineHandler.onUnderline(selected,start,end);
+                    return true;
+                }
                 if(item.getItemId()==ANNOTATE_ACTION_ID && selectionHandler!=null){
                     final int start=textView.getSelectionStart(),end=textView.getSelectionEnd();
                     if(start<0||end<=start)return true;

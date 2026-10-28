@@ -48,4 +48,24 @@ public class AnnotationAnchorsTest {
         assertNull(AnnotationAnchors.inDisplay(v,7,999,"luz"));
         assertNotNull(AnnotationAnchors.inDisplay(v,7,0,"luz"));
     }
+
+    @Test public void returnsExactVerseStartWhenRestoringReading(){
+        assertEquals(CHAPTER.indexOf("La tierra"),AnnotationAnchors.verseStart(CHAPTER,2));
+        assertEquals(CHAPTER.indexOf("Dios dijo"),AnnotationAnchors.verseStart(CHAPTER,3));
+        assertEquals(-1,AnnotationAnchors.verseStart(CHAPTER,42));
+        assertEquals(-1,AnnotationAnchors.verseStart(null,1));
+    }
+
+    @Test public void underlineCanAnchorVerseTextWithoutPageCoordinates(){
+        String fragment="2  La tierra estaba desordenada y vacía.";
+        int start=fragment.indexOf("La tierra");
+        AnnotationAnchors.Anchor underline=AnnotationAnchors.fromSelection(
+            fragment,start,start+"La tierra".length());
+        assertNotNull(underline);
+        assertEquals(2,underline.verse);
+        AnnotationAnchors.Range afterReload=AnnotationAnchors.inDisplay(
+            CHAPTER,underline.verse,underline.offset,underline.quote);
+        assertNotNull(afterReload);
+        assertEquals("La tierra",CHAPTER.substring(afterReload.start,afterReload.end));
+    }
 }

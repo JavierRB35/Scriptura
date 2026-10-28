@@ -40,6 +40,9 @@ public final class MainActivity extends Activity {
     private static final String GUIDE_DONE="primer_uso_v1";
     private GeminiClient ai;
     private LinearLayout column,frame,nav;
+    private ScrollView readingScroll;
+    private String returnToPassageRef="";
+    private int returnToVerse=-1;
     private TextView caption;
     private int page=0;
     private int atlasMode=0;
@@ -207,6 +210,7 @@ public final class MainActivity extends Activity {
         View hairline=new View(this);hairline.setBackgroundColor(OUTLINE);
         frame.addView(hairline,new LinearLayout.LayoutParams(-1,dp(1)));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        readingScroll=scroll;
         column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
@@ -226,8 +230,8 @@ public final class MainActivity extends Activity {
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setBackgroundColor(DARK);
-        String[] names={"Inicio","Buscar","Misa","Para mí","Guardados"};
-        String[] symbols={"⌂","⌕","✝","♡","★"};
+        String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
+        String[] symbols={"⌂","▤","✝","♡","★"};
         int active=(page==5||page==7||page==9)?1:(page==6||page==8?0:page);
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
@@ -360,7 +364,7 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Cómo empezar con Scriptura")
             .setMessage("Scriptura funciona en parte sin conexión y sin cuentas.\n\n"+
                 "• Inicio: lecturas sugeridas, índice y arte.\n"+
-                "• Buscar: capítulos, versículos y palabras (requiere importar tu EPUB).\n"+
+                "• Biblia: lectura de capítulos, referencias y búsqueda (requiere importar tu EPUB).\n"+
                 "• Misa: lecturas litúrgicas del día (puede requerir internet).\n"+
                 "• Para mí: reflexión por estado de ánimo; Gemini es opcional y requiere permiso.\n"+
                 "• Guardados: tus favoritos y lecturas recientes.\n"+
@@ -382,10 +386,10 @@ public final class MainActivity extends Activity {
         button(c,"Leer y reflexionar",()->open(p),false);
     }
     private void search(){
-        title(column,"Buscar en la Biblia");
+        title(column,"Leer y buscar en la Biblia");
         if(!store.ready()){
             hint(column,"La búsqueda de versículos y palabras necesita tu ejemplar EPUB de Navarra. Puedes consultar gratis el índice, los mapas y las obras sin importarlo.");
-            button(column,"Importar mi Biblia para buscar",this::pickEpub,true);
+            button(column,"Importar mi Biblia para leer",this::pickEpub,true);
             button(column,"Explorar el índice de los 73 libros",this::openIndex,false);
             button(column,"Ver obras de arte bíblico",this::openGallery,false);
             return;
@@ -433,7 +437,9 @@ public final class MainActivity extends Activity {
         // Cada pasaje empieza con el contexto cerrado; el estado no se hereda
         // accidentalmente de la lectura anterior.
         historicalExpanded=false;
-        selected=p;store.record(p.ref);page=5;render();
+        selected=p;store.record(p.ref);page=5;
+        returnToPassageRef="";returnToVerse=-1;
+        render();
     }
     /**
      * Flechas de lectura junto al título y al pie del texto: los controles
@@ -489,8 +495,9 @@ public final class MainActivity extends Activity {
         applyStudyMarks(bible,p);
         addDefinitionAction(bible,p);
         c.addView(bible);
+        returnToSavedVerse(bible,p);
         chapterNavigation(c,p,true);
-        hint(c,"Mantén pulsado el texto y elige «Anotar» o «Definir». Toca un fragmento resaltado para abrir su nota completa.");
+        hint(c,"Mantén pulsado el texto y elige «Subrayar», «Anotar» o «Definir». Los subrayados se guardan sin nota; toca uno para quitarlo.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
         alternative.setOnClickListener(v->askForWord(p));
@@ -626,11 +633,55 @@ public final class MainActivity extends Activity {
                 return;
             }
             editStudyAnnotation(passage,anchor,null);
+        },(quote,start,end)->{
+            AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(
+                passage.text,start,end);
+            if(anchor==null){
+                showError("Para subrayar, selecciona una frase dentro de un mismo versículo.");
+                return;
+            }
+            try{
+                studyAnnotations.save(0,passage.book,passage.chapter,anchor.verse,
+                    anchor.offset,anchor.quote,StudyAnnotations.UNDERLINE,"","");
+                Toast.makeText(this,"Texto subrayado",Toast.LENGTH_SHORT).show();
+                redrawAtVerse(anchor.verse);
+            }catch(RuntimeException error){
+                showError("No se pudo guardar el subrayado.");
+            }
+        });
+    }
+
+    /** Reload the passage while returning to the actual verse, not the chapter heading. */
+    private void redrawAtVerse(int verse){
+        if(selected==null||page!=5)return;
+        returnToPassageRef=selected.ref;
+        returnToVerse=verse;
+        render();
+    }
+    private void returnToSavedVerse(TextView bible,BibleStore.Passage passage){
+        if(returnToVerse<1||!passage.ref.equals(returnToPassageRef))return;
+        final int verse=returnToVerse;
+        returnToVerse=-1;
+        returnToPassageRef="";
+        final ScrollView scroll=readingScroll;
+        if(scroll==null)return;
+        scroll.post(()->{
+            if(page!=5||selected==null||!selected.ref.equals(passage.ref)
+                    ||readingScroll!=scroll||bible.getLayout()==null)return;
+            int offset=AnnotationAnchors.verseStart(passage.text,verse);
+            if(offset<0)return;
+            int line=bible.getLayout().getLineForOffset(offset);
+            android.graphics.Rect rect=new android.graphics.Rect(
+                0,bible.getLayout().getLineTop(line),
+                bible.getWidth(),bible.getLayout().getLineBottom(line));
+            scroll.offsetDescendantRectToMyCoords(bible,rect);
+            scroll.scrollTo(0,Math.max(0,scroll.getScrollY()+rect.top-dp(88)));
         });
     }
 
     /** Annotations belong to a precise verse in the user-imported EPUB. */
     private static String annotationType(StudyAnnotations.Item item){
+        if(StudyAnnotations.UNDERLINE.equals(item.kind))return "Subrayado";
         if(StudyAnnotations.ATLAS.equals(item.kind))return "Atlas bíblico";
         if(StudyAnnotations.MAP.equals(item.kind))return "Mapa";
         if(StudyAnnotations.WEB.equals(item.kind))return "Web";
@@ -646,11 +697,13 @@ public final class MainActivity extends Activity {
             AnnotationAnchors.Range range=AnnotationAnchors.inDisplay(
                 passage.text,item.verse,item.offset,item.quote);
             if(range==null)continue;
-            int color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?Color.rgb(207,236,216):
-                StudyAnnotations.WEB.equals(item.kind)?Color.rgb(208,229,252):
-                Color.rgb(255,234,174);
-            marked.setSpan(new android.text.style.BackgroundColorSpan(color),
-                range.start,range.end,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if(!StudyAnnotations.UNDERLINE.equals(item.kind)){
+                int color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?Color.rgb(207,236,216):
+                    StudyAnnotations.WEB.equals(item.kind)?Color.rgb(208,229,252):
+                    Color.rgb(255,234,174);
+                marked.setSpan(new android.text.style.BackgroundColorSpan(color),
+                    range.start,range.end,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
             marked.setSpan(new android.text.style.UnderlineSpan(),
                 range.start,range.end,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             visible.add(item);ranges.add(range);
@@ -692,9 +745,14 @@ public final class MainActivity extends Activity {
             if(item.verse>=passage.first&&item.verse<=passage.last)visible.add(item);
         if(visible.isEmpty())return;
         addGap(parent,12);
-        parent.addView(text("MIS ANOTACIONES · "+visible.size(),12,ACCENT,true));
+        parent.addView(text("MIS SUBRAYADOS Y NOTAS · "+visible.size(),12,ACCENT,true));
         for(StudyAnnotations.Item item:visible){
-            String label="✎  "+annotationType(item)+" · v. "+item.verse;
+            String label=(StudyAnnotations.UNDERLINE.equals(item.kind)?"﹏  ":"✎  ")
+                +annotationType(item)+" · v. "+item.verse;
+            if(StudyAnnotations.UNDERLINE.equals(item.kind)&&!item.quote.isEmpty()){
+                String excerpt=item.quote.replace('\n',' ');
+                label+=" · "+(excerpt.length()>60?excerpt.substring(0,60)+"…":excerpt);
+            }
             if(!item.body.trim().isEmpty()){
                 String snippet=item.body.trim().replace('\n',' ');
                 label+=" · "+(snippet.length()>65?snippet.substring(0,65)+"…":snippet);
@@ -745,7 +803,8 @@ public final class MainActivity extends Activity {
         }
         addGap(body,12);
         String description=item.body.trim().isEmpty()?
-            (StudyAnnotations.ATLAS.equals(item.kind)?"Mapa bíblico de este libro":
+            (StudyAnnotations.UNDERLINE.equals(item.kind)?"Fragmento subrayado. Puedes quitar este subrayado sin modificar el texto bíblico.":
+                StudyAnnotations.ATLAS.equals(item.kind)?"Mapa bíblico de este libro":
                 StudyAnnotations.MAP.equals(item.kind)?"Mapa vinculado":"Enlace vinculado")
             :item.body;
         TextView full=text(description,16,DARK,false);
@@ -767,16 +826,21 @@ public final class MainActivity extends Activity {
                 ()->openStudyUrl(item.url),true);
         }
         addGap(body,8);
-        button(body,"Editar anotación",()->{
-            popup.dismiss();
-            editStudyAnnotation(passage,new AnnotationAnchors.Anchor(item.verse,item.offset,item.quote),item);
-        },false);
-        button(body,"Eliminar anotación",()->{
-            new AlertDialog.Builder(this).setTitle("Eliminar anotación")
-                .setMessage("Esta nota se borrará del dispositivo. ¿Continuar?")
+        if(!StudyAnnotations.UNDERLINE.equals(item.kind)){
+            button(body,"Editar anotación",()->{
+                popup.dismiss();
+                editStudyAnnotation(passage,new AnnotationAnchors.Anchor(item.verse,item.offset,item.quote),item);
+            },false);
+        }
+        button(body,StudyAnnotations.UNDERLINE.equals(item.kind)?"Quitar subrayado":"Eliminar anotación",()->{
+            new AlertDialog.Builder(this)
+                .setTitle(StudyAnnotations.UNDERLINE.equals(item.kind)?"Quitar subrayado":"Eliminar anotación")
+                .setMessage(StudyAnnotations.UNDERLINE.equals(item.kind)
+                    ?"Se quitará el subrayado de este fragmento. ¿Continuar?"
+                    :"Esta nota se borrará del dispositivo. ¿Continuar?")
                 .setNegativeButton("Cancelar",null)
                 .setPositiveButton("Eliminar",(d,w)->{
-                    studyAnnotations.delete(item.id);popup.dismiss();render();
+                    studyAnnotations.delete(item.id);popup.dismiss();redrawAtVerse(item.verse);
                 }).show();
         },false);
         popup.show();
@@ -842,7 +906,7 @@ public final class MainActivity extends Activity {
                         anchor.quote,kind,comment,link);
                     popup.dismiss();
                     Toast.makeText(this,"Anotación guardada",Toast.LENGTH_SHORT).show();
-                    render();
+                    redrawAtVerse(anchor.verse);
                 }catch(RuntimeException error){
                     showError("No se pudo guardar la anotación: "+error.getMessage());
                 }

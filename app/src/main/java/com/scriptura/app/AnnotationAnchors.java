@@ -58,11 +58,16 @@ public final class AnnotationAnchors {
                 return new Range(start,start+quote.length());
             int match=displayed.indexOf(quote,v.start);
             if(match>=v.start&&match+quote.length()<=v.end&&
-                displayed.indexOf(quote,match+1)>=v.end)
+                (displayed.indexOf(quote,match+1)<0||displayed.indexOf(quote,match+1)>=v.end))
                 return new Range(match,match+quote.length());
             return null;
         }
         return null;
+    }
+    public static List<Integer> verseNumbers(String displayed){
+        ArrayList<Integer> values=new ArrayList<>();
+        for(Verse v:verses(displayed))values.add(v.number);
+        return values;
     }
     public static int firstVerse(String displayed){
         List<Verse> verses=verses(displayed);

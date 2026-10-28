@@ -49,16 +49,20 @@ public final class DefinitionUi {
                     define.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
                 }
             }
-            @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
-                ensureDefine(menu);
+            private void ensureAnnotate(Menu menu){
                 if(selectionHandler!=null&&menu.findItem(ANNOTATE_ACTION_ID)==null){
                     MenuItem annotate=menu.add(Menu.NONE,ANNOTATE_ACTION_ID,Menu.CATEGORY_SECONDARY,"Anotar");
                     annotate.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
                 }
+            }
+            @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
+                ensureDefine(menu);
+                ensureAnnotate(menu);
                 return true;
             }
             @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
+                ensureAnnotate(menu);
                 return true;
             }
             @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){

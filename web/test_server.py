@@ -123,6 +123,55 @@ class WebTests(unittest.TestCase):
             names=z.namelist()
             self.assertIn("scriptura-web.db",names)
             self.assertGreaterEqual(len([n for n in names if n.startswith("uploads/")]),3)
+    def test_04b_notes_create_edit_and_reject_bad_data(self):
+        target = str(self.epub_id)+":0"
+        body = {"kind":"epub","target":target,
+                "quote":"texto seleccionado","start":10,"end":27,
+                "body":"Primer comentario del libro"}
+        code,raw = self.request("/api/notes","POST",body)
+        self.assertEqual(code,201,raw)
+        ident = json.loads(raw)["id"]
+        self.__class__.epub_note_id = ident
+        rows=self.get_json("/api/notes?kind=epub&target="+target)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]["body"],"Primer comentario del libro")
+        code,_=self.request("/api/notes/"+str(ident)+"/update",
+                            "POST",{"body":"Una segunda versión de la nota"})
+        self.assertEqual(code,200)
+        updated=self.get_json("/api/notes?kind=epub&target="+target)
+        self.assertEqual(updated[0]["body"],"Una segunda versión de la nota")
+        bad=dict(body,body="")
+        self.assertEqual(self.request("/api/notes","POST",bad)[0],400)
+        bad=dict(body,start=-1)
+        self.assertEqual(self.request("/api/notes","POST",bad)[0],400)
+        self.assertEqual(self.request("/api/notes/"+str(ident)+"/update",
+                "POST",{"body":""})[0],400)
+        self.assertEqual(self.request("/api/notes/999999/update",
+                "POST",{"body":"No debería actualizar"})[0],400)
+    def test_04c_pdf_page_note(self):
+        pdf_id=self.upload("otro-pdf.pdf",b"%PDF-1.4\n%%EOF\n")
+        self.__class__.pdf_note_document=pdf_id
+        status,raw=self.request("/api/notes","POST",{
+            "kind":"pdf","target":str(pdf_id)+":3",
+            "quote":"Referencia manuscrita","body":"Ver el mapa asociado"})
+        self.assertEqual(status,201,raw)
+        note=self.get_json("/api/notes?kind=pdf&target="+str(pdf_id)+":3")[0]
+        self.assertIsNone(note["start_offset"])
+        self.assertIsNone(note["end_offset"])
+    def test_04d_notes_are_in_backup(self):
+        code,raw=self.request("/api/backup")
+        self.assertEqual(code,200)
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            import sqlite3
+            with tempfile.TemporaryDirectory() as tmp:
+                db=Path(tmp)/"backup.db"
+                db.write_bytes(z.read("scriptura-web.db"))
+                connection=sqlite3.connect(db)
+                try:
+                    number=connection.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+                    self.assertGreaterEqual(number,2)
+                finally:
+                    connection.close()
     def test_05_cascade_on_delete(self):
         code,_=self.request("/api/documents/"+str(self.image_id),"DELETE")
         self.assertEqual(code,200)
@@ -131,6 +180,21 @@ class WebTests(unittest.TestCase):
         code,_=self.request("/api/documents/"+str(self.epub_id),"DELETE")
         self.assertEqual(code,200)
         self.assertFalse(any(r["kind"]=="epub" for r in self.get_json("/api/references")))
+        self.assertFalse(any(r["kind"]=="epub" for r in self.get_json("/api/notes")))
+        code,_=self.request("/api/documents/"+str(self.pdf_note_document),"DELETE")
+        self.assertEqual(code,200)
+        self.assertFalse(any(r["kind"]=="pdf" for r in self.get_json("/api/notes")))
+    def test_06_bible_notes_without_editorial_content(self):
+        code,raw=self.request("/api/notes","POST",{
+            "kind":"bible","target":"Jn:1","body":"Nota personal del capítulo"})
+        self.assertEqual(code,201,raw)
+        ident=json.loads(raw)["id"]
+        self.assertEqual(self.get_json("/api/notes?kind=bible&target=Jn:1")[0]["body"],
+                         "Nota personal del capítulo")
+        code,_=self.request("/api/notes/"+str(ident),"DELETE")
+        self.assertEqual(code,200)
+        self.assertEqual(self.get_json("/api/notes?kind=bible&target=Jn:1"),[])
+
 
 if __name__=="__main__":
     unittest.main()

@@ -223,12 +223,20 @@ async function renderReader() {
     $("#reader-text").addEventListener("mouseup",captureSelection);
     $("#reader-text").addEventListener("keyup",captureSelection);
     $("#reader-text").addEventListener("click",openMarkDetails);
+    $("#reader-text").addEventListener("keydown",event=>{
+      if(event.target.closest(".study-mark")&&(event.key==="Enter"||event.key===" ")){
+        event.preventDefault();openMarkDetails({target:event.target});
+      }
+    });
   }
   await Promise.all([showLinksForReader(),showNotesForReader()]);
 }
 function captureSelection() {
   const element=$("#reader-text"), r=state.reader, selection=window.getSelection();
-  if(!r||!element||!selection||selection.isCollapsed||!selection.rangeCount)return;
+  if(!r||!element||!selection||!selection.rangeCount)return;
+  if(selection.isCollapsed) {
+    state.selection=null;hideSelectionActions();return;
+  }
   const range=selection.getRangeAt(0);
   if(!element.contains(range.startContainer)||!element.contains(range.endContainer))return;
   const before=range.cloneRange();
@@ -242,6 +250,7 @@ function captureSelection() {
   if(quote.length>1600){toast("Selecciona un fragmento de menos de 1.600 caracteres.",true);return;}
   if(end>text.length||end<=start)return;
   state.selection={kind:r.kind,target:r.target,start,end,quote:range.toString()};
+  showSelectionActions(range);
 }
 async function moveReader(delta) {
   const r=state.reader;if(!r)return;
@@ -312,7 +321,7 @@ async function saveNote() {
       start:sel?.start??null,end:sel?.end??null});
     toast("Anotación guardada.");
   }
-  clearNote();await showNotesForReader();
+  clearNote();hideSelectionActions();await showNotesForReader();
 }
 function editNote(id) {
   const note=(state.visibleNotes||[]).find(x=>x.id===Number(id));
@@ -606,6 +615,18 @@ $("#content").addEventListener("click",event=>{
       case "reader-prev":if(confirmLeaveReader())await moveReader(-1);break;
       case "reader-next":if(confirmLeaveReader())await moveReader(1);break;
       case "link-current":await beginLink();break;
+      case "new-note":
+        if(state.selection&&state.selection.kind===state.reader?.kind&&
+            state.selection.target===state.reader?.target)attachNoteSelection();
+        else {clearNote();$("#note-editor")?.focus();}
+        hideSelectionActions();break;
+      case "quick-note":attachNoteSelection();hideSelectionActions();break;
+      case "quick-url":await beginLink("url");hideSelectionActions();break;
+      case "quick-doc":
+        if(!state.docs.length)throw Error("Importa primero el archivo desde Biblioteca.");
+        await beginLink("document");hideSelectionActions();break;
+      case "focus-note":focusStudyResource("note",btn.dataset.id);break;
+      case "focus-link":focusStudyResource("link",btn.dataset.id);break;
       case "attach-note-selection":attachNoteSelection();break;
       case "clear-note":clearNote();break;
       case "save-note":await saveNote();break;

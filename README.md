@@ -48,6 +48,16 @@ Versión 0.3.0: biblioteca con lector y notas de Navarra, búsqueda literal y po
 
 El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales, el EPUB personal y su contenido no están incluidos en el repositorio.
 
+## Lectura contextual con Gemini y modos de pantalla — 0.7.9
+
+- Seleccionar palabras o frases en el lector EPUB y elegir **Interpretar con Gemini** en el menú contextual de Android, junto a **Anotar**, **Subrayar** y **Definir**.
+- El aviso de autorización explica exactamente qué sale del dispositivo: el fragmento elegido, su referencia y unos cientos de caracteres de contexto adyacente. **No se envían el EPUB completo, las notas privadas ni el historial de lectura**. Es necesaria la clave Gemini guardada en Android Keystore.
+- El resultado aparece en un **cuadro de diálogo dentro de Scriptura** con scroll y botón **Cerrar**. No cambia de página ni invoca render(); al cerrar restaura la coordenada vertical original del lector. Los errores se muestran dentro del mismo cuadro.
+- Para mantener referencias precisas, la selección debe empezar dentro del texto y tener como máximo 1.200 caracteres; puede abarcar varios versículos contiguos.
+- Ajustes → Lectura → **Aspecto** permite cambiar entre **Normal** (estilo actual), **Lectura cómoda** (papel sepia y contraste suave) y **Ahorro de batería** (fondo negro y sin imagen decorativa en Inicio). Se guarda el modo elegido y se intenta preservar el desplazamiento al recrear el lector. Los colores y el tema de los diálogos se adaptan al modo OLED.
+- El modo OLED puede reducir el consumo de pantalla en dispositivos OLED; no modifica el brillo automático del sistema ni promete evitar toda fatiga visual.
+- Se mantienen la firma de actualizaciones, la biblioteca EPUB privada y todas las anotaciones locales.
+
 ## Lector bíblico · subrayados y regreso al versículo — 0.7.8
 
 - La pestaña inferior «Buscar» pasa a llamarse **Biblia**. La búsqueda sigue disponible y la cabecera de la sección se titula «Leer y buscar en la Biblia».

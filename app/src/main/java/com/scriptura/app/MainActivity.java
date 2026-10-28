@@ -21,10 +21,37 @@ import java.util.concurrent.*;
 
 public final class MainActivity extends Activity {
     private static final int PICK_EPUB=1027;
-    // Identidad visual v2: valores coincidentes con res/values/scriptura_colors.xml
-    private final int DARK=Color.rgb(13,35,56), GOLD=Color.rgb(218,168,92), MUTED=Color.rgb(71,89,105);
-    private final int BG=Color.rgb(255,252,246), SURFACE=Color.WHITE, SOFT=Color.rgb(245,231,200);
-    private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
+    // Paleta variable: el modo estándar conserva los colores originales de Scriptura.
+    private int DARK=Color.rgb(13,35,56), GOLD=Color.rgb(218,168,92), MUTED=Color.rgb(71,89,105);
+    private int BG=Color.rgb(255,252,246), SURFACE=Color.WHITE, SOFT=Color.rgb(245,231,200);
+    private int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
+    private int NAV_BG=Color.rgb(13,35,56);
+    private int displayMode=DisplayModes.NORMAL;
+    private int restoredScrollY=-1;
+
+    private void updatePalette(){
+        if(displayMode==DisplayModes.COMFORT){
+            DARK=Color.rgb(62,49,37);
+            GOLD=Color.rgb(236,190,107);
+            MUTED=Color.rgb(111,91,70);
+            BG=Color.rgb(248,239,217);
+            SURFACE=Color.rgb(255,248,232);
+            SOFT=Color.rgb(242,226,193);
+            OUTLINE=Color.rgb(218,197,159);
+            ACCENT=Color.rgb(117,83,39);
+            NAV_BG=Color.rgb(35,50,50);
+        }else if(displayMode==DisplayModes.BATTERY){
+            DARK=Color.rgb(227,230,225);
+            GOLD=Color.rgb(232,193,123);
+            MUTED=Color.rgb(166,173,165);
+            BG=Color.BLACK;
+            SURFACE=Color.rgb(13,13,13);
+            SOFT=Color.rgb(24,24,24);
+            OUTLINE=Color.rgb(65,65,65);
+            ACCENT=Color.rgb(220,178,111);
+            NAV_BG=Color.rgb(6,6,6);
+        }
+    }
     private BibleStore store;
     private NavarraNotes notes;
     private UpdateInstaller updateInstaller;
@@ -84,7 +111,7 @@ public final class MainActivity extends Activity {
     private void button(LinearLayout box,String label,Runnable action,boolean primary){
         TextView b=text(label,15,primary?Color.WHITE:DARK,true);b.setGravity(Gravity.CENTER);
         b.setMinHeight(dp(48));b.setPadding(dp(14),dp(12),dp(14),dp(12));
-        b.setBackground(primary?bg(DARK,12):outlined(SOFT,12));
+        b.setBackground(primary?bg(NAV_BG,12):outlined(SOFT,12));
         b.setContentDescription(label);b.setOnClickListener(v->action.run());
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(9);box.addView(b,p);
     }
@@ -115,9 +142,16 @@ public final class MainActivity extends Activity {
         });
     }
     @Override public void onCreate(Bundle state){
+        displayMode=DisplayModes.normalize(getSharedPreferences("scriptura_display",
+            MODE_PRIVATE).getInt("display_mode",DisplayModes.NORMAL));
+        if(displayMode==DisplayModes.BATTERY)setTheme(R.style.Theme_ScripturaNight);
         super.onCreate(state);
-        getWindow().setStatusBarColor(DARK);
+        updatePalette();
+        getWindow().setStatusBarColor(NAV_BG);
         getWindow().setNavigationBarColor(BG);
+        if(Build.VERSION.SDK_INT>=26)
+            getWindow().getDecorView().setSystemUiVisibility(displayMode==DisplayModes.BATTERY?
+                0:View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         store=new BibleStore(this);notes=new NavarraNotes(this);studyAnnotations=new StudyAnnotations(this);
         updateInstaller=new UpdateInstaller(this);
         introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);ai=new GeminiClient(this);
@@ -129,6 +163,7 @@ public final class MainActivity extends Activity {
             indexQuery=state.getString("indexQuery","");
             indexScope=state.getInt("indexScope",0);
             readerOrigin=state.getInt("readerOrigin",1);
+            restoredScrollY=state.getInt("readingScrollY",-1);
             String restoredRef=state.getString("selectedRef","");
             if(!restoredRef.isEmpty())selected=store.passage(restoredRef);
             atlasPlace=BibleGeography.place(state.getString("atlasPlace",""));
@@ -182,6 +217,8 @@ public final class MainActivity extends Activity {
         state.putString("indexQuery",indexQuery);
         state.putInt("indexScope",indexScope);
         state.putInt("readerOrigin",readerOrigin);
+        if(page==5&&readingScroll!=null)
+            state.putInt("readingScrollY",readingScroll.getScrollY());
         state.putString("selectedRef",selected==null?"":selected.ref);
         state.putString("atlasPlace",atlasPlace==null?"":atlasPlace.id);
         state.putString("atlasJourney",atlasJourney==null?"":atlasJourney.id);
@@ -192,7 +229,7 @@ public final class MainActivity extends Activity {
         head.setPadding(dp(17),dp(12),dp(16),dp(11));head.setBackgroundColor(SURFACE);
         android.widget.ImageView mark=new android.widget.ImageView(this);
         mark.setImageResource(R.drawable.ic_scriptura_foreground);
-        mark.setBackground(bg(DARK,12));
+        mark.setBackground(bg(NAV_BG,12));
         mark.setContentDescription("Libro abierto y luz, símbolo de Scriptura");
         LinearLayout.LayoutParams markParams=new LinearLayout.LayoutParams(dp(48),dp(48));
         markParams.rightMargin=dp(10);head.addView(mark,markParams);
@@ -229,7 +266,7 @@ public final class MainActivity extends Activity {
 
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
-        nav.setBackgroundColor(DARK);
+        nav.setBackgroundColor(NAV_BG);
         String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
         String[] symbols={"⌂","▤","✝","♡","★"};
         int active=(page==5||page==7||page==9)?1:(page==6||page==8?0:page);
@@ -244,7 +281,8 @@ public final class MainActivity extends Activity {
             glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             item.addView(glyph);item.addView(label);
-            if(selected)item.setBackground(bg(Color.rgb(29,54,78),10));
+            if(selected)item.setBackground(bg(displayMode==DisplayModes.BATTERY?
+                Color.rgb(38,38,38):Color.rgb(29,54,78),10));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);
             lp.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(item,lp);
             item.setOnClickListener(v->{atlasReturnToStudy=false;page=dest;render();});
@@ -258,20 +296,28 @@ public final class MainActivity extends Activity {
             case 9:bookOverview();break;
             default:page=0;home();
         }
+        if(page==5&&restoredScrollY>=0&&readingScroll!=null){
+            int y=restoredScrollY;restoredScrollY=-1;
+            ScrollView currentScroll=readingScroll;
+            currentScroll.post(()->{
+                if(page==5&&readingScroll==currentScroll)currentScroll.scrollTo(0,y);
+            });
+        }
     }
 
     private void home(){
-        LinearLayout hero=vertical();hero.setBackground(bg(DARK,17));pad(hero,20);
+        LinearLayout hero=vertical();hero.setBackground(bg(NAV_BG,17));pad(hero,20);
         LinearLayout.LayoutParams heroLp=new LinearLayout.LayoutParams(-1,-2);
         heroLp.bottomMargin=dp(16);column.addView(hero,heroLp);
         TextView k=text("LEE · EXPLORA · COMPRENDE",11,GOLD,true);
         k.setLetterSpacing(0.08f);hero.addView(k);addGap(hero,9);
-        long picture=homeSelectionSeed();
-        HomeSceneView scene=new HomeSceneView(this,
-            getPreferences(0).getInt("home_image_index",0));
-        LinearLayout.LayoutParams sceneParams=new LinearLayout.LayoutParams(-1,dp(150));
-        sceneParams.topMargin=dp(9);sceneParams.bottomMargin=dp(7);
-        hero.addView(scene,sceneParams);
+        if(displayMode!=DisplayModes.BATTERY){
+            HomeSceneView scene=new HomeSceneView(this,
+                getPreferences(0).getInt("home_image_index",0));
+            LinearLayout.LayoutParams sceneParams=new LinearLayout.LayoutParams(-1,dp(150));
+            sceneParams.topMargin=dp(9);sceneParams.bottomMargin=dp(7);
+            hero.addView(scene,sceneParams);
+        }
         TextView title=text("Una palabra para hoy",27,Color.WHITE,false);
         serif(title);hero.addView(title);addGap(hero,7);
         hero.addView(text("Descubre las Escrituras y reflexiona desde la tradición católica.",14,Color.rgb(230,236,242),false));
@@ -648,7 +694,76 @@ public final class MainActivity extends Activity {
             }catch(RuntimeException error){
                 showError("No se pudo guardar el subrayado.");
             }
-        });
+        },(quote,start,end)->interpretSelectedFragment(passage,start,end));
+    }
+
+    /** Consulta puntual con texto acotado; no redibuja el lector ni modifica el EPUB. */
+    private void interpretSelectedFragment(BibleStore.Passage passage,int start,int end){
+        GeminiSelection.Fragment fragment=GeminiSelection.fromSelection(
+            passage.text,Books.name(passage.book),passage.chapter,start,end);
+        if(fragment==null){
+            showError("Selecciona texto bíblico válido (hasta 1.200 caracteres) para interpretarlo.");
+            return;
+        }
+        if(!ai.configured()){
+            showError("Configura primero tu clave de Gemini en ⚙ Ajustes.");
+            return;
+        }
+        final ScrollView originalScroll=readingScroll;
+        final int savedY=originalScroll==null?0:originalScroll.getScrollY();
+        new AlertDialog.Builder(this)
+            .setTitle("Interpretar selección con Gemini")
+            .setMessage("Se enviará a Google Gemini el fragmento seleccionado, "+
+                "su referencia y parte del texto cercano para contextualizarlo. "+
+                "No se envían tu EPUB completo ni tus notas personales. "+
+                "Google puede tratar estas consultas según sus condiciones del servicio. "+
+                "¿Quieres continuar?")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Consultar",(d,w)->{
+                LinearLayout content=vertical();
+                pad(content,16);
+                content.addView(text(fragment.reference,14,ACCENT,true));
+                TextView quoteText=text("«"+fragment.quote+"»",15,DARK,false);
+                serif(quoteText);
+                content.addView(quoteText);
+                addGap(content,15);
+                TextView explanation=text("Consultando Gemini…",16,DARK,false);
+                explanation.setTextIsSelectable(true);
+                content.addView(explanation);
+                ScrollView modalScroll=new ScrollView(this);
+                modalScroll.addView(content);
+                AlertDialog result=new AlertDialog.Builder(this)
+                    .setTitle("Interpretación · "+fragment.reference)
+                    .setView(modalScroll)
+                    .setPositiveButton("Cerrar",null)
+                    .create();
+                result.setOnDismissListener(ignored->{
+                    // No render(); la lectura original permanece tal cual y se repone su scroll.
+                    if(page==5&&selected!=null&&selected.ref.equals(passage.ref)&&
+                            originalScroll!=null&&readingScroll==originalScroll)
+                        originalScroll.post(()->{
+                            if(readingScroll==originalScroll)originalScroll.scrollTo(0,savedY);
+                        });
+                });
+                result.show();
+                worker.execute(()->{
+                    try{
+                        String answer=ai.explain(fragment.reference,fragment.context,
+                            "Texto de lectura bíblica personal, sin notas privadas.",
+                            GeminiSelection.question(fragment));
+                        runOnUiThread(()->{
+                            if(!isFinishing()&&!isDestroyed()&&result.isShowing())
+                                explanation.setText(answer);
+                        });
+                    }catch(Exception error){
+                        runOnUiThread(()->{
+                            if(!isFinishing()&&!isDestroyed()&&result.isShowing())
+                                explanation.setText("Gemini no ha podido responder. "+
+                                    "Comprueba la conexión, tu clave o la cuota disponible.");
+                        });
+                    }
+                });
+            }).show();
     }
 
     /** Reload the passage while returning to the actual verse, not the chapter heading. */
@@ -698,9 +813,15 @@ public final class MainActivity extends Activity {
                 passage.text,item.verse,item.offset,item.quote);
             if(range==null)continue;
             if(!StudyAnnotations.UNDERLINE.equals(item.kind)){
-                int color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?Color.rgb(207,236,216):
-                    StudyAnnotations.WEB.equals(item.kind)?Color.rgb(208,229,252):
-                    Color.rgb(255,234,174);
+                int color;
+                if(displayMode==DisplayModes.BATTERY)
+                    color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?
+                        Color.rgb(30,61,41):StudyAnnotations.WEB.equals(item.kind)?
+                        Color.rgb(29,48,73):Color.rgb(82,62,27);
+                else
+                    color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?
+                        Color.rgb(207,236,216):StudyAnnotations.WEB.equals(item.kind)?
+                        Color.rgb(208,229,252):Color.rgb(255,234,174);
                 marked.setSpan(new android.text.style.BackgroundColorSpan(color),
                     range.start,range.end,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
@@ -1055,7 +1176,7 @@ public final class MainActivity extends Activity {
                 TextView item=text((chosen?"● ":"○ ")+option,14,chosen?Color.WHITE:DARK,chosen);
                 item.setGravity(Gravity.CENTER);item.setMinHeight(dp(48));
                 item.setPadding(dp(5),dp(10),dp(5),dp(10));
-                item.setBackground(chosen?bg(DARK,11):outlined(SOFT,11));
+                item.setBackground(chosen?bg(NAV_BG,11):outlined(SOFT,11));
                 item.setContentDescription(option+(chosen?", seleccionado":""));
                 LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
                 params.setMargins(dp(3),dp(4),dp(3),dp(4));line.addView(item,params);
@@ -1242,7 +1363,7 @@ public final class MainActivity extends Activity {
             TextView toggle=text(labels[i],13,indexScope==i?Color.WHITE:DARK,true);
             toggle.setGravity(Gravity.CENTER);
             toggle.setMinHeight(dp(46));
-            toggle.setBackground(indexScope==i?bg(DARK,10):outlined(SOFT,10));
+            toggle.setBackground(indexScope==i?bg(NAV_BG,10):outlined(SOFT,10));
             LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,dp(46),1);
             params.setMargins(dp(2),dp(10),dp(2),dp(5));
             selectors.addView(toggle,params);
@@ -1253,7 +1374,7 @@ public final class MainActivity extends Activity {
                 for(int j=0;j<selectors.getChildCount();j++){
                     TextView item=(TextView)selectors.getChildAt(j);
                     item.setTextColor(indexScope==j?Color.WHITE:DARK);
-                    item.setBackground(indexScope==j?bg(DARK,10):outlined(SOFT,10));
+                    item.setBackground(indexScope==j?bg(NAV_BG,10):outlined(SOFT,10));
                 }
                 fillIndex(resultList,indexQuery,indexScope);
             });
@@ -1598,6 +1719,10 @@ public final class MainActivity extends Activity {
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
         addGap(box,17);
         section(box,"Lectura","Ajusta la presentación del texto bíblico.");
+        button(box,"Aspecto: "+DisplayModes.label(displayMode),this::chooseDisplayMode,false);
+        hint(box,"Normal: colores habituales. Lectura cómoda: papel cálido y contraste suave. "+
+            "Ahorro de batería: negro y menos imágenes, especialmente útil en OLED. "+
+            "El brillo sigue bajo el control del teléfono.");
         hint(box,"Tamaño de letra actual: "+textSize+" sp");
         button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
         button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
@@ -1623,6 +1748,22 @@ public final class MainActivity extends Activity {
             .setView(scroll).setPositiveButton("Cerrar",null).show();
     }
     /** Token personal opcional y restringido al repo privado. Nunca se registra ni se copia. */
+    private void chooseDisplayMode(){
+        String[] choices={"Normal","Lectura cómoda · tonos cálidos",
+            "Ahorro de batería · fondo negro OLED"};
+        new AlertDialog.Builder(this)
+            .setTitle("Aspecto y lectura")
+            .setSingleChoiceItems(choices,displayMode,(dialog,which)->{
+                dialog.dismiss();
+                if(which==displayMode)return;
+                getSharedPreferences("scriptura_display",MODE_PRIVATE).edit()
+                    .putInt("display_mode",DisplayModes.normalize(which)).apply();
+                // recreate() conserva el pasaje y su desplazamiento por onSaveInstanceState.
+                recreate();
+            })
+            .setNegativeButton("Cancelar",null).show();
+    }
+
     private void configureUpdateToken(){
         EditText edit=new EditText(this);
         edit.setHint("github_pat_...");

@@ -489,19 +489,23 @@ class Handler(BaseHTTPRequestHandler):
                     c.executemany("INSERT INTO verses(book,chapter,verse,text) VALUES(?,?,?,?)",
                                   [(b,ch,v,txt) for (b,ch,v),txt in verses.items()])
                     c.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('edition',?)",("Sagrada Biblia · Universidad de Navarra (ejemplar privado)",))
+                    c.commit()
                     return self.respond(200,{"imported":len(verses)})
                 if p == "/api/favorites":
                     ref = str(body.get("ref",""))[:120]
                     if not ref:raise ValueError("Referencia vacía")
                     if c.execute("SELECT 1 FROM favorites WHERE ref=?",(ref,)).fetchone():
                         c.execute("DELETE FROM favorites WHERE ref=?",(ref,))
+                        c.commit()
                         return self.respond(200,{"favorite":False})
                     c.execute("INSERT INTO favorites(ref) VALUES(?)",(ref,))
+                    c.commit()
                     return self.respond(200,{"favorite":True})
                 if p == "/api/history":
                     ref = str(body.get("ref",""))[:120]
                     if not ref:raise ValueError("Referencia vacía")
                     c.execute("INSERT OR REPLACE INTO history(ref,seen) VALUES(?,CURRENT_TIMESTAMP)",(ref,))
+                    c.commit()
                     return self.respond(200,{"ok":True})
                 if p == "/api/notes":
                     kind = str(body.get("kind",""))
@@ -538,6 +542,7 @@ class Handler(BaseHTTPRequestHandler):
                     cur=c.execute(
                         "INSERT INTO notes(kind,target,start_offset,end_offset,quote,body) VALUES(?,?,?,?,?,?)",
                         (kind,target,start,end,quote,text))
+                    c.commit()
                     return self.respond(201,{"id":cur.lastrowid})
                 m=re.fullmatch(r"/api/notes/([1-9]\d*)/update",p)
                 if m:
@@ -547,6 +552,7 @@ class Handler(BaseHTTPRequestHandler):
                     cur=c.execute("UPDATE notes SET body=?,updated=CURRENT_TIMESTAMP WHERE id=?",
                                   (text,int(m.group(1))))
                     if not cur.rowcount: raise ValueError("Anotación inexistente")
+                    c.commit()
                     return self.respond(200,{"ok":True})
                 if p == "/api/references":
                     kind = str(body.get("kind",""))
@@ -592,6 +598,7 @@ class Handler(BaseHTTPRequestHandler):
                         "INSERT INTO references_extra(kind,target,start_offset,end_offset,quote,note,resource_kind,document_id,url,label) "
                         "VALUES(?,?,?,?,?,?,?,?,?,?)",
                         (kind,target,start,end,quote,note,resource_kind,document_id,url,label))
+                    c.commit()
                     return self.respond(201,{"id":cur.lastrowid})
                 if p == "/api/links":
                     kind = str(body.get("kind",""))
@@ -619,6 +626,7 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError("Referencia bíblica inválida")
                     cur = c.execute("INSERT INTO links(kind,target,start_offset,end_offset,quote,note,image_id) VALUES(?,?,?,?,?,?,?)",
                                     (kind,target,start,end,quote,note,image_id))
+                    c.commit()
                     return self.respond(201,{"id":cur.lastrowid})
                 m = re.fullmatch(r"/api/documents/(\d+)/update",p)
                 if m:
@@ -630,6 +638,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not title or category not in ("Libros","Mapas","Imágenes","Documentos","Otros"):
                         raise ValueError("Título o clasificación inválida")
                     c.execute("UPDATE documents SET title=?,category=?,tags=? WHERE id=?",(title,category,tags,ident))
+                    c.commit()
                     return self.respond(200,{"ok":True})
             return self.respond(404,{"error":"Ruta no encontrada"})
         except Exception as e:
@@ -643,14 +652,17 @@ class Handler(BaseHTTPRequestHandler):
                 m = re.fullmatch(r"/api/notes/([1-9]\d*)",p)
                 if m:
                     c.execute("DELETE FROM notes WHERE id=?",(int(m.group(1)),))
+                    c.commit()
                     return self.respond(200,{"ok":True})
                 m = re.fullmatch(r"/api/references/(\d+)",p)
                 if m:
                     c.execute("DELETE FROM references_extra WHERE id=?",(int(m.group(1)),))
+                    c.commit()
                     return self.respond(200,{"ok":True})
                 m = re.fullmatch(r"/api/links/(\d+)",p)
                 if m:
                     c.execute("DELETE FROM links WHERE id=?",(int(m.group(1)),))
+                    c.commit()
                     return self.respond(200,{"ok":True})
                 m = re.fullmatch(r"/api/documents/(\d+)",p)
                 if m:
@@ -660,6 +672,7 @@ class Handler(BaseHTTPRequestHandler):
                                   (str(row["id"])+":%",))
                     c.execute("DELETE FROM documents WHERE id=?",(row["id"],))
                     (UPLOADS / row["stored"]).unlink(missing_ok=True)
+                    c.commit()
                     return self.respond(200,{"ok":True})
             return self.respond(404,{"error":"Ruta no encontrada"})
         except Exception as e:

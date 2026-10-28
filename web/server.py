@@ -88,6 +88,20 @@ def init_db():
                 created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_links_target ON links(kind,target);
+            CREATE TABLE IF NOT EXISTS references_extra (
+                id INTEGER PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('bible','epub','pdf')),
+                target TEXT NOT NULL,
+                start_offset INTEGER, end_offset INTEGER,
+                quote TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+                resource_kind TEXT NOT NULL CHECK(resource_kind IN ('url','document')),
+                document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+                url TEXT, label TEXT NOT NULL DEFAULT '',
+                created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CHECK ((resource_kind='url' AND url IS NOT NULL AND document_id IS NULL)
+                    OR (resource_kind='document' AND document_id IS NOT NULL AND url IS NULL))
+            );
+            CREATE INDEX IF NOT EXISTS idx_refs_extra_target ON references_extra(kind,target);
         """)
 
 def safe_name(name):
@@ -377,6 +391,15 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond(200,[dict(r) for r in c.execute("SELECT ref,created FROM favorites ORDER BY created DESC").fetchall()])
                 if p == "/api/history":
                     return self.respond(200,[dict(r) for r in c.execute("SELECT ref,seen FROM history ORDER BY seen DESC LIMIT 60").fetchall()])
+                if p == "/api/references":
+                    kind, target = q.get("kind",""), q.get("target","")
+                    sql = ("SELECT r.*,d.title document_title,d.extension document_extension "
+                           "FROM references_extra r LEFT JOIN documents d ON d.id=r.document_id WHERE 1=1")
+                    args = []
+                    if kind: sql += " AND r.kind=?"; args.append(kind)
+                    if target: sql += " AND r.target=?"; args.append(target)
+                    sql += " ORDER BY r.created DESC,r.id DESC"
+                    return self.respond(200,[dict(r) for r in c.execute(sql,args).fetchall()])
                 if p == "/api/links":
                     kind, target = q.get("kind",""), q.get("target","")
                     sql = "SELECT l.*,d.title image_title FROM links l JOIN documents d ON d.id=l.image_id WHERE 1=1"
@@ -451,6 +474,51 @@ class Handler(BaseHTTPRequestHandler):
                     if not ref:raise ValueError("Referencia vacía")
                     c.execute("INSERT OR REPLACE INTO history(ref,seen) VALUES(?,CURRENT_TIMESTAMP)",(ref,))
                     return self.respond(200,{"ok":True})
+                if p == "/api/references":
+                    kind = str(body.get("kind",""))
+                    target = str(body.get("target",""))[:120]
+                    quote = str(body.get("quote","")).strip()[:1600]
+                    note = str(body.get("note",""))[:2000]
+                    start, end = body.get("start"),body.get("end")
+                    resource_kind = str(body.get("resource_kind",""))
+                    url = None
+                    document_id = None
+                    if kind not in ("bible","epub","pdf") or not target or not quote:
+                        raise ValueError("Selecciona un fragmento de texto")
+                    if kind in ("bible","epub") and (
+                        not isinstance(start,int) or not isinstance(end,int)
+                        or isinstance(start,bool) or isinstance(end,bool)
+                        or not 0<=start<end<=2_000_000):
+                        raise ValueError("La selección de texto no es válida")
+                    if kind == "pdf":
+                        if not re.fullmatch(r"\d+:[1-9]\d*",target):
+                            raise ValueError("Página PDF no válida")
+                        if get_doc(c,int(target.split(":")[0]))["extension"]!=".pdf":
+                            raise ValueError("No es un documento PDF")
+                        start=end=None
+                    if kind == "epub":
+                        if not re.fullmatch(r"\d+:\d+",target) or get_doc(c,int(target.split(":")[0]))["extension"]!=".epub":
+                            raise ValueError("No es un documento EPUB")
+                    if kind == "bible" and not re.fullmatch(r"[A-Za-z0-9]+:[1-9]\d*",target):
+                        raise ValueError("Referencia bíblica no válida")
+                    if resource_kind == "url":
+                        from urllib.parse import urlparse
+                        url = str(body.get("url","")).strip()[:2000]
+                        parsed = urlparse(url)
+                        if (parsed.scheme not in ("https","http") or not parsed.netloc
+                            or parsed.username is not None or parsed.password is not None
+                            or any(ord(ch)<32 for ch in url)):
+                            raise ValueError("Indica una URL http/https válida")
+                    elif resource_kind == "document":
+                        document_id = int(body.get("document_id",0))
+                        get_doc(c,document_id)
+                    else: raise ValueError("Tipo de referencia desconocido")
+                    label = str(body.get("label","")).strip()[:180]
+                    cur = c.execute(
+                        "INSERT INTO references_extra(kind,target,start_offset,end_offset,quote,note,resource_kind,document_id,url,label) "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (kind,target,start,end,quote,note,resource_kind,document_id,url,label))
+                    return self.respond(201,{"id":cur.lastrowid})
                 if p == "/api/links":
                     kind = str(body.get("kind",""))
                     target = str(body.get("target",""))[:120]
@@ -497,6 +565,10 @@ class Handler(BaseHTTPRequestHandler):
             self.check_origin()
             p,_ = self.path_params()
             with conn() as c:
+                m = re.fullmatch(r"/api/references/(\d+)",p)
+                if m:
+                    c.execute("DELETE FROM references_extra WHERE id=?",(int(m.group(1)),))
+                    return self.respond(200,{"ok":True})
                 m = re.fullmatch(r"/api/links/(\d+)",p)
                 if m:
                     c.execute("DELETE FROM links WHERE id=?",(int(m.group(1)),))
@@ -504,6 +576,9 @@ class Handler(BaseHTTPRequestHandler):
                 m = re.fullmatch(r"/api/documents/(\d+)",p)
                 if m:
                     row = get_doc(c,int(m.group(1)))
+                    for table in ("links","references_extra"):
+                        c.execute("DELETE FROM "+table+" WHERE kind IN ('pdf','epub') AND target LIKE ?",
+                                  (str(row["id"])+":%",))
                     c.execute("DELETE FROM documents WHERE id=?",(row["id"],))
                     (UPLOADS / row["stored"]).unlink(missing_ok=True)
                     return self.respond(200,{"ok":True})

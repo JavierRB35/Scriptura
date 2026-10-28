@@ -28,7 +28,15 @@ public final class DefinitionUi {
         void explainWithGemini(String word);
         void showError(String message);
     }
+    public interface SelectionHandler {
+        void onAnnotate(String quote,int start,int end);
+    }
+    private static final int ANNOTATE_ACTION_ID=0x5C121;
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,Delegate delegate){
+        attach(activity,textView,geminiEnabled,delegate,null);
+    }
+    public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
+                              Delegate delegate,SelectionHandler selectionHandler){
         // No reemplazar ni consumir las acciones nativas Copiar/Compartir/Seleccionar todo.
         textView.setTextIsSelectable(true);
         // Algunos TextView no se marcan como long-clickable por el motor de
@@ -43,6 +51,10 @@ public final class DefinitionUi {
             }
             @Override public boolean onCreateActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
+                if(selectionHandler!=null&&menu.findItem(ANNOTATE_ACTION_ID)==null){
+                    MenuItem annotate=menu.add(Menu.NONE,ANNOTATE_ACTION_ID,Menu.CATEGORY_SECONDARY,"Anotar");
+                    annotate.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                }
                 return true;
             }
             @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
@@ -50,6 +62,14 @@ public final class DefinitionUi {
                 return true;
             }
             @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){
+                if(item.getItemId()==ANNOTATE_ACTION_ID && selectionHandler!=null){
+                    final int start=textView.getSelectionStart(),end=textView.getSelectionEnd();
+                    if(start<0||end<=start)return true;
+                    String selected=textView.getText().subSequence(start,end).toString();
+                    mode.finish();
+                    selectionHandler.onAnnotate(selected,start,end);
+                    return true;
+                }
                 if(item.getItemId()!=DEFINE_ACTION_ID)return false;
                 final String selected=WordMeaning.selection(textView.getText().toString(),
                     textView.getSelectionStart(),textView.getSelectionEnd());

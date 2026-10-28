@@ -33,7 +33,9 @@ def wait(seconds=1.1):
 
 def start(candidate=False):
     adb("shell", "am", "force-stop", "com.scriptura.app")
-    activity="com.scriptura.app/.SplashActivity" if candidate else "com.scriptura.app/.MainActivity"
+    # Ambas versiones 0.7.5 y 0.7.6 usan SplashActivity como launcher.
+    # MainActivity no se exporta: adb no puede abrirla directamente.
+    activity="com.scriptura.app/.SplashActivity"
     adb("shell", "am", "start", "-n",activity)
     adb("shell","wm","dismiss-keyguard",check=False)
     if candidate:

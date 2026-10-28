@@ -36,12 +36,13 @@ import javax.crypto.spec.GCMParameterSpec;
 
 /**
  * Buscador de versiones en los RELEASES publicados del repositorio privado.
- * NO instala APK automáticamente, NO incluye un GitHub token en el código.
+ * Comprueba versiones, pero la descarga y la instalación se inician solo tras pulsar Actualizar.
+ * Nunca incluye un GitHub token en el código ni permite instalación silenciosa.
  */
 public final class UpdateChecker {
     public static final String REPO="JavierRB35/Scriptura";
     private static final String PREFS="scriptura_update_preferences";
-    private static final String CHANNEL="scriptura_app_updates";
+    private static final String CHANNEL="scriptura_app_updates_action_v2";
     private static final String KEY_ALIAS="scriptura_github_read_only_v1";
     private static final String API="https://api.github.com/repos/"+REPO+"/releases?per_page=25";
     private static final String RELEASE_PREFIX="https://github.com/"+REPO+"/releases/tag/";
@@ -55,8 +56,15 @@ public final class UpdateChecker {
     }
 
     public static final class Update {
-        public final String tag,title,url;
-        public Update(String t,String name,String u){tag=t;title=name;url=u;}
+        public final String tag,title,url,assetName,sha256;
+        public final long assetId,assetSize;
+        public final int versionCode;
+        public Update(String tag,String title,String url,long assetId,
+                      long assetSize,String assetName,String sha256,int versionCode){
+            this.tag=tag;this.title=title;this.url=url;this.assetId=assetId;
+            this.assetSize=assetSize;this.assetName=assetName;this.sha256=sha256;
+            this.versionCode=versionCode;
+        }
     }
     public static final class Result {
         public final Update update;
@@ -101,9 +109,15 @@ public final class UpdateChecker {
         prefs(c).edit().remove("private_access_token").remove("last_checked")
                 .remove("last_error").remove("latest_version")
                 .remove("latest_title").remove("latest_url")
+                .remove("latest_asset_id").remove("latest_asset_name")
+                .remove("latest_asset_size").remove("latest_asset_sha256")
+                .remove("latest_version_code").remove("last_prompted")
                 .remove("last_notified").apply();
         JobScheduler jobs=(JobScheduler)c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if(jobs!=null)jobs.cancel(JOB_ID);
+    }
+    static String downloadToken(Context c) throws Exception{
+        return readToken(c);
     }
     private static String readToken(Context c) throws Exception{
         String data=prefs(c).getString("private_access_token","");
@@ -145,9 +159,14 @@ public final class UpdateChecker {
         String tag=p.getString("latest_version","");
         String url=p.getString("latest_url","");
         String title=p.getString("latest_title","");
-        if(tag.isEmpty()||!url.startsWith(RELEASE_PREFIX))return null;
+        long id=p.getLong("latest_asset_id",0),size=p.getLong("latest_asset_size",0);
+        int code=p.getInt("latest_version_code",0);
+        String name=p.getString("latest_asset_name","");
+        String sha=p.getString("latest_asset_sha256","");
+        if(tag.isEmpty()||!url.equals(RELEASE_PREFIX+tag))return null;
         if(!ReleaseVersions.isNewer(tag,currentVersion(c)))return null;
-        return new Update(tag,title,url);
+        if(!UpdateAssetRules.valid(tag,id,size,name,sha,code))return null;
+        return new Update(tag,title,url,id,size,name,sha,code);
     }
     public static Update available(Context c){
         return remembered(c);
@@ -219,27 +238,40 @@ public final class UpdateChecker {
                 if(!url.equals(RELEASE_PREFIX+tag))continue;
                 JSONArray assets=release.optJSONArray("assets");
                 if(assets==null)continue;
-                boolean hasApk=false;
+                Update candidateUpdate=null;
                 for(int j=0;j<assets.length();j++){
                     JSONObject asset=assets.optJSONObject(j);
-                    if(asset!=null&&asset.optString("name","").matches("Scriptura-[a-zA-Z0-9.\\-]+\\.apk")
-                        &&asset.optLong("size",0)>0){
-                        hasApk=true;break;
-                    }
+                    if(asset==null||!"uploaded".equals(asset.optString("state","uploaded")))continue;
+                    long id=asset.optLong("id",0),size=asset.optLong("size",0);
+                    String name=asset.optString("name","");
+                    String hash=asset.optString("digest","");
+                    int buildCode=candidate.build>Integer.MAX_VALUE?0:(int)candidate.build;
+                    if(!UpdateAssetRules.valid(tag,id,size,name,hash,buildCode))continue;
+                    String title=release.optString("name",tag);
+                    candidateUpdate=new Update(tag,title.isEmpty()?tag:title,url,
+                        id,size,name,hash,buildCode);
+                    break;
                 }
-                if(!hasApk)continue;
+                if(candidateUpdate==null)continue;
                 bestVersion=candidate;
-                String title=release.optString("name",tag);
-                best=new Update(tag,title.isEmpty()?tag:title,url);
+                best=candidateUpdate;
             }
             SharedPreferences.Editor edit=p.edit().putLong("last_checked",now)
                 .remove("last_error");
             if(best==null){
-                edit.remove("latest_version").remove("latest_title").remove("latest_url");
+                edit.remove("latest_version").remove("latest_title").remove("latest_url")
+                    .remove("latest_asset_id").remove("latest_asset_name")
+                    .remove("latest_asset_size").remove("latest_asset_sha256")
+                    .remove("latest_version_code");
             }else {
                 edit.putString("latest_version",best.tag)
                     .putString("latest_title",best.title)
-                    .putString("latest_url",best.url);
+                    .putString("latest_url",best.url)
+                    .putLong("latest_asset_id",best.assetId)
+                    .putLong("latest_asset_size",best.assetSize)
+                    .putString("latest_asset_name",best.assetName)
+                    .putString("latest_asset_sha256",best.sha256)
+                    .putInt("latest_version_code",best.versionCode);
             }
             edit.apply();
             return new Result(best,best==null?"La aplicación está actualizada.":"Nueva versión: "+best.tag);
@@ -252,6 +284,12 @@ public final class UpdateChecker {
             if(conn!=null)conn.disconnect();
         }
     }
+    public static boolean shouldPrompt(Context c,Update update){
+        return update!=null&&!update.tag.equals(prefs(c).getString("last_prompted",""));
+    }
+    public static void markPrompted(Context c,Update update){
+        if(update!=null)prefs(c).edit().putString("last_prompted",update.tag).apply();
+    }
     public static void maybeNotify(Context c,Update update){
         if(update==null)return;
         if(Build.VERSION.SDK_INT>=33 &&
@@ -262,16 +300,21 @@ public final class UpdateChecker {
         NotificationManager manager=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);
         if(manager==null)return;
         manager.createNotificationChannel(new NotificationChannel(CHANNEL,
-                "Nuevas versiones de Scriptura",NotificationManager.IMPORTANCE_DEFAULT));
-        Intent open=new Intent(Intent.ACTION_VIEW,Uri.parse(update.url));
-        open.addCategory(Intent.CATEGORY_BROWSABLE);
+                "Actualizaciones de Scriptura",NotificationManager.IMPORTANCE_HIGH));
+        Intent open=new Intent(c,MainActivity.class);
+        open.setAction(UpdateInstaller.ACTION_UPDATE);
+        open.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pending=PendingIntent.getActivity(c,7261,open,
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification notice=new Notification.Builder(c,CHANNEL)
                 .setSmallIcon(R.drawable.ic_scriptura)
                 .setContentTitle("Nueva versión de Scriptura")
-                .setContentText("Versión "+update.tag+" disponible. Toca para descargarla.")
-                .setContentIntent(pending).setAutoCancel(true).build();
+                .setContentText("Scriptura "+update.tag+" · Actualizar desde la app")
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setContentIntent(pending)
+                .addAction(new Notification.Action.Builder(
+                    R.drawable.ic_scriptura,"Actualizar",pending).build())
+                .setAutoCancel(true).build();
         manager.notify(7261,notice);
         p.edit().putString("last_notified",update.tag).apply();
     }
@@ -282,6 +325,7 @@ public final class UpdateChecker {
             activity.requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},7261);
         }
     }
+    /** Fallback manual únicamente para errores persistentes; el flujo principal no sale de Scriptura. */
     public static void openRelease(Context c,Update update){
         if(update==null||!update.url.startsWith(RELEASE_PREFIX))return;
         c.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(update.url)));

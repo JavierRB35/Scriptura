@@ -27,6 +27,7 @@ public final class MainActivity extends Activity {
     private final int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private BibleStore store;
     private NavarraNotes notes;
+    private UpdateInstaller updateInstaller;
     private StudyAnnotations studyAnnotations;
     private HistoricalContextStore historyContext;
     private boolean historicalExpanded=false;
@@ -115,6 +116,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(DARK);
         getWindow().setNavigationBarColor(BG);
         store=new BibleStore(this);notes=new NavarraNotes(this);studyAnnotations=new StudyAnnotations(this);
+        updateInstaller=new UpdateInstaller(this);
         introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);ai=new GeminiClient(this);
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
@@ -131,13 +133,42 @@ public final class MainActivity extends Activity {
         }
         if(page==5&&selected==null)page=readerOrigin;
         render();
+        if(UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction())){
+            UpdateChecker.Update target=UpdateChecker.available(this);
+            UpdateChecker.markPrompted(this,target);
+            setIntent(new Intent(this,MainActivity.class));
+            frame.post(()->updateInstaller.start(target));
+        }
         if(UpdateChecker.configured(this)){
             UpdateChecker.schedule(this);
             worker.execute(()->{
                 UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),false);
                 if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);
-                runOnUiThread(()->{if(!isFinishing()&&page==0)render();});
+                runOnUiThread(()->{
+                    if(isFinishing()||isDestroyed())return;
+                    if(page==0)render();
+                    if(!UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction()))
+                        promptUpdate(result.update,false);
+                });
             });
+        }
+    }
+    @Override protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if(UpdateInstaller.ACTION_UPDATE.equals(intent.getAction())){
+            UpdateChecker.Update available=UpdateChecker.available(this);
+            UpdateChecker.markPrompted(this,available);
+            setIntent(new Intent(this,MainActivity.class));
+            updateInstaller.start(available);
+        }
+    }
+    @Override protected void onResume(){
+        super.onResume();
+        if(updateInstaller!=null)updateInstaller.onResume();
+        if(!UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction())){
+            UpdateChecker.Update update=UpdateChecker.available(this);
+            if(update!=null&&frame!=null)frame.post(()->promptUpdate(update,false));
         }
     }
     @Override protected void onSaveInstanceState(Bundle state){
@@ -246,10 +277,12 @@ public final class MainActivity extends Activity {
         if(available!=null){
             LinearLayout updateCard=card(column);
             updateCard.addView(text("Nueva versión disponible",18,DARK,true));
-            hint(updateCard,"Scriptura "+available.tag+" · Publicada en GitHub");
-            button(updateCard,"Ver y descargar actualización",
-                    ()->UpdateChecker.openRelease(this,available),true);
-            hint(updateCard,"Puedes consultar las novedades de Scriptura e instalar la actualización cuando quieras.");
+            hint(updateCard,"Scriptura "+available.tag+" · APK oficial firmada");
+            button(updateCard,"Actualizar",()->{
+                UpdateChecker.markPrompted(this,available);
+                updateInstaller.start(available);
+            },true);
+            hint(updateCard,"La aplicación descargará y verificará el APK. Android te pedirá confirmar la instalación.");
         }
         // El acceso privado a GitHub no se presenta como requisito de primer uso:
         // queda voluntario dentro de Ajustes → Actualizaciones.
@@ -1511,7 +1544,7 @@ public final class MainActivity extends Activity {
         addGap(box,17);
         section(box,"Actualizaciones","Recibir avisos de nuevas APK firmadas.");
         addGap(box,18);
-        hint(box,"Comprobación al abrir y periódica cada 12 horas. No se instala nada sin tu consentimiento.");
+        hint(box,"Comprobación al abrir y periódica cada 12 horas. Recibirás un aviso «Actualizar»; la descarga se realiza dentro de Scriptura y Android confirma la instalación.");
         hint(box,"El repositorio es privado. Necesitas un token GitHub con acceso SOLO a Scriptura y permiso Contents: Read.");
         button(box,UpdateChecker.configured(this)?"Modificar acceso privado GitHub":"Activar avisos de actualización",
             this::configureUpdateToken,false);
@@ -1568,17 +1601,28 @@ public final class MainActivity extends Activity {
             if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);
             runOnUiThread(()->{
                 if(isFinishing())return;
-                AlertDialog.Builder dialog=new AlertDialog.Builder(this)
-                    .setTitle(result.available()?"Actualización disponible":"Actualizaciones de Scriptura")
+                if(result.available())promptUpdate(result.update,true);
+                else new AlertDialog.Builder(this)
+                    .setTitle("Actualizaciones de Scriptura")
                     .setMessage(result.info)
-                    .setNegativeButton("Cerrar",(d,w)->{if(page==0)render();});
-                if(result.available()){
-                    dialog.setPositiveButton("Abrir GitHub",(d,w)->
-                        UpdateChecker.openRelease(this,result.update));
-                }
-                dialog.show();
+                    .setPositiveButton("Cerrar",(d,w)->{if(page==0)render();}).show();
             });
         });
+    }
+
+    private void promptUpdate(UpdateChecker.Update update,boolean manual){
+        if(update==null||(!manual&&!UpdateChecker.shouldPrompt(this,update)))return;
+        if(isFinishing()||isDestroyed())return;
+        UpdateChecker.markPrompted(this,update);
+        new AlertDialog.Builder(this)
+            .setTitle("Nueva actualización de Scriptura")
+            .setMessage("Versión "+update.tag+" disponible.\n\n"+
+                "Pulsa «Actualizar» para descargarla y comprobar su firma. "+
+                "Después Android te pedirá confirmar su instalación. "+
+                "No necesitas abrir GitHub ni desinstalar Scriptura.")
+            .setNegativeButton("Más tarde",null)
+            .setPositiveButton("Actualizar",(d,w)->updateInstaller.start(update))
+            .show();
     }
 
     private void configureKey(){

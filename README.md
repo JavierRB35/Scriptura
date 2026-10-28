@@ -48,6 +48,17 @@ Versión 0.3.0: biblioteca con lector y notas de Navarra, búsqueda literal y po
 
 El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales, el EPUB personal y su contenido no están incluidos en el repositorio.
 
+## Actualización integrada — 0.7.7
+
+- Al encontrar una nueva Release APK firmada, Scriptura muestra un aviso opcional con los botones **Actualizar** y **Más tarde**, además de una notificación Android de alta prioridad con acción **Actualizar** (si se ha concedido el permiso).
+- Al tocar Actualizar, descarga directamente el asset de GitHub Releases **dentro de la app** mediante la API privada, usando el token de solo lectura ya configurado y cifrado en Android Keystore. No abre navegador ni pantalla de GitHub.
+- Solo acepta metadatos de la Release oficial con SHA-256 publicado, tamaño válido, nombre exacto y versión superior. Valida los bytes descargados, packageName, versionCode y firma respecto de la APK ya instalada antes de entregar el archivo en caché privada al instalador Android.
+- El token de GitHub solo se envía al dominio api.github.com. Si GitHub redirige la descarga a githubusercontent.com, se sigue sin reenviar el token ni incluirlo en URL.
+- Android pide **una única autorización inicial** para permitir a Scriptura lanzar su instalador cuando sea necesaria y **confirma cada instalación**. No hay instalación silenciosa ni desinstalación, y se conservan el EPUB privado y las bases de datos locales.
+- El repositorio permanece **privado**: sin el token restringido a Scriptura con Contents: Read, no se puede comprobar ni descargar una APK privada. Es una configuración previa opcional.
+- La comprobación de fondo solo avisa y nunca descarga sin que el usuario pulse Actualizar. La notificación emergente depende de ajustes/permisos de Android; el banner dentro de la app no requiere notificaciones.
+- **Primera transición**: la versión 0.7.6 todavía abre GitHub y no puede incorporar por sí misma el nuevo flujo. Instalar la Release 0.7.7 firmada con el procedimiento anterior una sola vez; a partir de ahí funcionan las actualizaciones directas.
+
 ## Avisos automáticos de actualización — 0.5.1
 
 - Scriptura consulta las versiones `0.x.y-build.N` **publicadas con APK** en las GitHub Releases de `JavierRB35/Scriptura`.

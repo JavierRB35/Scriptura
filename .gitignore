@@ -10,3 +10,12 @@
 *.apk
 *.aab
 *.log
+
+# Biblioteca privada de Scriptura Web: jamás publicar archivos ni la base local
+/web/data/
+/web/__pycache__/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

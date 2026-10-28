@@ -105,7 +105,6 @@ public final class BibleStore extends SQLiteOpenHelper {
         }
         SQLiteDatabase db=getWritableDatabase();
         int imported=0;
-        boolean committed=false;
         db.beginTransaction();
         try(ZipFile zip=new ZipFile(tmp)){
             if(zip.getEntry("META-INF/container.xml")==null)throw new IOException("Archivo EPUB no válido");

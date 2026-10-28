@@ -279,7 +279,7 @@ SVG_TAGS = {
     "svg", "g", "defs", "symbol", "use", "path", "circle", "ellipse",
     "rect", "line", "polyline", "polygon", "text", "tspan", "textPath",
     "linearGradient", "radialGradient", "stop", "clipPath", "mask", "pattern",
-    "title", "desc"
+    "title", "desc", "marker"
 }
 SVG_ATTRS = {
     "xmlns", "version", "width", "height", "viewBox", "preserveAspectRatio",
@@ -346,9 +346,14 @@ def sanitize_svg(path):
         count+=1
         if count>30000:
             raise ValueError("SVG demasiado complejo")
+        if not isinstance(node.tag,str):
+            raise ValueError("SVG contiene nodos no admitidos")
+        tag=node.tag.split("}",1)[-1]
+        # Inkscape/Sodipodi y algunos editores añaden metadatos no visuales.
+        if tag in ("metadata","namedview"):
+            return None
         if not node.tag.startswith("{"+SVG_NS+"}"):
             raise ValueError("SVG contiene elementos externos no admitidos")
-        tag=node.tag.split("}",1)[1]
         if tag not in SVG_TAGS:
             raise ValueError("SVG contiene elementos activos o no admitidos: "+tag)
         out=ET.Element(node.tag)
@@ -370,7 +375,10 @@ def sanitize_svg(path):
         if tag in ("title","desc","text","tspan","textPath"):
             out.text=node.text or ""
         for child in node:
-            out.append(clean(child))
+            sanitized_child=clean(child)
+            if sanitized_child is None:
+                continue
+            out.append(sanitized_child)
             if child.tail:
                 out[-1].tail=child.tail if tag in ("text","tspan","textPath") else None
         return out

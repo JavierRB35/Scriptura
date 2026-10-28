@@ -1,4 +1,4 @@
-# Scriptura Web · Biblioteca personal de estudio (preliminar 0.1)
+# Scriptura Web · Biblioteca personal de estudio (preliminar 0.1.2)
 
 Versión **web local para PC**, desarrollada en paralelo a la versión Android 0.7.5.
 No sustituye la APK ni modifica su certificado, datos privados o código. Implementación en
@@ -135,3 +135,35 @@ peligrosos, copia de seguridad y eliminación de referencias dependientes.
 
 La ejecución de esas pruebas y una verificación manual en el PC real siguen siendo
 necesarias antes de considerar esta rama lista para uso habitual. 
+
+## Novedades 0.1.2: asociaciones visibles y SVG
+
+- Al seleccionar una frase con el ratón, Scriptura muestra un menú flotante con
+  **Añadir nota**, **Vincular URL** y **Vincular archivo**.
+- Para una nota: selecciona el fragmento → **Añadir nota** → escribe en el panel derecho
+  → **Guardar nota**. También puedes escribir una nota general sin selección.
+- Para una URL: selecciona el fragmento → **Vincular URL** → introduce la dirección
+  HTTPS/HTTP y el nombre de la fuente → **Guardar vínculo**.
+- Los fragmentos con anotaciones quedan resaltados en **amarillo**, con documentos
+  o URL en **azul**, y con ambos tipos de recursos en **violeta**. Pulsa la frase
+  resaltada para abrir una ficha de las asociaciones en el panel derecho.
+- La barra fija de lectura separa ahora la navegación **Libro/Capítulo/Anterior/Siguiente**
+  de las acciones de estudio y favoritos.
+- Se admiten imágenes **SVG** con contenido vectorial seguro. Al importar se elimina
+  contenido activo y metadatos no visuales. SVG con scripts, recursos externos o
+  elementos no admitidos se rechazan con explicación. Se comprueba el contenido, no
+  solo la extensión.
+- La importación diferencia entre un rechazo del servidor y la pérdida de conexión con
+  la instancia local de Python, mostrando recomendaciones específicas.
+
+### Actualizar conservando tus libros y notas
+
+1. Descarga una **Copia de seguridad** de la biblioteca actual.
+2. Cierra Scriptura y su proceso Python.
+3. Copia `web/data/` completa a la versión nueva (con `scriptura-web.db` y `uploads/`).
+4. Sustituye el código de `web/`, pero **no sobrescribas ni borres `web/data/`**.
+5. Inicia de nuevo Scriptura; la migración SQLite crea nuevas tablas sin eliminar las existentes.
+6. Comprueba tus documentos, una nota de prueba y una URL vinculada.
+
+La prueba con el archivo real `12_tribus_de_Israel.svg` debe realizarse en el PC del
+usuario, dado que únicamente contamos con la captura del error y no con su contenido.

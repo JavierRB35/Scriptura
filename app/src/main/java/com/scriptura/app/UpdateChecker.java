@@ -124,7 +124,15 @@ public final class UpdateChecker {
                 .setPersisted(true)
                 .setPeriodic(CHECK_EVERY_MS)
                 .build();
-        scheduler.schedule(job);
+        try{
+            if(scheduler.schedule(job)==JobScheduler.RESULT_FAILURE)
+                fail(c,"Las comprobaciones en segundo plano no se pudieron programar. La comprobación manual sigue disponible.");
+        }catch(RuntimeException problem){
+            // Guardar el token nunca debe fallar por un problema del programador
+            // de tareas (Android 14, límites de trabajos o fabricante).
+            android.util.Log.w("ScripturaUpdates","No se pudo programar el aviso: "+problem.getClass().getSimpleName());
+            fail(c,"Android ha rechazado la programación de avisos. Puedes comprobar las actualizaciones manualmente.");
+        }
     }
     private static String currentVersion(Context c){
         try{

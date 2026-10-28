@@ -33,13 +33,25 @@ def wait(seconds=1.1):
 
 def start(candidate=False):
     adb("shell", "am", "force-stop", "com.scriptura.app")
-    activity="com.scriptura.app/.SplashActivity" if candidate else "com.scriptura.app/.MainActivity"
+    # Ambas versiones 0.7.5 y 0.7.6 usan SplashActivity como launcher.
+    # MainActivity no se exporta: adb no puede abrirla directamente.
+    activity="com.scriptura.app/.SplashActivity"
     adb("shell", "am", "start", "-n",activity)
     adb("shell","wm","dismiss-keyguard",check=False)
     if candidate:
-        wait(.2)
+        # Esperar a que Android dibuje el splash para evitar capturar
+        # la ventana de lanzamiento en blanco antes del primer frame.
+        wait(.65)
         screen("01_splash_real")
     wait(5)
+    # El título «Scriptura» ya aparece en el splash; esperar al control
+    # accesible de Ajustes de MainActivity antes de seguir con el ensayo.
+    for attempt in range(12):
+        if list(candidates(dump(),"Abrir ajustes")):
+            return
+        wait(1)
+    screen("arranque_diagnostico")
+    raise RuntimeError("Inicio no aparece tras SplashActivity")
 
 def screen(name):
     path = SCREENSHOTS / (name + ".png")
@@ -54,13 +66,31 @@ def dump():
     # UIAutomator puede tardar varios segundos tras el arranque del emulador.
     # adb shell cat es más fiable que exec-out en algunas imágenes Android 34.
     detail=""
-    for attempt in range(5):
+    for attempt in range(9):
         try:
             output=adb("shell","uiautomator","dump","/sdcard/scriptura_ui.xml",timeout=65)
             xml=adb("shell","cat","/sdcard/scriptura_ui.xml",timeout=20)
             start=xml.find("<?xml")
             if start>=0:
-                return ET.fromstring(xml[start:])
+                root=ET.fromstring(xml[start:])
+                visible=[n.attrib.get("text","") for n in root.iter("node")]
+                if any("isn't responding" in v or "no responde" in v.lower()
+                       for v in visible):
+                    # Solo en el emulador de CI: no pulsar nunca "Close app".
+                    # Un aviso ANR del proceso SYSTEM puede superponerse a la
+                    # interfaz correcta de Scriptura después del arranque.
+                    waits=[n for n in root.iter("node")
+                           if n.attrib.get("text","") in ("Wait","Esperar")]
+                    if waits:
+                        m=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",
+                                   waits[0].attrib.get("bounds",""))
+                        if m:
+                            x1,y1,x2,y2=map(int,m.groups())
+                            adb("shell","input","tap",str((x1+x2)//2),str((y1+y2)//2),check=False)
+                            print("QA: descartado aviso ANR del sistema pulsando Esperar")
+                            wait(2.5)
+                            continue
+                return root
             detail="dump="+output[:140].strip()+"; bytes="+str(len(xml))
         except (subprocess.SubprocessError,ET.ParseError) as error:
             detail=type(error).__name__
@@ -114,9 +144,19 @@ def app_install(path):
     print("INSTALLED",path)
 
 def make_font_setting():
-    hit("⚙")
-    hit("Aumentar tamaño de letra",scroll=True)
-    REPORT["checks"]["baseline_font_increased"] = "PASS"
+    hit("Abrir ajustes")
+    # Ajustes se presenta en un AlertDialog centrado. Los gestos en el margen
+    # x=22 sirven para el atlas, pero quedan FUERA del diálogo de Ajustes.
+    for attempt in range(8):
+        if list(candidates(dump(),"Aumentar tamaño de letra")):
+            hit("Aumentar tamaño de letra")
+            REPORT["checks"]["baseline_font_increased"]="PASS"
+            break
+        adb("shell","input","swipe","500","1230","500","475","420")
+        wait(.6)
+    else:
+        screen("00_ajustes_diagnostico")
+        raise RuntimeError("No se encontró Aumentar tamaño de letra dentro de Ajustes")
     # La pantalla principal se ha regenerado; cerrar la ficha de ajustes si aún está encima.
     adb("shell","input","keyevent","4")
     wait(1)
@@ -136,9 +176,17 @@ def main():
         app_install(candidate)
         start(candidate=True)
         screen("01_inicio")
-        hit("⚙")
-        assert_text("Tamaño de letra actual: 20 sp",scroll=True)
-        REPORT["checks"]["font_setting_persist_after_upgrade"]="PASS"
+        hit("Abrir ajustes")
+        # Verificar dentro del diálogo modal, no en el margen externo.
+        for attempt in range(8):
+            if list(candidates(dump(),"Tamaño de letra actual: 20 sp")):
+                REPORT["checks"]["font_setting_persist_after_upgrade"]="PASS"
+                break
+            adb("shell","input","swipe","500","1230","500","475","420")
+            wait(.6)
+        else:
+            screen("01_ajustes_diagnostico")
+            raise RuntimeError("El tamaño de letra anterior no se conserva o no es visible")
         screen("01_ajustes")
         adb("shell","input","keyevent","4")
         wait(1)

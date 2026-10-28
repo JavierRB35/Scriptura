@@ -94,6 +94,9 @@ public final class BibleStore extends SQLiteOpenHelper {
     public int importEpub(Uri uri) throws Exception {
         File tmp=new File(context.getFilesDir(),"scriptura-import.tmp");
         File permanent=new File(context.getFilesDir(),"biblia-usuario.epub");
+        PrivateEpubSwap swap=new PrivateEpubSwap(permanent);
+        boolean committed=false;
+        try {
         long copied=0;
         try(InputStream input=context.getContentResolver().openInputStream(uri); OutputStream output=new FileOutputStream(tmp)){
             if(input==null)throw new IOException("No se pudo abrir el EPUB");
@@ -102,7 +105,6 @@ public final class BibleStore extends SQLiteOpenHelper {
         }
         SQLiteDatabase db=getWritableDatabase();
         int imported=0;
-        boolean committed=false;
         db.beginTransaction();
         try(ZipFile zip=new ZipFile(tmp)){
             if(zip.getEntry("META-INF/container.xml")==null)throw new IOException("Archivo EPUB no válido");
@@ -136,16 +138,27 @@ public final class BibleStore extends SQLiteOpenHelper {
                 if(books!=73)throw new IOException("La edición no ha producido los 73 libros (detectados: "+books+")");
             }
             putMeta(db,"edition","Sagrada Biblia · Universidad de Navarra (archivo privado)");
+            // Solo modificar el EPUB guardado después de verificar los 73 libros.
+            // El respaldo permite restaurar si SQLite no llega a confirmar.
+            swap.replace(tmp);
             db.setTransactionSuccessful();
-            committed=true;
         }finally{
             db.endTransaction();
-            if(committed && tmp.isFile()) {
-                if(permanent.exists())permanent.delete();
-                if(!tmp.renameTo(permanent))tmp.delete();
-            }else tmp.delete();
         }
+        committed=true;
+        swap.finish();
         return imported;
+        }catch(Exception failure){
+            if(!committed){
+                try{swap.rollback();}
+                catch(IOException recovery){failure.addSuppressed(recovery);}
+            }
+            throw failure;
+        }finally{
+            // No dejar archivos privados temporales después de fallos de lectura o ZIP.
+            if(tmp.exists()&&!tmp.delete())
+                android.util.Log.w("Scriptura","No se pudo retirar el EPUB temporal después de la importación.");
+        }
     }
     public static final class Passage{
         public final String ref,book,text;public final int chapter,first,last;

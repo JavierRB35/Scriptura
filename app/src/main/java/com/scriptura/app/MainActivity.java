@@ -393,6 +393,9 @@ public final class MainActivity extends Activity {
     }
     private void open(BibleStore.Passage p){
         if(page!=5)readerOrigin=page;
+        // Cada pasaje empieza con el contexto cerrado; el estado no se hereda
+        // accidentalmente de la lectura anterior.
+        historicalExpanded=false;
         selected=p;store.record(p.ref);page=5;render();
     }
     private void passagePage(){
@@ -754,13 +757,20 @@ public final class MainActivity extends Activity {
             Uri uri=data.getData();
             async("Importando y verificando 73 libros...",()->{
                 int n=store.importEpub(uri);
-                int comments=notes.importFromPrivateEpub();
-                int intros=0;
+                int comments=0,intros=0;
+                StringBuilder warnings=new StringBuilder();
+                try{comments=notes.importFromPrivateEpub();}
+                catch(Exception error){
+                    android.util.Log.w("Scriptura","Error al extraer comentarios: "+error.getClass().getSimpleName());
+                    warnings.append("\n\nLos comentarios no se han podido actualizar; la Biblia sí está importada.");
+                }
                 try{intros=introductions.importPrivateEpub();}
                 catch(Exception error){
-                    android.util.Log.w("Scriptura","No se pudieron extraer las introducciones: "+error.getClass().getSimpleName());
+                    android.util.Log.w("Scriptura","Error al extraer introducciones: "+error.getClass().getSimpleName());
+                    warnings.append("\n\nLas introducciones no se han podido actualizar.");
                 }
-                return n+" versículos, "+comments+" comentarios y "+intros+" introducciones de libros extraídas de tu EPUB personal";
+                return n+" versículos, "+comments+" comentarios y "+intros+
+                    " introducciones extraídas del EPUB personal."+warnings;
             },msg->{new AlertDialog.Builder(this).setTitle("Biblioteca preparada")
                 .setMessage(msg).setPositiveButton("Continuar",(d,w)->{page=0;render();}).show();});
         }

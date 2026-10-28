@@ -27,9 +27,9 @@ DATA = Path(os.environ.get("SCRIPTURA_DATA_DIR", ROOT / "data")).resolve()
 UPLOADS = DATA / "uploads"
 DB = DATA / "scriptura-web.db"
 MAX_FILE = 80 * 1024 * 1024
-EXTS = {".epub", ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif",
+EXTS = {".epub", ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
         ".txt", ".md", ".docx", ".xlsx", ".kml", ".gpx", ".zip"}
-IMAGES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+IMAGES = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 BOOKS = [
 ("Gn","Génesis"),("Ex","Éxodo"),("Lv","Levítico"),("Nm","Números"),("Dt","Deuteronomio"),
 ("Jos","Josué"),("Jc","Jueces"),("Rt","Rut"),("1S","1 Samuel"),("2S","2 Samuel"),
@@ -273,9 +273,116 @@ def parse_navarra_epub(path):
         raise ValueError(f"Formato Navarra no reconocido o incompleto: {len(verses)} versículos, {len({x[0] for x in verses})} libros. No se modifica la Biblia anterior.")
     return verses
 
+
+SVG_NS = "http://www.w3.org/2000/svg"
+SVG_TAGS = {
+    "svg", "g", "defs", "symbol", "use", "path", "circle", "ellipse",
+    "rect", "line", "polyline", "polygon", "text", "tspan", "textPath",
+    "linearGradient", "radialGradient", "stop", "clipPath", "mask", "pattern",
+    "title", "desc"
+}
+SVG_ATTRS = {
+    "xmlns", "version", "width", "height", "viewBox", "preserveAspectRatio",
+    "x", "y", "x1", "x2", "y1", "y2", "cx", "cy", "r", "rx", "ry",
+    "dx", "dy", "d", "points", "transform", "fill", "fill-opacity",
+    "stroke", "stroke-width", "stroke-opacity", "stroke-linecap",
+    "stroke-linejoin", "stroke-dasharray", "stroke-dashoffset",
+    "opacity", "id", "class", "clip-path", "mask", "fill-rule",
+    "clip-rule", "font-family", "font-size", "font-weight", "font-style",
+    "text-anchor", "dominant-baseline", "letter-spacing", "word-spacing",
+    "gradientUnits", "gradientTransform", "spreadMethod",
+    "offset", "stop-color", "stop-opacity", "patternUnits",
+    "patternContentUnits", "patternTransform", "marker-start",
+    "marker-mid", "marker-end", "vector-effect", "paint-order",
+    "display", "visibility", "orient", "refX", "refY",
+    "markerWidth", "markerHeight", "markerUnits", "aria-label", "role"
+}
+SVG_STYLE_KEYS = {
+    "fill", "fill-opacity", "stroke", "stroke-width", "stroke-opacity",
+    "stroke-linecap", "stroke-linejoin", "stroke-dasharray",
+    "opacity", "font-family", "font-size", "font-weight", "font-style",
+    "text-anchor", "stop-color", "stop-opacity", "display",
+    "visibility", "fill-rule", "clip-rule", "paint-order"
+}
+def clean_svg_style(raw):
+    pairs = []
+    for entry in raw.split(";"):
+        if not entry.strip():
+            continue
+        if ":" not in entry:
+            raise ValueError("Estilo SVG no reconocido")
+        k, value = (p.strip() for p in entry.split(":", 1))
+        if k.lower() not in SVG_STYLE_KEYS:
+            continue
+        if not safe_svg_value(value):
+            raise ValueError("SVG contiene recursos externos o estilos no permitidos")
+        pairs.append(k.lower()+":"+value)
+    return ";".join(pairs)
+
+def safe_svg_value(value):
+    if len(value)>5000 or any(ord(c)<32 for c in value):
+        return False
+    candidate = re.sub(r"url\(\s*['\"]?#[A-Za-z0-9_.:-]+['\"]?\s*\)",
+                       "LOCAL_REFERENCE",value,flags=re.I)
+    return not re.search(r"url\s*\(|@import|expression\s*\(|javascript:|data:|https?:|<|>|\\",
+                         candidate,re.I)
+
+def sanitize_svg(path):
+    """Keep only inert SVG drawing primitives; never retain scripts, events or external files."""
+    if path.stat().st_size > 5_000_000:
+        raise ValueError("SVG demasiado grande (máximo 5 MB)")
+    source = path.read_bytes()
+    if re.search(rb"<!DOCTYPE|<!ENTITY|<\?xml-stylesheet",source,re.I):
+        raise ValueError("El SVG contiene definiciones externas prohibidas")
+    try:
+        tree = ET.fromstring(source)
+    except ET.ParseError as exc:
+        raise ValueError("El SVG no contiene XML válido") from exc
+    if tree.tag != "{"+SVG_NS+"}svg":
+        raise ValueError("La imagen no contiene una raíz SVG válida")
+    count = 0
+    def clean(node):
+        nonlocal count
+        count+=1
+        if count>30000:
+            raise ValueError("SVG demasiado complejo")
+        if not node.tag.startswith("{"+SVG_NS+"}"):
+            raise ValueError("SVG contiene elementos externos no admitidos")
+        tag=node.tag.split("}",1)[1]
+        if tag not in SVG_TAGS:
+            raise ValueError("SVG contiene elementos activos o no admitidos: "+tag)
+        out=ET.Element(node.tag)
+        for attr,value in node.attrib.items():
+            local=attr.split("}",1)[-1]
+            if local.lower().startswith("on"):
+                raise ValueError("SVG contiene eventos ejecutables")
+            if local in ("href","xlink:href"):
+                if tag!="use" or not re.fullmatch(r"#[A-Za-z0-9_.:-]{1,120}",value):
+                    raise ValueError("SVG contiene vínculos externos")
+                out.set("href",value)
+            elif local=="style":
+                cleaned=clean_svg_style(value)
+                if cleaned: out.set("style",cleaned)
+            elif local in SVG_ATTRS:
+                if not safe_svg_value(value):
+                    raise ValueError("SVG contiene atributos no seguros")
+                out.set(local,value)
+        if tag in ("title","desc","text","tspan","textPath"):
+            out.text=node.text or ""
+        for child in node:
+            out.append(clean(child))
+            if child.tail:
+                out[-1].tail=child.tail if tag in ("text","tspan","textPath") else None
+        return out
+    sanitized=clean(tree)
+    ET.register_namespace("",SVG_NS)
+    path.write_bytes(ET.tostring(sanitized,encoding="utf-8",xml_declaration=True))
+
 def validate_file(path, ext):
     with path.open("rb") as f:
         signature = f.read(16)
+    if ext == ".svg":
+        sanitize_svg(path)
     if ext == ".pdf" and not signature.startswith(b"%PDF-"):
         raise ValueError("PDF no válido")
     if ext == ".epub":
@@ -359,7 +466,7 @@ class Handler(BaseHTTPRequestHandler):
                     stream.write(chunk)
                     left -= len(chunk)
             validate_file(dest,ext)
-            return name, ext, stored, length
+            return name, ext, stored, dest.stat().st_size
         except Exception:
             dest.unlink(missing_ok=True)
             raise
@@ -451,7 +558,8 @@ class Handler(BaseHTTPRequestHandler):
                     row = get_doc(c,int(m.group(1)))
                     ext = row["extension"]
                     mime = {".pdf":"application/pdf",".png":"image/png",".jpg":"image/jpeg",
-                            ".jpeg":"image/jpeg",".webp":"image/webp",".gif":"image/gif"}.get(ext,"application/octet-stream")
+                            ".jpeg":"image/jpeg",".webp":"image/webp",".gif":"image/gif",
+                            ".svg":"image/svg+xml"}.get(ext,"application/octet-stream")
                     disposition = ("inline" if ext in IMAGES or ext==".pdf" else "attachment") + '; filename="scriptura-file'+ext+'"'
                     return self.respond(200,doc_path(row).read_bytes(),mime,disposition)
             if p == "/api/backup":

@@ -745,7 +745,7 @@ public final class MainActivity extends Activity {
             if(item.verse>=passage.first&&item.verse<=passage.last)visible.add(item);
         if(visible.isEmpty())return;
         addGap(parent,12);
-        parent.addView(text("MIS ANOTACIONES · "+visible.size(),12,ACCENT,true));
+        parent.addView(text("MIS SUBRAYADOS Y NOTAS · "+visible.size(),12,ACCENT,true));
         for(StudyAnnotations.Item item:visible){
             String label=(StudyAnnotations.UNDERLINE.equals(item.kind)?"﹏  ":"✎  ")
                 +annotationType(item)+" · v. "+item.verse;

@@ -28,6 +28,26 @@ python3 launcher.py
 Si la apertura del navegador falla, abre manualmente **http://127.0.0.1:8765**.
 El servidor solo escucha en 127.0.0.1: **no habilitar acceso externo ni publicar el puerto**.
 
+## Mejoras de lectura y anotaciones (revisión de interfaz)
+
+- La búsqueda de la sección **Biblia** y la barra superior de navegación del lector
+  permanecen visibles al desplazarse por el texto. Desde esa barra se puede cambiar
+  de libro, capítulo, ir al anterior/siguiente, guardar favorito o añadir un vínculo.
+- Los 73 libros aparecen en tarjetas con **nombre y número de capítulos en líneas
+  separadas**. La cuadrícula se adapta a la resolución del PC.
+- El panel derecho permite **escribir, guardar, editar y eliminar notas privadas**
+  asociadas al capítulo de la Biblia, a una sección EPUB o a una página PDF.
+- Para relacionar una nota con una frase concreta, selecciona el texto del
+  lector y pulsa **Usar selección** antes de **Guardar nota**. El botón **Ver cita**
+  regresa al texto. En PDF, puedes introducir manualmente una cita.
+- Las notas se guardan en SQLite, se incluyen en **Copia de seguridad** y
+  permanecen tras reiniciar Scriptura. Se solicita confirmación antes de
+  abandonar una lectura que tiene una anotación sin guardar.
+- Las anotaciones del lector no se sincronizan con Android.
+- Para mantener tus 35.000+ versículos y documentos al actualizar los archivos
+  del programa, **conserva siempre la carpeta privada `web/data/`**. No borres
+  ni sobrescribas `scriptura-web.db` o `uploads/`.
+
 ## Funcionalidades incluidas
 
 - **Biblia privada**: índice de los 73 libros, importación por separado del EPUB personal
@@ -46,6 +66,7 @@ El servidor solo escucha en 127.0.0.1: **no habilitar acceso externo ni publicar
 - **Referencias PDF**: por página y cita indicada manualmente, asociable también a
   documentos, imágenes o URL. La selección exacta de coordenadas del PDF todavía
   no está implementada.
+- **Anotaciones privadas por capítulo o cita**, con edición, borrado y regreso al texto.
 - **Favoritos, historial, copias de seguridad ZIP** desde la interfaz y eliminación
   de documentos o relaciones con confirmación.
 

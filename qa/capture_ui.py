@@ -151,8 +151,16 @@ def main():
         start(candidate=True)
         screen("01_inicio")
         hit("⚙")
-        assert_text("Tamaño de letra actual: 20 sp",scroll=True)
-        REPORT["checks"]["font_setting_persist_after_upgrade"]="PASS"
+        # Verificar dentro del diálogo modal, no en el margen externo.
+        for attempt in range(8):
+            if list(candidates(dump(),"Tamaño de letra actual: 20 sp")):
+                REPORT["checks"]["font_setting_persist_after_upgrade"]="PASS"
+                break
+            adb("shell","input","swipe","500","1230","500","475","420")
+            wait(.6)
+        else:
+            screen("01_ajustes_diagnostico")
+            raise RuntimeError("El tamaño de letra anterior no se conserva o no es visible")
         screen("01_ajustes")
         adb("shell","input","keyevent","4")
         wait(1)

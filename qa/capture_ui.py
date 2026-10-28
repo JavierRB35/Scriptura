@@ -44,6 +44,14 @@ def start(candidate=False):
         wait(.65)
         screen("01_splash_real")
     wait(5)
+    # El título «Scriptura» ya aparece en el splash; esperar al control
+    # accesible de Ajustes de MainActivity antes de seguir con el ensayo.
+    for attempt in range(12):
+        if list(candidates(dump(),"Abrir ajustes")):
+            return
+        wait(1)
+    screen("arranque_diagnostico")
+    raise RuntimeError("Inicio no aparece tras SplashActivity")
 
 def screen(name):
     path = SCREENSHOTS / (name + ".png")
@@ -118,7 +126,7 @@ def app_install(path):
     print("INSTALLED",path)
 
 def make_font_setting():
-    hit("⚙")
+    hit("Abrir ajustes")
     # Ajustes se presenta en un AlertDialog centrado. Los gestos en el margen
     # x=22 sirven para el atlas, pero quedan FUERA del diálogo de Ajustes.
     for attempt in range(8):
@@ -150,7 +158,7 @@ def main():
         app_install(candidate)
         start(candidate=True)
         screen("01_inicio")
-        hit("⚙")
+        hit("Abrir ajustes")
         # Verificar dentro del diálogo modal, no en el margen externo.
         for attempt in range(8):
             if list(candidates(dump(),"Tamaño de letra actual: 20 sp")):

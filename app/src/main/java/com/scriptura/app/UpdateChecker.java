@@ -245,11 +245,11 @@ public final class UpdateChecker {
                     long id=asset.optLong("id",0),size=asset.optLong("size",0);
                     String name=asset.optString("name","");
                     String hash=asset.optString("digest","");
-                    int code=candidate.build>Integer.MAX_VALUE?0:(int)candidate.build;
-                    if(!UpdateAssetRules.valid(tag,id,size,name,hash,code))continue;
+                    int buildCode=candidate.build>Integer.MAX_VALUE?0:(int)candidate.build;
+                    if(!UpdateAssetRules.valid(tag,id,size,name,hash,buildCode))continue;
                     String title=release.optString("name",tag);
                     candidateUpdate=new Update(tag,title.isEmpty()?tag:title,url,
-                        id,size,name,hash,code);
+                        id,size,name,hash,buildCode);
                     break;
                 }
                 if(candidateUpdate==null)continue;

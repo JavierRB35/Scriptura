@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
     private TextView caption;
     private int page=0;
     private int atlasMode=0;
+    private boolean atlasReturnToStudy=false;
     private String atlasBook="Gn";
     private BibleGeography.Place atlasPlace;
     private BibleGeography.Journey atlasJourney;
@@ -118,6 +119,7 @@ public final class MainActivity extends Activity {
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
+            atlasReturnToStudy=state.getBoolean("atlasReturnToStudy",false);
             indexBook=state.getString("indexBook","Gn");
             indexQuery=state.getString("indexQuery","");
             indexScope=state.getInt("indexScope",0);
@@ -141,6 +143,7 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle state){
         super.onSaveInstanceState(state);state.putInt("page",page);state.putString("mood",mood);
         state.putInt("atlasMode",atlasMode);state.putString("atlasBook",atlasBook);
+        state.putBoolean("atlasReturnToStudy",atlasReturnToStudy);
         state.putString("indexBook",indexBook);
         state.putString("indexQuery",indexQuery);
         state.putInt("indexScope",indexScope);
@@ -187,7 +190,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
         fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
         frame.addView(mapsFixed,fixedParams);
-        mapsFixed.setOnClickListener(v->openAtlas(0));
+        mapsFixed.setOnClickListener(v->{atlasReturnToStudy=false;openAtlas(0);});
 
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
@@ -209,7 +212,7 @@ public final class MainActivity extends Activity {
             if(selected)item.setBackground(bg(Color.rgb(29,54,78),10));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);
             lp.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(item,lp);
-            item.setOnClickListener(v->{page=dest;render();});
+            item.setOnClickListener(v->{atlasReturnToStudy=false;page=dest;render();});
         }
         frame.addView(nav);setContentView(frame);
         switch(page){
@@ -683,7 +686,7 @@ public final class MainActivity extends Activity {
         if(StudyAnnotations.ATLAS.equals(item.kind)){
             addGap(body,8);
             button(body,"Abrir atlas de "+Books.name(item.book),()->{
-                popup.dismiss();openBookAtlas(item.book);
+                popup.dismiss();atlasReturnToStudy=true;openBookAtlas(item.book);
             },true);
         }
         if(!item.url.isEmpty()){
@@ -1578,7 +1581,9 @@ public final class MainActivity extends Activity {
         else if(page==9){page=7;render();}
         else if(page==7||page==8){page=0;render();}
         else if(page==6){
-            if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
+            if(atlasReturnToStudy&&selected!=null){
+                atlasReturnToStudy=false;page=5;render();
+            }else if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
             else {page=0;render();}
         }
         else if(page!=0){page=0;render();}

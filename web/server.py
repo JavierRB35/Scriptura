@@ -474,9 +474,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.check_host()
             p, q = self.path_params()
-            if p in ("/","/index.html","/app.js","/style.css"):
+            if p in ("/","/index.html","/app.js","/annotations.js","/style.css"):
                 file = ROOT / (p.lstrip("/") or "index.html")
-                mime = "text/html; charset=utf-8" if p in ("/","/index.html") else ("text/javascript; charset=utf-8" if p=="/app.js" else "text/css; charset=utf-8")
+                mime = "text/html; charset=utf-8" if p in ("/","/index.html") else ("text/javascript; charset=utf-8" if p in ("/app.js","/annotations.js") else "text/css; charset=utf-8")
                 return self.respond(200,file.read_bytes(),mime)
             if p == "/api/health":
                 return self.respond(200,{"ok":True,"version":"0.1"})

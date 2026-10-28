@@ -144,3 +144,13 @@ búsqueda, no un artículo ficticio que podría dar 404. La Enciclopedia Católi
 solo artículos concretos cuyos enlaces se comprobaron: Fariseos, Saduceos, Apóstoles
 y Pecado (incluidas variantes gramaticales). Para otras palabras no se inventa una URL
 de la Enciclopedia Católica. No se modifica la Biblia privada ni el acceso de GitHub.
+
+
+## Estabilización 0.7.6 (sin funciones nuevas)
+
+- La importación valida los 73 libros y al menos 25.000 versículos antes de reemplazar el EPUB. La sustitución guarda una copia temporal del archivo anterior y la restaura si la transacción SQLite no se confirma; los cambios no borran favoritos ni historial.
+- Si la Biblia se importa pero la extracción secundaria de comentarios o introducciones falla, se informa explícitamente de que la importación fue parcial. No se presenta un fallo de comentarios como un error del EPUB completo.
+- La programación de avisos de nuevas versiones ya no invalida el guardado de un token correcto si Android rechaza la tarea periódica; la comprobación manual continúa disponible.
+- El desplegable de contexto histórico comienza cerrado en cada nuevo pasaje y no hereda el estado de la lectura anterior.
+- Pruebas unitarias de sustitución y recuperación del EPUB sintético y prueba de emulador de instalación sobre la APK 0.7.5 firmada, preservando preferencias. **No se incluye el EPUB privado en CI**.
+- Pendiente de prueba física: EPUB completo de Navarra, 73 libros y notas, Gemini real, fuente litúrgica y avisos en Android ARM64.

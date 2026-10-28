@@ -37,7 +37,9 @@ def start(candidate=False):
     adb("shell", "am", "start", "-n",activity)
     adb("shell","wm","dismiss-keyguard",check=False)
     if candidate:
-        wait(.2)
+        # Esperar a que Android dibuje el splash para evitar capturar
+        # la ventana de lanzamiento en blanco antes del primer frame.
+        wait(.65)
         screen("01_splash_real")
     wait(5)
 

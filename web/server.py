@@ -317,6 +317,13 @@ class Handler(BaseHTTPRequestHandler):
         if length > 100_000 or length < 1:
             raise ValueError("JSON vacío o demasiado grande")
         return json.loads(self.rfile.read(length))
+    def check_host(self):
+        from urllib.parse import urlsplit
+        host = self.headers.get("Host","")
+        valid = {"127.0.0.1:"+str(self.server.server_port),
+                 "localhost:"+str(self.server.server_port)}
+        if host not in valid:
+            raise ValueError("Host no permitido: accede mediante http://127.0.0.1")
     def check_origin(self):
         origin = self.headers.get("Origin")
         if origin and origin != "http://" + self.headers.get("Host",""):
@@ -347,6 +354,7 @@ class Handler(BaseHTTPRequestHandler):
             raise
     def do_GET(self):
         try:
+            self.check_host()
             p, q = self.path_params()
             if p in ("/","/index.html","/app.js","/style.css"):
                 file = ROOT / (p.lstrip("/") or "index.html")
@@ -359,7 +367,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond(200,{
                         "verses":c.execute("SELECT COUNT(*) FROM verses").fetchone()[0],
                         "documents":c.execute("SELECT COUNT(*) FROM documents").fetchone()[0],
-                        "links":c.execute("SELECT COUNT(*) FROM links").fetchone()[0],
+                        "links":(c.execute("SELECT COUNT(*) FROM links").fetchone()[0] +
+                                 c.execute("SELECT COUNT(*) FROM references_extra").fetchone()[0]),
                         "edition":(c.execute("SELECT value FROM settings WHERE key='edition'").fetchone() or [""])[0]
                     })
                 if p == "/api/books":
@@ -434,6 +443,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            self.check_host()
             self.check_origin()
             p,q = self.path_params()
             if p == "/api/upload":
@@ -562,6 +572,7 @@ class Handler(BaseHTTPRequestHandler):
             self.fail(e)
     def do_DELETE(self):
         try:
+            self.check_host()
             self.check_origin()
             p,_ = self.path_params()
             with conn() as c:

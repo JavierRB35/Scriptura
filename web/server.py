@@ -102,6 +102,17 @@ def init_db():
                     OR (resource_kind='document' AND document_id IS NOT NULL AND url IS NULL))
             );
             CREATE INDEX IF NOT EXISTS idx_refs_extra_target ON references_extra(kind,target);
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('bible','epub','pdf')),
+                target TEXT NOT NULL,
+                start_offset INTEGER, end_offset INTEGER,
+                quote TEXT NOT NULL DEFAULT '',
+                body TEXT NOT NULL,
+                created TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_notes_target ON notes(kind,target);
         """)
 
 def safe_name(name):
@@ -400,6 +411,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self.respond(200,[dict(r) for r in c.execute("SELECT ref,created FROM favorites ORDER BY created DESC").fetchall()])
                 if p == "/api/history":
                     return self.respond(200,[dict(r) for r in c.execute("SELECT ref,seen FROM history ORDER BY seen DESC LIMIT 60").fetchall()])
+                if p == "/api/notes":
+                    kind, target = q.get("kind",""), q.get("target","")
+                    sql="SELECT * FROM notes WHERE 1=1"
+                    args=[]
+                    if kind: sql+=" AND kind=?"; args.append(kind)
+                    if target: sql+=" AND target=?"; args.append(target)
+                    sql+=" ORDER BY updated DESC,id DESC"
+                    return self.respond(200,[dict(row) for row in c.execute(sql,args)])
                 if p == "/api/references":
                     kind, target = q.get("kind",""), q.get("target","")
                     sql = ("SELECT r.*,d.title document_title,d.extension document_extension "
@@ -483,6 +502,51 @@ class Handler(BaseHTTPRequestHandler):
                     ref = str(body.get("ref",""))[:120]
                     if not ref:raise ValueError("Referencia vacía")
                     c.execute("INSERT OR REPLACE INTO history(ref,seen) VALUES(?,CURRENT_TIMESTAMP)",(ref,))
+                    return self.respond(200,{"ok":True})
+                if p == "/api/notes":
+                    kind = str(body.get("kind",""))
+                    target = str(body.get("target",""))[:120]
+                    text = str(body.get("body","")).strip()
+                    quote = str(body.get("quote","")).strip()
+                    start, end = body.get("start"),body.get("end")
+                    if not text or len(text)>10000:
+                        raise ValueError("La anotación debe contener entre 1 y 10.000 caracteres")
+                    if len(quote)>1600:
+                        raise ValueError("La cita es demasiado larga")
+                    if kind=="bible":
+                        match=re.fullmatch(r"([A-Za-z0-9]+):([1-9]\d*)",target)
+                        if not match or match.group(1) not in BOOK_NAMES or int(match.group(2))>200:
+                            raise ValueError("Referencia bíblica inválida")
+                    elif kind in ("epub","pdf"):
+                        match=re.fullmatch(r"([1-9]\d*):(\d+)",target)
+                        if not match or (kind=="pdf" and int(match.group(2))<1):
+                            raise ValueError("Referencia de documento inválida")
+                        document=get_doc(c,int(match.group(1)))
+                        if document["extension"]!=("."+kind):
+                            raise ValueError("El documento no corresponde a su tipo")
+                    else:
+                        raise ValueError("Tipo de nota inválido")
+                    if quote:
+                        if kind=="pdf":
+                            start=end=None
+                        elif (not isinstance(start,int) or not isinstance(end,int)
+                              or isinstance(start,bool) or isinstance(end,bool)
+                              or not 0<=start<end<=2_000_000):
+                            raise ValueError("La selección no es válida")
+                    else:
+                        start=end=None
+                    cur=c.execute(
+                        "INSERT INTO notes(kind,target,start_offset,end_offset,quote,body) VALUES(?,?,?,?,?,?)",
+                        (kind,target,start,end,quote,text))
+                    return self.respond(201,{"id":cur.lastrowid})
+                m=re.fullmatch(r"/api/notes/([1-9]\d*)/update",p)
+                if m:
+                    text=str(body.get("body","")).strip()
+                    if not text or len(text)>10000:
+                        raise ValueError("La anotación debe contener entre 1 y 10.000 caracteres")
+                    cur=c.execute("UPDATE notes SET body=?,updated=CURRENT_TIMESTAMP WHERE id=?",
+                                  (text,int(m.group(1))))
+                    if not cur.rowcount: raise ValueError("Anotación inexistente")
                     return self.respond(200,{"ok":True})
                 if p == "/api/references":
                     kind = str(body.get("kind",""))
@@ -576,6 +640,10 @@ class Handler(BaseHTTPRequestHandler):
             self.check_origin()
             p,_ = self.path_params()
             with conn() as c:
+                m = re.fullmatch(r"/api/notes/([1-9]\d*)",p)
+                if m:
+                    c.execute("DELETE FROM notes WHERE id=?",(int(m.group(1)),))
+                    return self.respond(200,{"ok":True})
                 m = re.fullmatch(r"/api/references/(\d+)",p)
                 if m:
                     c.execute("DELETE FROM references_extra WHERE id=?",(int(m.group(1)),))
@@ -587,7 +655,7 @@ class Handler(BaseHTTPRequestHandler):
                 m = re.fullmatch(r"/api/documents/(\d+)",p)
                 if m:
                     row = get_doc(c,int(m.group(1)))
-                    for table in ("links","references_extra"):
+                    for table in ("links","references_extra","notes"):
                         c.execute("DELETE FROM "+table+" WHERE kind IN ('pdf','epub') AND target LIKE ?",
                                   (str(row["id"])+":%",))
                     c.execute("DELETE FROM documents WHERE id=?",(row["id"],))

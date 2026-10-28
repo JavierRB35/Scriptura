@@ -262,7 +262,9 @@ async function showLinksForReader() {
   if(!state.reader||state.reader.target!==r.target)return;
   const holder=$("#passage-links"); if(!holder)return;
   const rows=[...extra.map(x=>({...x,source:"extra"})),...images.map(x=>({...x,source:"legacy"}))];
+  state.visibleLinks=rows;
   holder.innerHTML=rows.length?rows.map(linkRow).join(""):empty("Aún no hay recursos vinculados.");
+  applyReaderMarks();
 }
 
 async function showNotesForReader() {
@@ -271,13 +273,14 @@ async function showNotesForReader() {
   if(!state.reader||r!==state.reader||!$("#passage-notes"))return;
   state.visibleNotes=data;
   $("#passage-notes").innerHTML=data.length?data.map(note=>
-    '<div class="note-item">'+(note.quote?'<blockquote class="note-quote">“'+esc(short(note.quote,210))+'”</blockquote>':'<span class="tag">Nota general</span>')
+    '<div class="note-item" data-note-id="'+note.id+'">'+(note.quote?'<blockquote class="note-quote">“'+esc(short(note.quote,210))+'”</blockquote>':'<span class="tag">Nota general</span>')
     +'<p class="note-body">'+esc(note.body)+'</p><small class="muted">'+esc(note.updated)+'</small>'
     +'<div class="notes-actions">'
     +(note.quote&&note.start_offset!==null?action("go-note","Ver cita",'data-start="'+note.start_offset+'" data-end="'+note.end_offset+'"',"ghost-button small-btn"):"")
     +action("edit-note","Editar",'data-id="'+note.id+'"',"ghost-button small-btn")
     +action("delete-note","Eliminar",'data-id="'+note.id+'"',"danger-button small-btn")+'</div></div>').join("")
     :empty("Sin anotaciones. Escribe la primera arriba.");
+  applyReaderMarks();
 }
 function clearNote() {
   state.noteEditingId=null;state.noteDraftQuote=null;
@@ -302,7 +305,9 @@ async function saveNote() {
     await api("/api/notes/"+state.noteEditingId+"/update","POST",{body:text});
     toast("Anotación actualizada.");
   } else {
-    const sel=state.noteDraftQuote,quote=sel?.quote||(r.kind==="pdf"?$("#pdf-note-quote")?.value.trim():"");
+    const selected=state.selection;
+    const sel=state.noteDraftQuote||(selected?.kind===r.kind&&selected?.target===r.target?selected:null);
+    const quote=sel?.quote||(r.kind==="pdf"?$("#pdf-note-quote")?.value.trim():"");
     await api("/api/notes","POST",{kind:r.kind,target:r.target,body:text,quote:quote||"",
       start:sel?.start??null,end:sel?.end??null});
     toast("Anotación guardada.");
@@ -324,16 +329,62 @@ async function deleteNote(id) {
   await showNotesForReader();toast("Anotación eliminada.");
 }
 function locateText(start,end) {
-  const node=$("#reader-text")?.firstChild;
-  if(!node||node.nodeType!==Node.TEXT_NODE||end<=start||end>node.textContent.length)return;
-  const range=document.createRange();range.setStart(node,start);range.setEnd(node,end);
-  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
-  const marker=document.createElement("span");
-  try{
-    range.surroundContents(marker);
-    marker.scrollIntoView({block:"center",behavior:"smooth"});
-    marker.replaceWith(...marker.childNodes);
-  }catch(_){$("#reader-text").scrollIntoView({block:"start"});}
+  const ok=ScripturaMarks.locate($("#reader-text"),start,end);
+  if(!ok)toast("El fragmento ya no coincide con el texto actual.",true);
+}
+function applyReaderMarks() {
+  const r=state.reader;
+  if(!r||r.kind==="pdf")return;
+  ScripturaMarks.render($("#reader-text"),r.text||"",state.visibleNotes||[],state.visibleLinks||[]);
+}
+function hideSelectionActions() {
+  const bar=$("#selection-actions");
+  if(bar)bar.hidden=true;
+}
+function showSelectionActions(range) {
+  const bar=$("#selection-actions");if(!bar)return;
+  const rect=range.getBoundingClientRect();
+  if(!rect||!Number.isFinite(rect.left))return;
+  bar.hidden=false;
+  const width=Math.min(405,window.innerWidth-24);
+  const left=Math.max(12,Math.min(window.innerWidth-width-12,rect.left));
+  const preferred=rect.top-66;
+  const top=preferred>=12?preferred:Math.min(window.innerHeight-65,rect.bottom+12);
+  bar.style.left=left+"px";
+  bar.style.top=Math.max(10,top)+"px";
+}
+function focusStudyResource(type,id) {
+  const query=type==="note"
+    ?'[data-note-id="'+Number(id)+'"]'
+    :'[data-link-key="'+String(id).replace(/[^a-zA-Z0-9-]/g,"")+'"]';
+  const item=$("#content")?.querySelector(query);
+  if(!item)return;
+  item.scrollIntoView({block:"center",behavior:"smooth"});
+  item.classList.add("study-focused");
+  window.setTimeout(()=>item.classList.remove("study-focused"),2500);
+}
+function openMarkDetails(event) {
+  const mark=event.target.closest(".study-mark");
+  if(!mark||!$("#reader-text")?.contains(mark))return;
+  if(window.getSelection()&&!window.getSelection().isCollapsed)return;
+  state.selection=null;hideSelectionActions();
+  const noteIds=(mark.dataset.notes||"").split(",").filter(Boolean).map(Number);
+  const linkKeys=(mark.dataset.links||"").split(",").filter(Boolean);
+  const notes=(state.visibleNotes||[]).filter(n=>noteIds.includes(n.id));
+  const links=(state.visibleLinks||[]).filter(r=>linkKeys.includes(r.source+"-"+r.id));
+  const box=$("#highlight-details");if(!box)return;
+  const fragment=mark.textContent.trim();
+  box.innerHTML='<strong>Referencias de este fragmento</strong>'
+    +'<p class="highlight-quote">“'+esc(short(fragment,180))+'”</p>'
+    +notes.map(n=>'<div class="highlight-entry"><span class="tag">Nota</span><span>'+esc(short(n.body,140))+'</span>'
+      +action("focus-note","Ver nota",'data-id="'+n.id+'"',"ghost-button small-btn")+'</div>').join("")
+    +links.map(r=>'<div class="highlight-entry"><span class="tag">URL o documento</span><span>'
+      +esc(r.resource_kind==="url"?(r.label||r.url):r.document_title||r.image_title||"Recurso")+'</span>'
+      +action("focus-link","Ver vínculo",'data-id="'+r.source+"-"+r.id+'"',"ghost-button small-btn")
+      +'</div>').join("")
+    +'<p class="muted">Pulsa «Ver» para consultar el contenido en el panel.</p>';
+  box.hidden=false;
+  box.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
 function safeUrl(url) {
   try {const parsed=new URL(url);return ["http:","https:"].includes(parsed.protocol)?parsed.href:"";}catch(_){return "";}
@@ -348,14 +399,14 @@ function linkRow(row) {
   } else {
     resource='<a href="'+fileUrl(row.document_id)+'" target="_blank" rel="noopener">'+esc(row.document_title||"Documento")+'</a>';
   }
-  return '<div class="link-entry"><div class="quote">“'+esc(short(row.quote,220))+'”</div>'
+  return '<div class="link-entry" data-link-key="'+esc(row.source+"-"+row.id)+'"><div class="quote">“'+esc(short(row.quote,220))+'”</div>'
     +'<div style="margin:8px 0">'+resource+'</div>'
     +(row.note?'<p class="note">'+esc(row.note)+'</p>':'')
     +'<div class="toolbar">'+action("go-link","Ir al pasaje",'data-kind="'+esc(row.kind)+'" data-target="'+esc(row.target)+'" data-start="'+(row.start_offset??"")+'" data-end="'+(row.end_offset??"")+'"',"ghost-button small-btn")
     +action("delete-link","Eliminar",'data-source="'+row.source+'" data-id="'+row.id+'"',"danger-button small-btn")
     +'</div></div>';
 }
-async function beginLink() {
+async function beginLink(preferredType) {
   const r=state.reader;if(!r)throw Error("Abre antes un capítulo o documento.");
   let sel=state.selection;
   if(r.kind==="pdf") {
@@ -374,7 +425,7 @@ async function beginLink() {
   const docs=state.docs;
   $("#link-image").innerHTML=docs.map(d=>'<option value="'+d.id+'">'+esc(d.title+" · "+d.category)+'</option>').join("");
   $("#link-note").value="";$("#link-url").value="";$("#link-label").value="";
-  $("#resource-type").value=docs.length?"document":"url";
+  $("#resource-type").value=(preferredType==="document"&&docs.length)?"document":(preferredType==="url"?"url":docs.length?"document":"url");
   switchResource();
   $("#link-dialog").showModal();
 }
@@ -402,6 +453,7 @@ async function saveLink(event) {
   $("#link-dialog").close();
   toast("Referencia vinculada al fragmento.");
   await showLinksForReader();
+  hideSelectionActions();
 }
 async function renderLibrary() {
   const query=state.libraryQuery||"", category=state.libraryCategory||"";

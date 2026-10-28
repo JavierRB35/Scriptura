@@ -43,7 +43,7 @@ function fileUrl(id) {return "/api/documents/"+encodeURIComponent(id)+"/file";}
 function categoryFor(name) {
   const ext=(name.split(".").pop()||"").toLowerCase();
   if(ext==="epub") return "Libros";
-  if(["png","jpg","jpeg","gif","webp"].includes(ext)) return "Imágenes";
+  if(["png","jpg","jpeg","gif","webp","svg"].includes(ext)) return "Imágenes";
   if(["gpx","kml"].includes(ext)) return "Mapas";
   if(["pdf","docx","txt","md","xlsx"].includes(ext)) return "Documentos";
   return "Otros";
@@ -144,7 +144,7 @@ async function openDocument(id) {
   if(doc.extension===".pdf")return openPdf(doc,1);
   title(doc.title);
   state.reader=null;state.selection=null;
-  const img=[".png",".jpg",".jpeg",".gif",".webp"].includes(doc.extension);
+  const img=[".png",".jpg",".jpeg",".gif",".webp",".svg"].includes(doc.extension);
   content('<div class="reader-head"><h2>'+esc(doc.title)+'</h2>'+action("open-library","Volver a Biblioteca")+'</div>'
     +'<div class="card">'+(img?'<img class="picture" src="'+fileUrl(doc.id)+'" alt="'+esc(doc.title)+'">':empty("Vista previa no disponible para este formato."))
     +'<div class="toolbar"><a class="primary-button" href="'+fileUrl(doc.id)+'" download>Descargar archivo</a>'
@@ -470,7 +470,7 @@ async function renderLibrary() {
   const upload='<div class="card"><h2>Importar documentos</h2>'
     +'<p class="muted">Archivos de hasta 80 MB. Solo se almacenan en la carpeta local de Scriptura.</p>'
     +'<form id="upload-form"><div class="form-row"><div class="field grow"><label for="upload-file">Seleccionar archivo</label>'
-    +'<input id="upload-file" type="file" required accept=".epub,.pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.docx,.xlsx,.kml,.gpx,.zip"></div>'
+    +'<input id="upload-file" type="file" required accept=".epub,.pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.txt,.md,.docx,.xlsx,.kml,.gpx,.zip"></div>'
     +'<div class="field"><label for="upload-category">Clasificación</label>'
     +'<select id="upload-category">'+optionList(categories,"Documentos")+'</select></div>'
     +'<button class="primary-button" type="submit">Importar</button></div></form></div>';
@@ -485,7 +485,7 @@ async function renderLibrary() {
   });
 }
 function docCard(doc) {
-  const image=[".png",".jpg",".jpeg",".webp",".gif"].includes(doc.extension);
+  const image=[".png",".jpg",".jpeg",".webp",".gif",".svg"].includes(doc.extension);
   return '<div class="doc-card">'
     +(image?'<img class="doc-image" src="'+fileUrl(doc.id)+'" alt="'+esc(doc.title)+'">'
       :'<div class="doc-icon">'+(doc.extension===".epub"?"📖":doc.extension===".pdf"?"▣":"▤")+'</div>')
@@ -500,16 +500,32 @@ function docCard(doc) {
 }
 async function upload(event) {
   event.preventDefault();
-  const file=$("#upload-file").files[0];
+  const file=$("#upload-file")?.files?.[0];
   if(!file)throw Error("Selecciona un archivo.");
   if(file.size>80*1024*1024)throw Error("El archivo supera los 80 MB.");
+  const ext=("."+file.name.split(".").pop()).toLowerCase();
+  const supported=[".epub",".pdf",".png",".jpg",".jpeg",".webp",".gif",".svg",
+    ".txt",".md",".docx",".xlsx",".kml",".gpx",".zip"];
+  if(!supported.includes(ext))throw Error("Formato "+ext+" no admitido. Puedes importar SVG, PNG, JPG, WEBP, GIF y otros documentos.");
   const category=$("#upload-category").value;
-  const res=await fetch("/api/upload?"+qp({filename:file.name,category}),{
-    method:"POST",headers:{"Content-Type":"application/octet-stream"},body:file});
-  let result={};try{result=await res.json();}catch(_){}
-  if(!res.ok)throw Error(result.error||"Falló la importación.");
-  toast("Documento importado correctamente.");
-  await refresh();await renderLibrary();
+  const button=$("#upload-form button[type='submit']");
+  if(button){button.disabled=true;button.textContent="Importando…";}
+  try{
+    let response;
+    try {
+      response=await fetch("/api/upload?"+qp({filename:file.name,category}),{
+        method:"POST",headers:{"Content-Type":"application/octet-stream"},body:file});
+    } catch (cause) {
+      throw Error("No se puede conectar con Scriptura local. Verifica la ventana de Python, que siga abierta, y recarga la página. Detalle: "+(cause.message||"Error de red"));
+    }
+    let result={};
+    try {result=await response.json();}catch(_) {}
+    if(!response.ok)throw Error(result.error||"La importación ha sido rechazada (HTTP "+response.status+").");
+    toast("Documento importado correctamente: "+file.name);
+    await refresh();await renderLibrary();
+  }finally{
+    if(button&&button.isConnected){button.disabled=false;button.textContent="Importar";}
+  }
 }
 async function editDoc(id) {
   const doc=state.docs.find(d=>d.id===Number(id));if(!doc)return;
@@ -553,6 +569,8 @@ async function renderSaved() {
 function renderHelp() {
   content('<div class="card"><h2>Scriptura Web · versión preliminar</h2>'
     +'<p>Esta web funciona <strong>solo en tu ordenador</strong> con un servidor local Python, sin nube y sin crear cuentas. Los archivos y la base de datos quedan en la carpeta <code>web/data</code>.</p>'
+    +'<p>Para anotar un fragmento, selecciónalo con el ratón y pulsa «Añadir nota»; escribe en el panel derecho y guarda. Para adjuntar una web, selecciona el texto y pulsa «Vincular URL». Las frases vinculadas aparecen resaltadas: amarillo para notas, azul para recursos y violeta cuando coinciden ambos.</p>'
+    +'<p>Se admiten imágenes SVG vectoriales con sanitización de contenido activo. Algunos SVG complejos con elementos externos o no admitidos se rechazan por seguridad.</p>'
     +'<p>EPUB: se ofrece lectura por secciones en texto plano; imágenes interiores, maquetación y notas editoriales no se reproducen íntegramente en esta primera fase.</p>'
     +'<p>PDF: se visualiza mediante el lector integrado del navegador. Los vínculos permiten indicar página y citar el fragmento, pero todavía no se identifican coordenadas exactas dentro de cada página.</p>'
     +'<p>Para conservar tu biblioteca, utiliza <strong>Copia de seguridad</strong>. El ZIP contiene tus documentos privados: guárdalo con protección adecuada. No se cifra automáticamente.</p>'

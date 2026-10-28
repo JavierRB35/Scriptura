@@ -136,6 +136,7 @@ public final class MainActivity extends Activity {
         if(UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction())){
             UpdateChecker.Update target=UpdateChecker.available(this);
             UpdateChecker.markPrompted(this,target);
+            setIntent(new Intent(this,MainActivity.class));
             frame.post(()->updateInstaller.start(target));
         }
         if(UpdateChecker.configured(this)){
@@ -158,6 +159,7 @@ public final class MainActivity extends Activity {
         if(UpdateInstaller.ACTION_UPDATE.equals(intent.getAction())){
             UpdateChecker.Update available=UpdateChecker.available(this);
             UpdateChecker.markPrompted(this,available);
+            setIntent(new Intent(this,MainActivity.class));
             updateInstaller.start(available);
         }
     }
@@ -1614,7 +1616,7 @@ public final class MainActivity extends Activity {
         UpdateChecker.markPrompted(this,update);
         new AlertDialog.Builder(this)
             .setTitle("Nueva actualización de Scriptura")
-            .setMessage("Versión "+update.tag+" disponible.\\n\\n"+
+            .setMessage("Versión "+update.tag+" disponible.\n\n"+
                 "Pulsa «Actualizar» para descargarla y comprobar su firma. "+
                 "Después Android te pedirá confirmar su instalación. "+
                 "No necesitas abrir GitHub ni desinstalar Scriptura.")

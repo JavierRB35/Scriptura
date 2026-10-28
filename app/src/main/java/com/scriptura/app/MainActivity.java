@@ -556,6 +556,7 @@ public final class MainActivity extends Activity {
 
     /** Annotations belong to a precise verse in the user-imported EPUB. */
     private static String annotationType(StudyAnnotations.Item item){
+        if(StudyAnnotations.ATLAS.equals(item.kind))return "Atlas bíblico";
         if(StudyAnnotations.MAP.equals(item.kind))return "Mapa";
         if(StudyAnnotations.WEB.equals(item.kind))return "Web";
         return "Nota";
@@ -570,7 +571,7 @@ public final class MainActivity extends Activity {
             AnnotationAnchors.Range range=AnnotationAnchors.inDisplay(
                 passage.text,item.verse,item.offset,item.quote);
             if(range==null)continue;
-            int color=StudyAnnotations.MAP.equals(item.kind)?Color.rgb(207,236,216):
+            int color=(StudyAnnotations.MAP.equals(item.kind)||StudyAnnotations.ATLAS.equals(item.kind))?Color.rgb(207,236,216):
                 StudyAnnotations.WEB.equals(item.kind)?Color.rgb(208,229,252):
                 Color.rgb(255,234,174);
             marked.setSpan(new android.text.style.BackgroundColorSpan(color),
@@ -669,7 +670,8 @@ public final class MainActivity extends Activity {
         }
         addGap(body,12);
         String description=item.body.trim().isEmpty()?
-            (StudyAnnotations.MAP.equals(item.kind)?"Mapa vinculado":"Enlace vinculado")
+            (StudyAnnotations.ATLAS.equals(item.kind)?"Mapa bíblico de este libro":
+                StudyAnnotations.MAP.equals(item.kind)?"Mapa vinculado":"Enlace vinculado")
             :item.body;
         TextView full=text(description,16,DARK,false);
         full.setTextIsSelectable(true);body.addView(full);
@@ -678,6 +680,12 @@ public final class MainActivity extends Activity {
         AlertDialog popup=new AlertDialog.Builder(this)
             .setTitle(annotationType(item)+" · Scriptura")
             .setView(scroll).setNegativeButton("Cerrar",null).create();
+        if(StudyAnnotations.ATLAS.equals(item.kind)){
+            addGap(body,8);
+            button(body,"Abrir atlas de "+Books.name(item.book),()->{
+                popup.dismiss();openBookAtlas(item.book);
+            },true);
+        }
         if(!item.url.isEmpty()){
             addGap(body,8);
             button(body,StudyAnnotations.MAP.equals(item.kind)?"Abrir mapa":"Abrir página web",
@@ -712,7 +720,7 @@ public final class MainActivity extends Activity {
         addGap(content,12);
         content.addView(text("Tipo de anotación",13,DARK,true));
         Spinner type=new Spinner(this);
-        String[] choices={"Nota escrita","Mapa (enlace)","Página web"};
+        String[] choices={"Nota escrita","Mapa externo (URL)","Página web","Atlas de Scriptura"};
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,
             android.R.layout.simple_spinner_item,choices);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -724,12 +732,13 @@ public final class MainActivity extends Activity {
         EditText url=input(content,"https://... enlace a mapa o web",false);
         if(editing!=null)url.setText(editing.url);
         int initial=editing==null?0:StudyAnnotations.MAP.equals(editing.kind)?1:
-            StudyAnnotations.WEB.equals(editing.kind)?2:0;
+            StudyAnnotations.WEB.equals(editing.kind)?2:
+            StudyAnnotations.ATLAS.equals(editing.kind)?3:0;
         type.setSelection(initial);
-        url.setVisibility(initial==0?View.GONE:View.VISIBLE);
+        url.setVisibility(initial==1||initial==2?View.VISIBLE:View.GONE);
         type.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onItemSelected(AdapterView<?> v,View view,int i,long id){
-                url.setVisibility(i==0?View.GONE:View.VISIBLE);
+                url.setVisibility(i==1||i==2?View.VISIBLE:View.GONE);
             }
             @Override public void onNothingSelected(AdapterView<?> v){}
         });
@@ -742,13 +751,14 @@ public final class MainActivity extends Activity {
             .setOnClickListener(v->{
                 int selection=type.getSelectedItemPosition();
                 String kind=selection==1?StudyAnnotations.MAP:
-                    selection==2?StudyAnnotations.WEB:StudyAnnotations.NOTE;
+                    selection==2?StudyAnnotations.WEB:
+                    selection==3?StudyAnnotations.ATLAS:StudyAnnotations.NOTE;
                 String comment=note.getText().toString().trim();
-                String link=selection==0?"":url.getText().toString().trim();
+                String link=(selection==1||selection==2)?url.getText().toString().trim():"";
                 if(selection==0&&comment.isEmpty()){
                     note.setError("Escribe el contenido de la nota");return;
                 }
-                if(selection!=0&&!studyLinkIsSafe(link)){
+                if((selection==1||selection==2)&&!studyLinkIsSafe(link)){
                     url.setError("Introduce una URL http/https válida");return;
                 }
                 try{

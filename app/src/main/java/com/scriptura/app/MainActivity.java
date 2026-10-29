@@ -79,6 +79,10 @@ public final class MainActivity extends Activity {
     private BibleGeography.Journey atlasJourney;
     private BibleStore.Passage selected;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
+    private boolean epubImportInProgress=false;
+    private AlertDialog epubImportDialog;
+    private TextView epubImportStep,epubImportDetail;
+    private int epubPreviousOrientation=android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     private String mood="Tranquilidad";
     private Calendar massDay=Calendar.getInstance();
     private int textSize=18;
@@ -1261,35 +1265,123 @@ public final class MainActivity extends Activity {
         for(String ref:history)button(column,ref,()->lookup(ref),false);
     }
     private void pickEpub(){
+        if(epubImportInProgress){
+            Toast.makeText(this,"Ya se está importando una Biblia.",Toast.LENGTH_SHORT).show();
+            return;
+        }
         Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"application/epub+zip","application/zip","application/octet-stream"});
         startActivityForResult(intent,PICK_EPUB);
     }
+    /** Indicador persistente; el procesado se ejecuta siempre fuera del hilo UI. */
+    private void showEpubImportDialog(){
+        LinearLayout content=vertical();
+        content.setPadding(dp(22),dp(8),dp(22),dp(12));
+        LinearLayout row=new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        ProgressBar spinner=new ProgressBar(this);
+        row.addView(spinner,new LinearLayout.LayoutParams(dp(40),dp(40)));
+        LinearLayout labels=vertical();
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);
+        lp.leftMargin=dp(13);
+        row.addView(labels,lp);
+        epubImportStep=text("Paso 1 de 3 · Texto bíblico",16,DARK,true);
+        labels.addView(epubImportStep);
+        epubImportDetail=text("Abriendo el archivo EPUB…",14,MUTED,false);
+        labels.addView(epubImportDetail);
+        content.addView(row);
+        addGap(content,14);
+        hint(content,"El proceso continúa en segundo plano. Mantén Scriptura abierta; al terminar aparecerá el resultado.");
+        epubImportDialog=new AlertDialog.Builder(this)
+            .setTitle("Preparando tu Biblia")
+            .setView(content).create();
+        epubImportDialog.setCancelable(false);
+        epubImportDialog.setCanceledOnTouchOutside(false);
+        epubImportDialog.show();
+    }
+    private void setEpubImportStatus(String step,String detail){
+        runOnUiThread(()->{
+            if(!epubImportInProgress||isFinishing()||isDestroyed())return;
+            if(epubImportStep!=null)epubImportStep.setText(step);
+            if(epubImportDetail!=null)epubImportDetail.setText(detail);
+        });
+    }
+    private void finishEpubImport(boolean success,String message){
+        if(!epubImportInProgress)return;
+        epubImportInProgress=false;
+        if(epubImportDialog!=null){
+            epubImportDialog.dismiss();
+            epubImportDialog=null;
+        }
+        epubImportStep=null;epubImportDetail=null;
+        // Recupera la orientación que tenía el usuario antes de importar.
+        setRequestedOrientation(epubPreviousOrientation);
+        if(isFinishing()||isDestroyed())return;
+        new AlertDialog.Builder(this)
+            .setTitle(success?"Biblioteca preparada":"No se pudo importar la Biblia")
+            .setMessage(message)
+            .setPositiveButton("Entendido",(dialog,which)->{
+                if(success){page=0;render();}
+            }).show();
+    }
+    private void beginEpubImport(Uri uri){
+        if(epubImportInProgress){
+            Toast.makeText(this,"Ya se está importando una Biblia.",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        epubImportInProgress=true;
+        epubPreviousOrientation=getRequestedOrientation();
+        // Evita que girar el teléfono destruya la actividad a mitad de una
+        // transacción de SQLite. No cancela ni interrumpe la importación.
+        setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+        showEpubImportDialog();
+        try{
+            worker.execute(()->{
+                try{
+                    int verses=store.importEpub(uri,detail->
+                        setEpubImportStatus("Paso 1 de 3 · Texto bíblico",detail));
+                    setEpubImportStatus("Paso 2 de 3 · Comentarios",
+                        "Extrayendo los comentarios de tu EPUB privado…");
+                    int comments=0,intros=0;
+                    StringBuilder warnings=new StringBuilder();
+                    try{comments=notes.importFromPrivateEpub();}
+                    catch(Exception error){
+                        android.util.Log.w("Scriptura","Error al extraer comentarios: "+
+                            error.getClass().getSimpleName());
+                        warnings.append("\n\nNo se han podido actualizar los comentarios; la Biblia sí está importada.");
+                    }
+                    setEpubImportStatus("Paso 3 de 3 · Introducciones",
+                        "Preparando las introducciones de los libros…");
+                    try{intros=introductions.importPrivateEpub();}
+                    catch(Exception error){
+                        android.util.Log.w("Scriptura","Error al extraer introducciones: "+
+                            error.getClass().getSimpleName());
+                        warnings.append("\n\nNo se han podido actualizar las introducciones.");
+                    }
+                    String summary=verses+" versículos, "+comments+" comentarios y "+
+                        intros+" introducciones extraídas del EPUB personal."+warnings;
+                    runOnUiThread(()->finishEpubImport(true,summary));
+                }catch(Exception error){
+                    android.util.Log.e("Scriptura","Importación de EPUB fallida: "+
+                        error.getClass().getSimpleName());
+                    String reason=error.getMessage()==null||error.getMessage().trim().isEmpty()?
+                        "Error al procesar el archivo EPUB.":error.getMessage();
+                    runOnUiThread(()->finishEpubImport(false,reason+
+                        "\n\nSi existía una biblioteca anterior, se ha conservado."));
+                }
+            });
+        }catch(RejectedExecutionException error){
+            finishEpubImport(false,
+                "No se pudo iniciar la importación. Cierra y vuelve a abrir Scriptura.");
+        }
+    }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(request==PICK_EPUB&&result==RESULT_OK&&data!=null&&data.getData()!=null){
-            Uri uri=data.getData();
-            async("Importando y verificando 73 libros...",()->{
-                int n=store.importEpub(uri);
-                int comments=0,intros=0;
-                StringBuilder warnings=new StringBuilder();
-                try{comments=notes.importFromPrivateEpub();}
-                catch(Exception error){
-                    android.util.Log.w("Scriptura","Error al extraer comentarios: "+error.getClass().getSimpleName());
-                    warnings.append("\n\nLos comentarios no se han podido actualizar; la Biblia sí está importada.");
-                }
-                try{intros=introductions.importPrivateEpub();}
-                catch(Exception error){
-                    android.util.Log.w("Scriptura","Error al extraer introducciones: "+error.getClass().getSimpleName());
-                    warnings.append("\n\nLas introducciones no se han podido actualizar.");
-                }
-                return n+" versículos, "+comments+" comentarios y "+intros+
-                    " introducciones extraídas del EPUB personal."+warnings;
-            },msg->{new AlertDialog.Builder(this).setTitle("Biblioteca preparada")
-                .setMessage(msg).setPositiveButton("Continuar",(d,w)->{page=0;render();}).show();});
-        }
+        if(request==PICK_EPUB&&result==RESULT_OK&&data!=null&&data.getData()!=null)
+            beginEpubImport(data.getData());
     }
 
     private void openIndex(){page=7;render();}
@@ -1899,9 +1991,25 @@ public final class MainActivity extends Activity {
         else if(page!=0){page=0;render();}
         else super.onBackPressed();
     }
+    private void closeStores(){
+        store.close();notes.close();studyAnnotations.close();introductions.close();
+        if(historyContext!=null)historyContext.close();
+    }
     @Override protected void onDestroy(){
-        worker.shutdownNow();
-        store.close();notes.close();studyAnnotations.close();introductions.close();if(historyContext!=null)historyContext.close();
+        if(epubImportDialog!=null){
+            epubImportDialog.dismiss();
+            epubImportDialog=null;
+        }
+        if(epubImportInProgress){
+            // Si el sistema destruye la actividad, la tarea debe terminar antes
+            // de cerrar SQLite; su transacción protege los datos previos.
+            try{worker.execute(this::closeStores);}
+            catch(RejectedExecutionException ignored){closeStores();}
+            worker.shutdown();
+        }else{
+            worker.shutdownNow();
+            closeStores();
+        }
         super.onDestroy();
     }
 }

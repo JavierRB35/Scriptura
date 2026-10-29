@@ -13,6 +13,15 @@ App Android nativa para búsqueda local de la Biblia de la Universidad de Navarr
 - Se conserva importación local del EPUB privado, avisos de actualización, anotaciones, ajustes, versión y firma. No se cambian los módulos de Misa, Biblioteca, Arte ni Mapas.
 - La QA automatizada comprueba los enlaces superiores desde Inicio, su ausencia en las otras pantallas y la navegación inferior existente; falta prueba visual en teléfono real. El EPUB personal, los ajustes y los datos locales no se modifican.
 
+## Importación EPUB con progreso visible
+
+- Al seleccionar el EPUB personal aparece inmediatamente un diálogo modal persistente **Preparando tu Biblia** con indicador indeterminado, sin bloquear el hilo principal de Android.
+- El usuario ve tres etapas reales: **texto bíblico**, **comentarios** e **introducciones**. Durante el procesamiento del texto, se informa de documentos procesados respecto al total detectado; en las otras etapas se informa periódicamente del número de documentos revisados. **No se muestra un porcentaje global inventado**.
+- Se impide abrir una segunda importación mientras otra está en curso, se conserva temporalmente la orientación y el resultado final permanece visible hasta que el usuario lo confirma.
+- Al acabar se informa de los versículos, comentarios e introducciones extraídos, diferenciando éxito, importación parcial de complementos y error. Se mantiene la transacción protectora de la biblioteca y del EPUB privado y no se registran sus textos ni datos sensibles.
+- Se conservan las cinco pestañas inferiores, el esquema del lector, la firma de APK y las demás pantallas.
+- Validación automática: compilación y pruebas unitarias de Android; **pendiente prueba manual con el EPUB privado en el teléfono**.
+
 ## Privacidad y licencias
 
 - **No se sube ni distribuye el EPUB protegido**. Cada usuario importa su propio ejemplar adquirido. Se copia y procesa exclusivamente en almacenamiento privado de Android.

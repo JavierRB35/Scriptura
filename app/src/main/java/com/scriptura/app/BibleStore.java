@@ -91,12 +91,28 @@ public final class BibleStore extends SQLiteOpenHelper {
             else if(p.book!=null) append(p,content,false);
         }
     }
+    /** Recibe información real de las fases desde el hilo de importación. */
+    public interface ImportProgress {
+        void onStatus(String status);
+    }
+    private static void report(ImportProgress progress,String status){
+        if(progress!=null)progress.onStatus(status);
+    }
+    private static boolean isScriptureDocument(String filename){
+        if(!filename.matches("(?i).*?/Text/part\\d+(_split_\\d+)?\\.html"))return false;
+        int part=Integer.parseInt(filename.replaceAll("(?i).*?/Text/part(\\d+).*","$1"));
+        return part>=6&&part<=235;
+    }
     public int importEpub(Uri uri) throws Exception {
+        return importEpub(uri,null);
+    }
+    public int importEpub(Uri uri,ImportProgress progress) throws Exception {
         File tmp=new File(context.getFilesDir(),"scriptura-import.tmp");
         File permanent=new File(context.getFilesDir(),"biblia-usuario.epub");
         PrivateEpubSwap swap=new PrivateEpubSwap(permanent);
         boolean committed=false;
         try {
+        report(progress,"Copiando el EPUB a la biblioteca privada…");
         long copied=0;
         try(InputStream input=context.getContentResolver().openInputStream(uri); OutputStream output=new FileOutputStream(tmp)){
             if(input==null)throw new IOException("No se pudo abrir el EPUB");
@@ -110,13 +126,15 @@ public final class BibleStore extends SQLiteOpenHelper {
             if(zip.getEntry("META-INF/container.xml")==null)throw new IOException("Archivo EPUB no válido");
             db.execSQL("DELETE FROM verses");
             ArrayList<? extends ZipEntry> files=Collections.list(zip.entries());
+            int totalDocuments=0;
+            for(ZipEntry entry:files)
+                if(isScriptureDocument(entry.getName()))totalDocuments++;
+            report(progress,"Leyendo los documentos bíblicos (0 de "+totalDocuments+")…");
             Part current=new Part();
             int processed=0;long totalUncompressed=0;
             for(ZipEntry entry:files){
                 String filename=entry.getName();
-                if(!filename.matches("(?i).*?/Text/part\\d+(_split_\\d+)?\\.html"))continue;
-                int part=Integer.parseInt(filename.replaceAll("(?i).*?/Text/part(\\d+).*","$1"));
-                if(part<6||part>235)continue;
+                if(!isScriptureDocument(filename))continue;
                 if(entry.getSize()>3_000_000)throw new IOException("EPUB contiene un documento demasiado grande");
                 totalUncompressed+=Math.max(entry.getSize(),0);
                 if(totalUncompressed>180_000_000)throw new IOException("EPUB excede el límite de descompresión");
@@ -127,8 +145,11 @@ public final class BibleStore extends SQLiteOpenHelper {
                     while((n=in.read(bytes))!=-1){buffer.write(bytes,0,n);if(buffer.size()>3_000_000)throw new IOException("Documento EPUB demasiado grande");}
                 }
                 processHtml(db,buffer.toString("UTF-8"),current);
+                if(processed==1||processed%20==0||processed==totalDocuments)
+                    report(progress,"Leyendo los documentos bíblicos ("+processed+" de "+totalDocuments+")…");
             }
             flush(db,current);
+            report(progress,"Verificando los versículos y los 73 libros…");
             try(Cursor c=db.rawQuery("SELECT COUNT(*) FROM verses",null)){
                 imported=c.moveToFirst()?c.getInt(0):0;
             }
@@ -140,6 +161,7 @@ public final class BibleStore extends SQLiteOpenHelper {
             putMeta(db,"edition","Sagrada Biblia · Universidad de Navarra (archivo privado)");
             // Solo modificar el EPUB guardado después de verificar los 73 libros.
             // El respaldo permite restaurar si SQLite no llega a confirmar.
+            report(progress,"Guardando la biblioteca validada…");
             swap.replace(tmp);
             db.setTransactionSuccessful();
         }finally{

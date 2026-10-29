@@ -98,6 +98,9 @@ public final class NavarraIntroductions extends SQLiteOpenHelper {
 
     /** Nunca devuelve contenido bíblico en el registro; solo el número de entradas. */
     public int importPrivateEpub() throws Exception {
+        return importPrivateEpub(null);
+    }
+    public int importPrivateEpub(java.util.function.Consumer<String> progress) throws Exception {
         File file=sourceFile();
         if(!file.isFile())return 0;
         LinkedHashMap<String,StringBuilder> chunks=new LinkedHashMap<>();
@@ -114,6 +117,8 @@ public final class NavarraIntroductions extends SQLiteOpenHelper {
                 if(part<236||part>271)continue;
                 if(entry.getSize()>2_000_000)continue;
                 if(++processed>1300)throw new IOException("Demasiados documentos introductorios");
+                if(progress!=null&&(processed==1||processed%5==0))
+                    progress.accept("Revisando introducciones ("+processed+" documentos)…");
                 ByteArrayOutputStream buffer=new ByteArrayOutputStream();
                 try(InputStream stream=archive.getInputStream(entry)){
                     byte[] block=new byte[8192];int n;

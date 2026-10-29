@@ -1317,14 +1317,15 @@ public final class MainActivity extends Activity {
             epubImportDialog=null;
         }
         epubImportStep=null;epubImportDetail=null;
-        // Recupera la orientación que tenía el usuario antes de importar.
-        setRequestedOrientation(epubPreviousOrientation);
         if(isFinishing()||isDestroyed())return;
+        // Conserva la orientación hasta que se haya leído el resultado, para
+        // que una rotación física no cierre prematuramente este diálogo.
         new AlertDialog.Builder(this)
             .setTitle(success?"Biblioteca preparada":"No se pudo importar la Biblia")
             .setMessage(message)
             .setPositiveButton("Entendido",(dialog,which)->{
                 if(success){page=0;render();}
+                setRequestedOrientation(epubPreviousOrientation);
             }).show();
     }
     private void beginEpubImport(Uri uri){
@@ -1347,7 +1348,8 @@ public final class MainActivity extends Activity {
                         "Extrayendo los comentarios de tu EPUB privado…");
                     int comments=0,intros=0;
                     StringBuilder warnings=new StringBuilder();
-                    try{comments=notes.importFromPrivateEpub();}
+                    try{comments=notes.importFromPrivateEpub(detail->
+                        setEpubImportStatus("Paso 2 de 3 · Comentarios",detail));}
                     catch(Exception error){
                         android.util.Log.w("Scriptura","Error al extraer comentarios: "+
                             error.getClass().getSimpleName());
@@ -1355,7 +1357,8 @@ public final class MainActivity extends Activity {
                     }
                     setEpubImportStatus("Paso 3 de 3 · Introducciones",
                         "Preparando las introducciones de los libros…");
-                    try{intros=introductions.importPrivateEpub();}
+                    try{intros=introductions.importPrivateEpub(detail->
+                        setEpubImportStatus("Paso 3 de 3 · Introducciones",detail));}
                     catch(Exception error){
                         android.util.Log.w("Scriptura","Error al extraer introducciones: "+
                             error.getClass().getSimpleName());

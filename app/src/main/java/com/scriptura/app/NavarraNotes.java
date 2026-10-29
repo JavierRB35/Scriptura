@@ -58,6 +58,9 @@ public final class NavarraNotes extends SQLiteOpenHelper {
             new Object[]{book,chap,verse,body.substring(0,Math.min(12000,body.length()))});
     }
     public int importFromPrivateEpub() throws Exception {
+        return importFromPrivateEpub(null);
+    }
+    public int importFromPrivateEpub(java.util.function.Consumer<String> progress) throws Exception {
         File epub=new File(context.getFilesDir(),"biblia-usuario.epub");
         if(!epub.isFile())return 0;
         SQLiteDatabase db=getWritableDatabase();
@@ -72,6 +75,8 @@ public final class NavarraNotes extends SQLiteOpenHelper {
                 int number=Integer.parseInt(name.replaceAll("(?i).*?/Text/part(\\d+).*","$1"));
                 if(number<236||ent.getSize()>3_000_000)continue;
                 if(++processed>7000)throw new IOException("Demasiados documentos de comentarios");
+                if(progress!=null&&(processed==1||processed%50==0))
+                    progress.accept("Analizando los comentarios ("+processed+" documentos)…");
                 uncompressed+=Math.max(0,ent.getSize());
                 if(uncompressed>190_000_000)throw new IOException("Se excede el límite de descompresión");
                 ByteArrayOutputStream buffer=new ByteArrayOutputStream();

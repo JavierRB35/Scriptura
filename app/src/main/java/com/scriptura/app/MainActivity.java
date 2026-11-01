@@ -181,9 +181,11 @@ public final class MainActivity extends Activity {
         }
         if(page==5&&selected==null)page=readerOrigin;
         render();
-        ScripturaBackup.backupAsync(this,false);
-        if(ScripturaBackup.failureCount(this)>=3)
-            Toast.makeText(this,"La copia automática necesita atención. Revisa Ajustes.",Toast.LENGTH_LONG).show();
+        ScripturaBackup.backupAsync(this,false,(result,error)->{
+            // Check after this attempt, not against failures accumulated before it finishes.
+            if(error!=null&&ScripturaBackup.failureCount(this)>=3&&!isFinishing()&&!isDestroyed())
+                Toast.makeText(this,"La copia automática ha fallado: "+error,Toast.LENGTH_LONG).show();
+        });
         if(UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction())){
             UpdateChecker.Update target=UpdateChecker.available(this);
             UpdateChecker.markPrompted(this,target);
@@ -1399,8 +1401,9 @@ public final class MainActivity extends Activity {
         if(request==PICK_EPUB)beginEpubImport(data.getData());
         else if(request==ScripturaBackup.PICK_DESTINATION||request==PICK_EXISTING_BACKUP){
             try{
-                ScripturaBackup.chooseDestination(this,data.getData(),data.getFlags());
-                Toast.makeText(this,"Ubicación guardada. Copia inicial iniciada.",Toast.LENGTH_SHORT).show();
+                ScripturaBackup.chooseDestination(this,data.getData(),data.getFlags(),
+                    this::showBackupResult);
+                Toast.makeText(this,"Destino elegido. Creando y verificando la copia…",Toast.LENGTH_SHORT).show();
             }catch(Exception error){showError("No se pudo configurar la copia: "+error.getMessage());}
         }else if(request==ScripturaBackup.PICK_RESTORE)confirmRestore(data.getData());
     }
@@ -1857,8 +1860,8 @@ public final class MainActivity extends Activity {
         button(box,"Elegir ubicación del archivo",this::chooseBackupLocation,false);
         button(box,"Crear copia ahora",()->{
             if(!ScripturaBackup.configured(this)){chooseBackupLocation();return;}
-            ScripturaBackup.backupAsync(this,true);
-            Toast.makeText(this,"Copia iniciada en segundo plano",Toast.LENGTH_SHORT).show();
+            ScripturaBackup.backupAsync(this,true,this::showBackupResult);
+            Toast.makeText(this,"Creando y verificando la copia…",Toast.LENGTH_SHORT).show();
         },false);
         button(box,"Restaurar desde un archivo",this::pickRestoreFile,false);
         hint(box,"La copia incluye tus bases de datos, anotaciones, Biblia importada y ajustes de lectura. Las claves privadas no se exportan.");
@@ -1896,6 +1899,22 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();
+    }
+    private void showBackupResult(ScripturaBackup.BackupResult result,String error){
+        if(isFinishing()||isDestroyed())return;
+        if(error!=null){
+            showError("La copia no se ha podido completar: "+error+
+                "\nComprueba la ubicación y vuelve a intentarlo desde Ajustes.");
+        }else if(result==ScripturaBackup.BackupResult.SAVED){
+            Toast.makeText(this,"Copia guardada y verificada correctamente",Toast.LENGTH_LONG).show();
+        }else if(result==ScripturaBackup.BackupResult.IMPORT_IN_PROGRESS){
+            showError("La copia se ha pospuesto porque hay una importación en curso. "+
+                "Vuelve a crearla al finalizar la importación.");
+        }else if(result==ScripturaBackup.BackupResult.DESTINATION_CHANGED){
+            Toast.makeText(this,"Destino cambiado; se usará el nuevo archivo",Toast.LENGTH_SHORT).show();
+        }else if(result==ScripturaBackup.BackupResult.UNCHANGED){
+            Toast.makeText(this,"La copia ya está actualizada",Toast.LENGTH_SHORT).show();
+        }
     }
     private void chooseBackupLocation(){
         // Android AlertDialog shows either a message or list items, not both.

@@ -1898,8 +1898,9 @@ public final class MainActivity extends Activity {
             .setView(scroll).setPositiveButton("Cerrar",null).show();
     }
     private void chooseBackupLocation(){
-        new AlertDialog.Builder(this).setTitle("Archivo único de copia")
-            .setMessage("Elige dónde guardar Scriptura.backup. Las siguientes copias escribirán sobre ese mismo archivo.")
+        // Android AlertDialog shows either a message or list items, not both.
+        // Keep both actions visible so the user can create or reuse one backup file.
+        new AlertDialog.Builder(this).setTitle("Destino de Scriptura.backup")
             .setItems(new String[]{"Crear archivo en una ubicación","Elegir un archivo ya existente"},(dialog,choice)->{
                 Intent intent=new Intent(choice==0?Intent.ACTION_CREATE_DOCUMENT:Intent.ACTION_OPEN_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1907,7 +1908,11 @@ public final class MainActivity extends Activity {
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|
                     Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
                 if(choice==0)intent.putExtra(Intent.EXTRA_TITLE,"Scriptura.backup");
-                startActivityForResult(intent,choice==0?ScripturaBackup.PICK_DESTINATION:PICK_EXISTING_BACKUP);
+                try{
+                    startActivityForResult(intent,choice==0?ScripturaBackup.PICK_DESTINATION:PICK_EXISTING_BACKUP);
+                }catch(ActivityNotFoundException error){
+                    showError("Android no dispone de un selector de archivos compatible.");
+                }
             }).setNegativeButton("Cancelar",null).show();
     }
 

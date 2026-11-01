@@ -5,7 +5,7 @@ on:
     branches: ['build/author-logo-apk-20261101']
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -52,10 +52,25 @@ jobs:
           test -s app/build/outputs/apk/release/app-release.apk
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk dist/Scriptura-0.7.9-build.158-author-logo.apk
+          cp app/build/outputs/apk/release/app-release.apk dist/Scriptura-0.7.9-build.158.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Scriptura-APK-firmado-autor-logo
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publicar Release reconocida por el actualizador
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v0.7.9-build.158"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "El tag $TAG ya tiene una Release. No se sustituirá." >&2
+            exit 1
+          fi
+          gh release create "$TAG" dist/Scriptura-0.7.9-build.158.apk \
+            --repo "$GITHUB_REPOSITORY" --target main \
+            --title "Scriptura 0.7.9 · compilación 158" \
+            --notes "Actualización visual: firma de autor transparente en la pantalla de inicio. APK oficial firmado." \
+            --prerelease

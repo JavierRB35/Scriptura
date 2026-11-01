@@ -47,7 +47,8 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_2
-          ram-size: 2048M
+          disk-size: 2048M
+          ram-size: 1536M
           heap-size: 256M
           disable-animations: true
           emulator-boot-timeout: 420

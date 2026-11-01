@@ -170,13 +170,12 @@ final class ScripturaBackup {
     /** Build each SQLite snapshot transactionally via ATTACH, without raw-copying a live WAL. */
     private static void snapshotDatabase(File origin,File snapshot) throws Exception {
         SQLiteDatabase db=SQLiteDatabase.openDatabase(origin.getPath(),null,SQLiteDatabase.OPEN_READWRITE);
-        boolean attached=false;
         try{
             checkDatabase(db);
-            db.execSQL("ATTACH DATABASE '"+snapshot.getPath().replace("'","''")+"' AS snapshot");
-            attached=true;
+            // A transaction pins the SQLite connection used for ATTACH and all queries.
             db.beginTransaction();
             try{
+                db.execSQL("ATTACH DATABASE '"+snapshot.getPath().replace("'","''")+"' AS snapshot");
                 ArrayList<String[]> tables=new ArrayList<>(),indexes=new ArrayList<>();
                 try(Cursor cursor=db.rawQuery("SELECT type,name,sql FROM sqlite_master "+
                     "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC,name",null)){
@@ -205,9 +204,8 @@ final class ScripturaBackup {
                 db.execSQL("PRAGMA snapshot.user_version="+version);
                 db.setTransactionSuccessful();
             }finally{db.endTransaction();}
-            db.execSQL("DETACH DATABASE snapshot");attached=false;
         }finally{
-            if(attached)try{db.execSQL("DETACH DATABASE snapshot");}catch(Exception ignored){}
+            // Closing the private connection also detaches its snapshot database.
             db.close();
         }
         SQLiteDatabase verified=SQLiteDatabase.openDatabase(snapshot.getPath(),null,SQLiteDatabase.OPEN_READONLY);

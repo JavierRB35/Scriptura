@@ -129,10 +129,12 @@ final class ScripturaBackup {
         File epub=new File(c.getFilesDir(),FILE);
         if(p.getBoolean("had_epub",false)&&!epub.isFile())
             throw new IOException("Falta el EPUB anterior. Se conserva la última copia válida.");
-        File[] stale=c.getCacheDir().listFiles();
+        // Cache entries can be evicted by Android while a snapshot is being built.
+        // Use private app storage for the short-lived staging directory instead.
+        File[] stale=c.getFilesDir().listFiles();
         if(stale!=null)for(File item:stale)
             if(item.getName().startsWith("scriptura-backup-"))deleteStage(item);
-        File stage=new File(c.getCacheDir(),"scriptura-backup-"+System.nanoTime());
+        File stage=new File(c.getFilesDir(),"scriptura-backup-"+System.nanoTime());
         if(!stage.mkdirs())throw new IOException("No se pudo preparar la copia local.");
         try{
             LinkedHashMap<String,File> entries=new LinkedHashMap<>();
@@ -140,7 +142,10 @@ final class ScripturaBackup {
                 File origin=source(c,name);
                 if(!origin.isFile())continue;
                 File snapshot=new File(stage,name);
-                snapshotDatabase(origin,snapshot);
+                try{snapshotDatabase(origin,snapshot);}
+                catch(Exception failure){
+                    throw new IOException("No se pudo preparar "+name+": "+failure.getMessage(),failure);
+                }
                 entries.put("db/"+name,snapshot);
             }
             if(epub.isFile())entries.put("files/"+FILE,epub);
@@ -205,49 +210,73 @@ final class ScripturaBackup {
         }finally{deleteStage(stage);}
     }
 
-    /** Build each SQLite snapshot transactionally via ATTACH, without raw-copying a live WAL. */
-    private static void snapshotDatabase(File origin,File snapshot) throws Exception {
+    /**
+     * Use SQLite's consistent online VACUUM INTO snapshot when available.
+     * The legacy ATTACH path is retained for Android versions with SQLite < 3.27.
+     * The source remains open while the snapshot is taken; no live WAL is copied raw.
+     */
+    static void snapshotDatabase(File origin,File snapshot) throws Exception {
+        if(!snapshot.getParentFile().isDirectory())
+            throw new IOException("No existe la carpeta temporal privada.");
         SQLiteDatabase db=SQLiteDatabase.openDatabase(origin.getPath(),null,SQLiteDatabase.OPEN_READWRITE);
         try{
             checkDatabase(db);
-            // A transaction pins the SQLite connection used for ATTACH and all queries.
-            db.beginTransaction();
-            try{
-                db.execSQL("ATTACH DATABASE '"+snapshot.getPath().replace("'","''")+"' AS snapshot");
-                ArrayList<String[]> tables=new ArrayList<>(),indexes=new ArrayList<>();
-                try(Cursor cursor=db.rawQuery("SELECT type,name,sql FROM sqlite_master "+
-                    "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC,name",null)){
-                    while(cursor.moveToNext()){
-                        String[] item={cursor.getString(1),cursor.getString(2)};
-                        if("table".equals(cursor.getString(0)))tables.add(item);
-                        else if("index".equals(cursor.getString(0)))indexes.add(item);
-                    }
-                }
-                for(String[] table:tables){
-                    String definition=table[1];int bracket=definition.indexOf('(');
-                    if(bracket<0)throw new IOException("Esquema de base de datos no compatible.");
-                    db.execSQL("CREATE TABLE snapshot."+identifier(table[0])+" "+definition.substring(bracket));
-                    db.execSQL("INSERT INTO snapshot."+identifier(table[0])+" SELECT * FROM main."+identifier(table[0]));
-                }
-                for(String[] index:indexes){
-                    String sql=index[1];int on=sql.toUpperCase(Locale.ROOT).indexOf(" ON ");
-                    if(on<0)throw new IOException("Índice SQLite no compatible.");
-                    String unique=sql.toUpperCase(Locale.ROOT).startsWith("CREATE UNIQUE")?"UNIQUE ":"";
-                    db.execSQL("CREATE "+unique+"INDEX snapshot."+identifier(index[0])+sql.substring(on));
-                }
-                int version=0;
-                try(Cursor cur=db.rawQuery("PRAGMA main.user_version",null)){
-                    if(cur.moveToFirst())version=cur.getInt(0);
-                }
-                db.execSQL("PRAGMA snapshot.user_version="+version);
-                db.setTransactionSuccessful();
-            }finally{db.endTransaction();}
-        }finally{
-            // Closing the private connection also detaches its snapshot database.
-            db.close();
-        }
+            if(supportsVacuumInto(db)){
+                db.execSQL("VACUUM INTO '"+snapshot.getPath().replace("'","''")+"'");
+            }else{
+                snapshotDatabaseLegacy(db,snapshot);
+            }
+        }finally{db.close();}
+        if(!snapshot.isFile()||snapshot.length()==0)
+            throw new IOException("SQLite no creó la instantánea de "+origin.getName()+".");
         SQLiteDatabase verified=SQLiteDatabase.openDatabase(snapshot.getPath(),null,SQLiteDatabase.OPEN_READONLY);
         try{checkDatabase(verified);}finally{verified.close();}
+    }
+    private static boolean supportsVacuumInto(SQLiteDatabase db){
+        try(Cursor cursor=db.rawQuery("SELECT sqlite_version()",null)){
+            if(!cursor.moveToFirst())return false;
+            String[] parts=cursor.getString(0).split("\\.");
+            int major=Integer.parseInt(parts[0]),minor=Integer.parseInt(parts[1]);
+            return major>3||(major==3&&minor>=27);
+        }catch(Exception error){
+            Log.w(TAG,"No se pudo consultar la versión SQLite; se usará el método clásico.",error);
+            return false;
+        }
+    }
+    /** Compatibility path for SQLite before VACUUM INTO was added (3.27). */
+    private static void snapshotDatabaseLegacy(SQLiteDatabase db,File snapshot) throws Exception {
+        // Pin one connection for ATTACH, table reads and the entire transaction.
+        db.beginTransaction();
+        try{
+            db.execSQL("ATTACH DATABASE '"+snapshot.getPath().replace("'","''")+"' AS snapshot");
+            ArrayList<String[]> tables=new ArrayList<>(),indexes=new ArrayList<>();
+            try(Cursor cursor=db.rawQuery("SELECT type,name,sql FROM sqlite_master "+
+                "WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC,name",null)){
+                while(cursor.moveToNext()){
+                    String[] item={cursor.getString(1),cursor.getString(2)};
+                    if("table".equals(cursor.getString(0)))tables.add(item);
+                    else if("index".equals(cursor.getString(0)))indexes.add(item);
+                }
+            }
+            for(String[] table:tables){
+                String definition=table[1];int bracket=definition.indexOf('(');
+                if(bracket<0)throw new IOException("Esquema de base de datos no compatible.");
+                db.execSQL("CREATE TABLE snapshot."+identifier(table[0])+" "+definition.substring(bracket));
+                db.execSQL("INSERT INTO snapshot."+identifier(table[0])+" SELECT * FROM main."+identifier(table[0]));
+            }
+            for(String[] index:indexes){
+                String sql=index[1];int on=sql.toUpperCase(Locale.ROOT).indexOf(" ON ");
+                if(on<0)throw new IOException("Índice SQLite no compatible.");
+                String unique=sql.toUpperCase(Locale.ROOT).startsWith("CREATE UNIQUE")?"UNIQUE ":"";
+                db.execSQL("CREATE "+unique+"INDEX snapshot."+identifier(index[0])+sql.substring(on));
+            }
+            int version=0;
+            try(Cursor cur=db.rawQuery("PRAGMA main.user_version",null)){
+                if(cur.moveToFirst())version=cur.getInt(0);
+            }
+            db.execSQL("PRAGMA snapshot.user_version="+version);
+            db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
     }
     private static String identifier(String name){return "\""+name.replace("\"","\"\"")+"\"";}
     private static void checkDatabase(SQLiteDatabase db) throws IOException {

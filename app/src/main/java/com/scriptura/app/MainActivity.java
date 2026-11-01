@@ -184,7 +184,7 @@ public final class MainActivity extends Activity {
         ScripturaBackup.backupAsync(this,false,(result,error)->{
             // Check after this attempt, not against failures accumulated before it finishes.
             if(error!=null&&ScripturaBackup.failureCount(this)>=3&&!isFinishing()&&!isDestroyed())
-                Toast.makeText(this,"La copia automática ha fallado: "+error,Toast.LENGTH_LONG).show();
+                Toast.makeText(this,"Copia automática fallida. Consulta el error en Ajustes.",Toast.LENGTH_LONG).show();
         });
         if(UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction())){
             UpdateChecker.Update target=UpdateChecker.available(this);
@@ -1854,6 +1854,7 @@ public final class MainActivity extends Activity {
         section(box,"Copia de seguridad","Un único archivo en la ubicación que elijas. Se actualiza al abrir, solo si hay cambios.");
         long last=ScripturaBackup.lastSuccess(this);
         hint(box,last>0?"Última copia válida: "+java.text.DateFormat.getDateTimeInstance().format(new java.util.Date(last)):
+            ScripturaBackup.configured(this)?"Destino configurado, pero aún no hay una copia verificada.":
             "Sin copia todavía. Elige primero un archivo de destino.");
         if(!ScripturaBackup.lastError(this).isEmpty())
             hint(box,"Último error: "+ScripturaBackup.lastError(this));
@@ -1904,7 +1905,7 @@ public final class MainActivity extends Activity {
         if(isFinishing()||isDestroyed())return;
         if(error!=null){
             showError("La copia no se ha podido completar: "+error+
-                "\nComprueba la ubicación y vuelve a intentarlo desde Ajustes.");
+                "\nLa copia nueva no se ha confirmado. Revisa el error y vuelve a intentarlo.");
         }else if(result==ScripturaBackup.BackupResult.SAVED){
             Toast.makeText(this,"Copia guardada y verificada correctamente",Toast.LENGTH_LONG).show();
         }else if(result==ScripturaBackup.BackupResult.IMPORT_IN_PROGRESS){

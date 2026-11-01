@@ -62,9 +62,5 @@ jobs:
           script: |
             adb install app/build/outputs/apk/debug/app-debug.apk
             adb shell am broadcast -n com.scriptura.app/.BackupQaReceiver
-            RESULT="$(adb shell run-as com.scriptura.app cat files/backup-qa-result.txt)"
-            echo "$RESULT"
-            case "$RESULT" in
-              PASS:*) exit 0 ;;
-              *) exit 1 ;;
-            esac
+            adb shell run-as com.scriptura.app cat files/backup-qa-result.txt
+            adb exec-out run-as com.scriptura.app cat files/backup-qa-result.txt | grep -q '^PASS:'

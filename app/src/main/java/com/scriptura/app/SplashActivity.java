@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -64,7 +65,34 @@ public final class SplashActivity extends Activity {
         check.setTextSize(12);check.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams checkLp=new LinearLayout.LayoutParams(-1,-2);
         checkLp.topMargin=dp(34);root.addView(check,checkLp);
-        setContentView(root);
+        // Firma del autor: recurso PNG con transparencia, separada de la marca Scriptura.
+        FrameLayout splash=new FrameLayout(this);
+        splash.addView(root,new FrameLayout.LayoutParams(-1,-1));
+
+        LinearLayout credit=new LinearLayout(this);
+        credit.setOrientation(LinearLayout.HORIZONTAL);
+        credit.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView authorMark=new ImageView(this);
+        authorMark.setImageResource(R.drawable.creator_mark);
+        authorMark.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        authorMark.setContentDescription(null); // Decorativo: el texto da la atribución.
+        credit.addView(authorMark,new LinearLayout.LayoutParams(dp(38),dp(38)));
+
+        TextView author=new TextView(this);
+        author.setText("Desarrollado por\nCarlos Javier Ruiz Bermúdez");
+        author.setTextSize(11);
+        author.setTextColor(Color.rgb(197,211,218));
+        author.setGravity(Gravity.CENTER_VERTICAL);
+        author.setLineSpacing(dp(2),1f);
+        LinearLayout.LayoutParams authorLp=new LinearLayout.LayoutParams(-2,-2);
+        authorLp.leftMargin=dp(10);
+        credit.addView(author,authorLp);
+
+        FrameLayout.LayoutParams creditLp=new FrameLayout.LayoutParams(-2,-2,
+                Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+        creditLp.bottomMargin=dp(24);
+        splash.addView(credit,creditLp);
+        setContentView(splash);
 
         // La clave de GitHub está cifrada en Android Keystore. Nunca pedirla
         // desde el splash, ni detener el arranque si hay problemas de red.

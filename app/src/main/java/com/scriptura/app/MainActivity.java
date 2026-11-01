@@ -21,6 +21,7 @@ import java.util.concurrent.*;
 
 public final class MainActivity extends Activity {
     private static final int PICK_EPUB=1027;
+    private static final int PICK_EXISTING_BACKUP=2033;
     // Paleta variable: el modo estándar conserva los colores originales de Scriptura.
     private int DARK=Color.rgb(13,35,56), GOLD=Color.rgb(218,168,92), MUTED=Color.rgb(71,89,105);
     private int BG=Color.rgb(255,252,246), SURFACE=Color.WHITE, SOFT=Color.rgb(245,231,200);
@@ -151,6 +152,11 @@ public final class MainActivity extends Activity {
         if(displayMode==DisplayModes.BATTERY)setTheme(R.style.Theme_ScripturaNight);
         super.onCreate(state);
         updatePalette();
+        try{ScripturaBackup.recoverInterruptedRestore(this);}
+        catch(java.io.IOException recovery){
+            showError("No se pudo recuperar una restauración interrumpida. Los datos no se han modificado: "+recovery.getMessage());
+            finish();return;
+        }
         getWindow().setStatusBarColor(NAV_BG);
         getWindow().setNavigationBarColor(BG);
         if(Build.VERSION.SDK_INT>=26)
@@ -175,6 +181,9 @@ public final class MainActivity extends Activity {
         }
         if(page==5&&selected==null)page=readerOrigin;
         render();
+        ScripturaBackup.backupAsync(this,false);
+        if(ScripturaBackup.failureCount(this)>=3)
+            Toast.makeText(this,"La copia automática necesita atención. Revisa Ajustes.",Toast.LENGTH_LONG).show();
         if(UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction())){
             UpdateChecker.Update target=UpdateChecker.available(this);
             UpdateChecker.markPrompted(this,target);
@@ -1312,6 +1321,8 @@ public final class MainActivity extends Activity {
     private void finishEpubImport(boolean success,String message){
         if(!epubImportInProgress)return;
         epubImportInProgress=false;
+        ScripturaBackup.setImporting(false);
+        if(success)ScripturaBackup.backupAsync(this,true);
         if(epubImportDialog!=null){
             epubImportDialog.dismiss();
             epubImportDialog=null;
@@ -1334,6 +1345,7 @@ public final class MainActivity extends Activity {
             return;
         }
         epubImportInProgress=true;
+        ScripturaBackup.setImporting(true);
         epubPreviousOrientation=getRequestedOrientation();
         // Evita que girar el teléfono destruya la actividad a mitad de una
         // transacción de SQLite. No cancela ni interrumpe la importación.
@@ -1383,8 +1395,14 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
-        if(request==PICK_EPUB&&result==RESULT_OK&&data!=null&&data.getData()!=null)
-            beginEpubImport(data.getData());
+        if(result!=RESULT_OK||data==null||data.getData()==null)return;
+        if(request==PICK_EPUB)beginEpubImport(data.getData());
+        else if(request==ScripturaBackup.PICK_DESTINATION||request==PICK_EXISTING_BACKUP){
+            try{
+                ScripturaBackup.chooseDestination(this,data.getData(),data.getFlags());
+                Toast.makeText(this,"Ubicación guardada. Copia inicial iniciada.",Toast.LENGTH_SHORT).show();
+            }catch(Exception error){showError("No se pudo configurar la copia: "+error.getMessage());}
+        }else if(request==ScripturaBackup.PICK_RESTORE)confirmRestore(data.getData());
     }
 
     private void openIndex(){page=7;render();}
@@ -1830,6 +1848,21 @@ public final class MainActivity extends Activity {
         section(box,"Tu Biblia","El ejemplar personal se guarda únicamente en este móvil.");
         button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
         addGap(box,17);
+        section(box,"Copia de seguridad","Un único archivo en la ubicación que elijas. Se actualiza al abrir, solo si hay cambios.");
+        long last=ScripturaBackup.lastSuccess(this);
+        hint(box,last>0?"Última copia válida: "+java.text.DateFormat.getDateTimeInstance().format(new java.util.Date(last)):
+            "Sin copia todavía. Elige primero un archivo de destino.");
+        if(!ScripturaBackup.lastError(this).isEmpty())
+            hint(box,"Último error: "+ScripturaBackup.lastError(this));
+        button(box,"Elegir ubicación del archivo",this::chooseBackupLocation,false);
+        button(box,"Crear copia ahora",()->{
+            if(!ScripturaBackup.configured(this)){chooseBackupLocation();return;}
+            ScripturaBackup.backupAsync(this,true);
+            Toast.makeText(this,"Copia iniciada en segundo plano",Toast.LENGTH_SHORT).show();
+        },false);
+        button(box,"Restaurar desde un archivo",this::pickRestoreFile,false);
+        hint(box,"La copia incluye tus bases de datos, anotaciones, Biblia importada y ajustes de lectura. Las claves privadas no se exportan.");
+        addGap(box,17);
         section(box,"Inteligencia artificial","Solo se consulta Gemini con tu autorización previa.");
         hint(box,"La clave se cifra mediante Android Keystore y no se sube a GitHub.");
         button(box,ai.configured()?"Cambiar clave Gemini":"Introducir clave Gemini",this::configureKey,true);
@@ -1864,6 +1897,78 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();
     }
+    private void chooseBackupLocation(){
+        new AlertDialog.Builder(this).setTitle("Archivo único de copia")
+            .setMessage("Elige dónde guardar Scriptura.backup. Las siguientes copias escribirán sobre ese mismo archivo.")
+            .setItems(new String[]{"Crear archivo en una ubicación","Elegir un archivo ya existente"},(dialog,choice)->{
+                Intent intent=new Intent(choice==0?Intent.ACTION_CREATE_DOCUMENT:Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType(choice==0?"application/zip":"*/*");
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                if(choice==0)intent.putExtra(Intent.EXTRA_TITLE,"Scriptura.backup");
+                startActivityForResult(intent,choice==0?ScripturaBackup.PICK_DESTINATION:PICK_EXISTING_BACKUP);
+            }).setNegativeButton("Cancelar",null).show();
+    }
+
+    private void pickRestoreFile(){
+        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivityForResult(intent,ScripturaBackup.PICK_RESTORE);
+    }
+
+    private void confirmRestore(Uri uri){
+        if(epubImportInProgress||ScripturaBackup.isRunning()){
+            showError("Espera a que termine la importación o copia en curso antes de restaurar.");
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Restaurar Scriptura")
+            .setMessage("Se reemplazarán la Biblia, tus anotaciones, marcadores, historial y ajustes con los del archivo elegido. Esta operación no se puede deshacer con una única copia. ¿Continuar?")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Restaurar",(d,w)->{
+                ScripturaBackup.setImporting(true); // Blocks automatic backups during restoration.
+                int previousOrientation=getRequestedOrientation();
+                setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+                ProgressDialog progress=new ProgressDialog(this);
+                progress.setTitle("Restaurando Scriptura");
+                progress.setMessage("Verificando la copia completa…");
+                progress.setCancelable(false);progress.show();
+                worker.execute(()->{
+                    try{
+                        ScripturaBackup.RestorePlan plan=ScripturaBackup.prepareRestore(this,uri);
+                        runOnUiThread(()->{
+                            progress.dismiss();
+                            try{
+                                closeStores();
+                                ScripturaBackup.applyRestore(this,plan);
+                                ScripturaBackup.setImporting(false);
+                                setRequestedOrientation(previousOrientation);
+                                if(getSharedPreferences("scriptura_reminders",MODE_PRIVATE).getBoolean("enabled",false))
+                                    Reminders.enable(this);
+                                else Reminders.disable(this);
+                                Toast.makeText(this,"Copia restaurada correctamente",Toast.LENGTH_LONG).show();
+                                recreate();
+                            }catch(Exception error){
+                                ScripturaBackup.setImporting(false);
+                                setRequestedOrientation(previousOrientation);
+                                showError("No se pudo completar la restauración: "+error.getMessage());
+                                recreate(); // Reopens SQLite helpers after a rollback.
+                            }
+                        });
+                    }catch(Exception error){
+                        ScripturaBackup.setImporting(false);
+                        runOnUiThread(()->{
+                            progress.dismiss();
+                            setRequestedOrientation(previousOrientation);
+                            showError("La copia no se puede restaurar: "+error.getMessage());
+                        });
+                    }
+                });
+            }).show();
+    }
+
     /** Token personal opcional y restringido al repo privado. Nunca se registra ni se copia. */
     private void chooseDisplayMode(){
         String[] choices={"Normal","Lectura cómoda · tonos cálidos",

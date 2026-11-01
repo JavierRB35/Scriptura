@@ -1945,7 +1945,9 @@ public final class MainActivity extends Activity {
                                 ScripturaBackup.applyRestore(this,plan);
                                 ScripturaBackup.setImporting(false);
                                 setRequestedOrientation(previousOrientation);
-                                Reminders.schedule(this);
+                                if(getSharedPreferences("scriptura_reminders",MODE_PRIVATE).getBoolean("enabled",false))
+                                    Reminders.enable(this);
+                                else Reminders.disable(this);
                                 Toast.makeText(this,"Copia restaurada correctamente",Toast.LENGTH_LONG).show();
                                 recreate();
                             }catch(Exception error){

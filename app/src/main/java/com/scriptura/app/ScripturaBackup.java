@@ -7,6 +7,8 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import org.json.JSONObject;
 import java.io.*;
@@ -15,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.*;
 
 /** A single user-selected SAF document. Never backs up API keys or cached credentials. */
@@ -29,7 +32,7 @@ final class ScripturaBackup {
     private static final long MAX_FILE=180_000_000L;
     private static final ExecutorService EXECUTOR=Executors.newSingleThreadExecutor();
     private static final AtomicBoolean IMPORTING=new AtomicBoolean();
-    private static final AtomicBoolean RUNNING=new AtomicBoolean();
+    private static final AtomicInteger PENDING=new AtomicInteger();
     private static final String TAG="ScripturaBackup";
 
     private ScripturaBackup(){}
@@ -38,30 +41,63 @@ final class ScripturaBackup {
     static long lastSuccess(Context c){return prefs(c).getLong("success",0);}
     static String lastError(Context c){return prefs(c).getString("error","");}
     static boolean importing(){return IMPORTING.get();}
-    static boolean isRunning(){return RUNNING.get();}
+    static boolean isRunning(){return PENDING.get()>0;}
     static void setImporting(boolean value){IMPORTING.set(value);}
 
-    static void chooseDestination(Context context,Uri uri,int flags) throws Exception {
+    enum BackupResult { SAVED, UNCHANGED, IMPORT_IN_PROGRESS, DESTINATION_CHANGED }
+    interface BackupCallback {
+        /** Called on the main thread only after writing and read-back verification finish. */
+        void finished(BackupResult result,String error);
+    }
+
+    static void chooseDestination(Context context,Uri uri,int flags,BackupCallback callback) throws Exception {
         int access=flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
         if((access&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0)
             throw new IOException("La ubicación seleccionada no permite escribir.");
         context.getContentResolver().takePersistableUriPermission(uri,access);
+        // A new destination starts a new failure streak. Do not report old errors for this file.
         prefs(context).edit().putString("uri",uri.toString()).remove("fingerprint")
-            .remove("had_epub").putLong("success",0).putString("error","").apply();
-        backupAsync(context,true);
+            .remove("had_epub").putLong("success",0).putString("error","")
+            .putInt("failures",0).apply();
+        backupAsync(context,true,callback);
     }
 
-    static void backupAsync(Context context,boolean force){
-        if(!configured(context)||!RUNNING.compareAndSet(false,true))return;
+    static void backupAsync(Context context,boolean force){backupAsync(context,force,null);}
+    static void backupAsync(Context context,boolean force,BackupCallback callback){
         Context app=context.getApplicationContext();
+        String target=prefs(app).getString("uri","");
+        if(target.isEmpty()){
+            if(callback!=null)new Handler(Looper.getMainLooper()).post(()->
+                callback.finished(null,"Primero elige el archivo de destino."));
+            return;
+        }
+        // Serialise all requests, including a manual request made during the startup backup.
+        // No manual request is silently dropped.
+        PENDING.incrementAndGet();
         EXECUTOR.execute(()->{
-            try{backup(app,force);}
-            catch(Exception error){
+            BackupResult result=null;
+            String message=null;
+            try{
+                if(!target.equals(prefs(app).getString("uri","")))
+                    result=BackupResult.DESTINATION_CHANGED;
+                else result=backup(app,force,target);
+            }catch(Exception error){
                 Log.w(TAG,"No se pudo crear la copia",error);
-                SharedPreferences p=prefs(app);
-                p.edit().putString("error",error.getMessage()==null?"Error al guardar la copia":error.getMessage())
-                    .putInt("failures",p.getInt("failures",0)+1).apply();
-            }finally{RUNNING.set(false);}
+                message=error.getMessage()==null?"Error al guardar la copia":error.getMessage();
+                if(target.equals(prefs(app).getString("uri",""))){
+                    SharedPreferences p=prefs(app);
+                    p.edit().putString("error",message)
+                        .putInt("failures",p.getInt("failures",0)+1).apply();
+                }
+            }finally{
+                PENDING.decrementAndGet();
+            }
+            if(callback!=null){
+                BackupResult completed=result;
+                String completedError=message;
+                new Handler(Looper.getMainLooper()).post(()->
+                    callback.finished(completed,completedError));
+            }
         });
     }
 
@@ -85,11 +121,11 @@ final class ScripturaBackup {
         return sha(value.toString().getBytes("UTF-8"));
     }
 
-    private static void backup(Context c,boolean force) throws Exception {
-        if(IMPORTING.get())return; // An import may update several databases sequentially.
+    private static BackupResult backup(Context c,boolean force,String target) throws Exception {
+        if(IMPORTING.get())return BackupResult.IMPORT_IN_PROGRESS; // An import may update several databases sequentially.
         SharedPreferences p=prefs(c);
         String before=signature(c);
-        if(!force&&before.equals(p.getString("fingerprint","")))return;
+        if(!force&&before.equals(p.getString("fingerprint","")))return BackupResult.UNCHANGED;
         File epub=new File(c.getFilesDir(),FILE);
         if(p.getBoolean("had_epub",false)&&!epub.isFile())
             throw new IOException("Falta el EPUB anterior. Se conserva la última copia válida.");
@@ -117,7 +153,8 @@ final class ScripturaBackup {
             }
             // A concurrent change is picked up on the following launch.
             String after=signature(c);
-            if(IMPORTING.get())return;
+            if(IMPORTING.get())return BackupResult.IMPORT_IN_PROGRESS;
+            if(!target.equals(p.getString("uri","")))return BackupResult.DESTINATION_CHANGED;
 
             JSONObject manifest=new JSONObject();manifest.put("format",FORMAT);
             JSONObject files=new JSONObject();
@@ -144,7 +181,7 @@ final class ScripturaBackup {
                 writeEntry(zip,"settings.json",settings.toString());
             }
             inspectArchive(archive,null); // Complete validation before touching the user's only file.
-            Uri destination=Uri.parse(p.getString("uri",""));
+            Uri destination=Uri.parse(target);
             try(ParcelFileDescriptor fd=c.getContentResolver().openFileDescriptor(destination,"wt")){
                 if(fd==null)throw new IOException("No se puede abrir el archivo de destino.");
                 try(InputStream in=new FileInputStream(archive);
@@ -164,6 +201,7 @@ final class ScripturaBackup {
             p.edit().putString("fingerprint",before).putBoolean("had_epub",epub.isFile())
                 .putLong("success",System.currentTimeMillis()).putString("error","")
                 .putInt("failures",0).apply();
+            return BackupResult.SAVED;
         }finally{deleteStage(stage);}
     }
 

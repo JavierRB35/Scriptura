@@ -47,7 +47,7 @@ final class ScripturaBackup {
             throw new IOException("La ubicación seleccionada no permite escribir.");
         context.getContentResolver().takePersistableUriPermission(uri,access);
         prefs(context).edit().putString("uri",uri.toString()).remove("fingerprint")
-            .remove("had_epub").putString("error","").apply();
+            .remove("had_epub").putLong("success",0).putString("error","").apply();
         backupAsync(context,true);
     }
 
@@ -93,6 +93,9 @@ final class ScripturaBackup {
         File epub=new File(c.getFilesDir(),FILE);
         if(p.getBoolean("had_epub",false)&&!epub.isFile())
             throw new IOException("Falta el EPUB anterior. Se conserva la última copia válida.");
+        File[] stale=c.getCacheDir().listFiles();
+        if(stale!=null)for(File item:stale)
+            if(item.getName().startsWith("scriptura-backup-"))deleteStage(item);
         File stage=new File(c.getCacheDir(),"scriptura-backup-"+System.nanoTime());
         if(!stage.mkdirs())throw new IOException("No se pudo preparar la copia local.");
         try{
@@ -126,6 +129,7 @@ final class ScripturaBackup {
             manifest.put("files",files);
             JSONObject settings=new JSONObject();
             settings.put("font",c.getSharedPreferences("MainActivity",0).getInt("font",18));
+            settings.put("guide",c.getSharedPreferences("MainActivity",0).getBoolean("primer_uso_v1",false));
             settings.put("display",c.getSharedPreferences("scriptura_display",0).getInt("display_mode",0));
             settings.put("reminders",c.getSharedPreferences("scriptura_reminders",0).getBoolean("enabled",false));
 
@@ -369,10 +373,13 @@ final class ScripturaBackup {
                 if(!from.renameTo(target))throw new IOException("No se pudo restaurar "+simple);
             }
             c.getSharedPreferences("MainActivity",0).edit().putInt("font",plan.settings.optInt("font",18)).commit();
+            c.getSharedPreferences("MainActivity",0).edit()
+                .putBoolean("primer_uso_v1",plan.settings.optBoolean("guide",false)).commit();
             c.getSharedPreferences("scriptura_display",0).edit().putInt("display_mode",plan.settings.optInt("display",0)).commit();
             c.getSharedPreferences("scriptura_reminders",0).edit()
                 .putBoolean("enabled",plan.settings.optBoolean("reminders",false)).commit();
-            prefs(c).edit().remove("fingerprint").putString("error","").commit();
+            prefs(c).edit().remove("fingerprint").remove("had_epub")
+                .putString("error","").commit();
             if(!pending.delete())throw new IOException("No se pudo confirmar la restauración.");
             deleteStage(stage);
         }catch(Exception error){

@@ -83,7 +83,7 @@ public final class DefinitionUi {
             private void ensureExplainFragment(Menu menu){
                 if(fragmentHandler!=null&&menu.findItem(GEMINI_FRAGMENT_ACTION_ID)==null){
                     MenuItem explain=menu.add(Menu.NONE,GEMINI_FRAGMENT_ACTION_ID,
-                        Menu.CATEGORY_SECONDARY,"Interpretar con Gemini");
+                        Menu.CATEGORY_SECONDARY,"Interpretar con IA");
                     explain.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
                 }
             }

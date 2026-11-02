@@ -880,7 +880,8 @@ public final class MainActivity extends Activity {
         readingScroll.getLocationOnScreen(scrollTop);
         int relativeY=Math.max(0,scrollTop[1]+dp(24)-textTop[1]);
         relativeY=Math.min(relativeY,Math.max(0,readingBible.getLayout().getHeight()-1));
-        int charOffset=readingBible.getLayout().getOffsetForVertical(relativeY);
+        int visibleLine=readingBible.getLayout().getLineForVertical(relativeY);
+        int charOffset=readingBible.getLayout().getLineStart(visibleLine);
         int verse=ReadingProgress.verseAtOffset(readingPassage.text,charOffset);
         if(verse<1&&readingPassage.first==readingPassage.last)verse=readingPassage.first;
         if(verse<1)return false;

@@ -80,16 +80,7 @@ public final class GeminiClient {
         String api=readKey();
         String m=model();
         if(!m.matches("[a-zA-Z0-9._-]{3,80}"))throw new Exception("Modelo no válido");
-        String prompt="Actúa como acompañante de lectura bíblica en español, dentro de la tradición católica. "+
-            "Interpreta con rigor, brevedad (80-140 palabras normalmente) y tono sereno. "+
-            "Distingue el significado en su contexto de aplicaciones personales, sin presentar tu interpretación como revelación personal "+
-            "ni atribuir afirmaciones inventadas a los Padres, a la Iglesia o a la Biblia. "+
-            "Si desconoces un dato histórico, dilo. No inventes citas. No des diagnósticos. "+
-            "La referencia y el texto literal los entrega una biblioteca local, tú SOLO generas comentario. "+
-            "Referencia: "+ref+"\nTEXTO LOCAL:\n"+
-            (scripture.length()>9000?scripture.substring(0,9000):scripture)+
-            "\nCONTEXTO FACILITADO: "+(context.length()>1000?context.substring(0,1000):context)+
-            "\nPETICIÓN: "+(question.length()>1800?question.substring(0,1800):question);
+        String prompt=BibleAiPrompt.build(ref,scripture,context,question);
         JSONObject payload=new JSONObject();
         payload.put("contents",new JSONArray().put(new JSONObject().put("role","user").put("parts",
             new JSONArray().put(new JSONObject().put("text",prompt)))));
@@ -97,6 +88,7 @@ public final class GeminiClient {
         URL endpoint=new URL("https://generativelanguage.googleapis.com/v1beta/models/"+m+":generateContent");
         HttpURLConnection con=(HttpURLConnection)endpoint.openConnection();
         con.setRequestMethod("POST");con.setDoOutput(true);
+        con.setInstanceFollowRedirects(false);
         con.setConnectTimeout(15000);con.setReadTimeout(35000);
         con.setRequestProperty("Content-Type","application/json; charset=UTF-8");
         con.setRequestProperty("x-goog-api-key",api);
@@ -108,7 +100,8 @@ public final class GeminiClient {
             JSONObject json=new JSONObject(data);
             if(status!=200){
                 String message=json.optJSONObject("error")==null?"Sin detalles":json.getJSONObject("error").optString("message");
-                if(status==429)throw new IOException("Cuota gratuita de Gemini agotada. "+message);
+                if(status==429)throw new AiRecoverableException("Cuota gratuita de Gemini agotada (HTTP 429).");
+                if(status>=500&&status<=599)throw new AiRecoverableException("Gemini no está disponible temporalmente (HTTP "+status+").");
                 if(status==401||status==403)throw new IOException("Clave API sin acceso. Comprueba AI Studio. "+message);
                 throw new IOException("Gemini HTTP "+status+": "+message);
             }
@@ -124,6 +117,8 @@ public final class GeminiClient {
             }
             if(answer.length()==0)throw new IOException("Gemini no ha generado texto");
             return answer.toString().trim();
+        }catch(java.net.SocketTimeoutException timeout){
+            throw new AiRecoverableException("Gemini ha agotado el tiempo de espera.",timeout);
         }finally{con.disconnect();}
     }
 }

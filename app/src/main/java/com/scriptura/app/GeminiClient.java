@@ -97,11 +97,13 @@ public final class GeminiClient {
             try(OutputStream out=con.getOutputStream()){out.write(bytes);}
             int status=con.getResponseCode();
             String data=read(status>=200&&status<300?con.getInputStream():con.getErrorStream(),1_000_000);
+            // Un 429/5xx puede carecer de JSON válido; aun así debe activar el respaldo.
+            if(status==429)throw new AiRecoverableException("Cuota gratuita de Gemini agotada (HTTP 429).");
+            if(status>=500&&status<=599)throw new AiRecoverableException(
+                "Gemini no está disponible temporalmente (HTTP "+status+").");
             JSONObject json=new JSONObject(data);
             if(status!=200){
                 String message=json.optJSONObject("error")==null?"Sin detalles":json.getJSONObject("error").optString("message");
-                if(status==429)throw new AiRecoverableException("Cuota gratuita de Gemini agotada (HTTP 429).");
-                if(status>=500&&status<=599)throw new AiRecoverableException("Gemini no está disponible temporalmente (HTTP "+status+").");
                 if(status==401||status==403)throw new IOException("Clave API sin acceso. Comprueba AI Studio. "+message);
                 throw new IOException("Gemini HTTP "+status+": "+message);
             }

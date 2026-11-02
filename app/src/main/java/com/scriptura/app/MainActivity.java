@@ -69,6 +69,7 @@ public final class MainActivity extends Activity {
     private GeminiClient ai;
     private GroqClient groq;
     private AiRouter aiRouter;
+    private TextView groqKeyButton, groqFallbackButton, groqFallbackStatus;
     private LinearLayout column,frame,nav;
     private ScrollView readingScroll;
     private TextView readingBible;
@@ -1991,11 +1992,13 @@ public final class MainActivity extends Activity {
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
         button(box,groq.configured()?"Cambiar clave Groq":"Introducir clave Groq",
             this::configureGroqKey,false);
+        groqKeyButton=(TextView)box.getChildAt(box.getChildCount()-1);
         button(box,groq.fallbackEnabled()?"Desactivar respaldo automático Groq":
             "Autorizar y activar respaldo automático Groq",this::toggleGroqFallback,false);
-        hint(box,groq.fallbackEnabled()?"Respaldo Groq activado: solo ante problemas "
-            +"de cuota, disponibilidad o tiempo de espera de Gemini.":
-            "Respaldo Groq desactivado. Sin consentimiento no se envía ningún pasaje a Groq.");
+        groqFallbackButton=(TextView)box.getChildAt(box.getChildCount()-1);
+        groqFallbackStatus=text("",13,MUTED,false);
+        box.addView(groqFallbackStatus);
+        refreshGroqSettingsLabels();
         hint(box,"Groq: consulta opcional a api.groq.com. Puedes activar Zero Data "
             +"Retention en la consola de Groq; las cuotas gratuitas tienen límites.");
         addGap(box,17);
@@ -2226,6 +2229,17 @@ public final class MainActivity extends Activity {
                 try{ai.model(edit.getText().toString().trim());}catch(Exception e){showError(e.getMessage());}
             }).setNegativeButton("Cancelar",null).show();
     }
+    private void refreshGroqSettingsLabels(){
+        if(groqKeyButton!=null)groqKeyButton.setText(
+            groq.configured()?"Cambiar clave Groq":"Introducir clave Groq");
+        if(groqFallbackButton!=null)groqFallbackButton.setText(groq.fallbackEnabled()?
+            "Desactivar respaldo automático Groq":"Autorizar y activar respaldo automático Groq");
+        if(groqFallbackStatus!=null)groqFallbackStatus.setText(groq.fallbackEnabled()?
+            "Respaldo Groq activado: solo ante problemas de cuota, disponibilidad o "
+            +"tiempo de espera de Gemini.":
+            "Respaldo Groq desactivado. Sin consentimiento no se envía ningún pasaje a Groq.");
+    }
+
     private void configureGroqKey(){
         EditText edit=new EditText(this);edit.setHint("Pega tu clave de GroqCloud");edit.setSingleLine();
         edit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -2236,14 +2250,18 @@ public final class MainActivity extends Activity {
             .setView(edit).setNegativeButton("Cancelar",null)
             .setNeutralButton("Eliminar clave",(d,w)->{
                 try{
-                    groq.saveKey("");
+                    groq.saveKey("");refreshGroqSettingsLabels();
                     Toast.makeText(this,"Clave Groq eliminada y respaldo desactivado",
                         Toast.LENGTH_LONG).show();
                 }catch(Exception error){showError("No se pudo eliminar la clave Groq.");}
             })
             .setPositiveButton("Guardar",(d,w)->{
                 try{
-                    groq.saveKey(edit.getText().toString());
+                    if(edit.getText().toString().trim().isEmpty()){
+                        showError("Introduce una clave Groq válida o utiliza «Eliminar clave».");
+                        return;
+                    }
+                    groq.saveKey(edit.getText().toString());refreshGroqSettingsLabels();
                     Toast.makeText(this,"Clave Groq cifrada. Activa el respaldo en Ajustes.",
                         Toast.LENGTH_LONG).show();
                 }catch(Exception error){showError("No se pudo guardar la clave Groq.");}
@@ -2252,7 +2270,7 @@ public final class MainActivity extends Activity {
 
     private void toggleGroqFallback(){
         if(groq.fallbackEnabled()){
-            groq.setFallbackEnabled(false);
+            groq.setFallbackEnabled(false);refreshGroqSettingsLabels();
             Toast.makeText(this,"Respaldo Groq desactivado",Toast.LENGTH_SHORT).show();
             return;
         }
@@ -2276,7 +2294,7 @@ public final class MainActivity extends Activity {
             .setNegativeButton("Cancelar",null)
             .setPositiveButton("Autorizar y activar",(d,w)->{
                 try{
-                    groq.setFallbackEnabled(true);
+                    groq.setFallbackEnabled(true);refreshGroqSettingsLabels();
                     Toast.makeText(this,"Respaldo automático Groq activado",
                         Toast.LENGTH_LONG).show();
                 }catch(Exception error){showError("No se pudo activar el respaldo Groq.");}

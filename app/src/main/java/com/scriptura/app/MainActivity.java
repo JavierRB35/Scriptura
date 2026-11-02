@@ -67,6 +67,8 @@ public final class MainActivity extends Activity {
     private int readerOrigin=1;
     private static final String GUIDE_DONE="primer_uso_v1";
     private GeminiClient ai;
+    private GroqClient groq;
+    private AiRouter aiRouter;
     private LinearLayout column,frame,nav;
     private ScrollView readingScroll;
     private TextView readingBible;
@@ -168,7 +170,11 @@ public final class MainActivity extends Activity {
                 0:View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         store=new BibleStore(this);notes=new NavarraNotes(this);studyAnnotations=new StudyAnnotations(this);
         updateInstaller=new UpdateInstaller(this);
-        introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);ai=new GeminiClient(this);
+        introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);
+        ai=new GeminiClient(this);groq=new GroqClient(this);
+        aiRouter=new AiRouter(
+            request->ai.explain(request.reference,request.scripture,request.context,request.question),
+            request->groq.explain(request.reference,request.scripture,request.context,request.question));
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
@@ -799,6 +805,13 @@ public final class MainActivity extends Activity {
         },(quote,start,end)->interpretSelectedFragment(passage,start,end));
     }
 
+    /** Mantiene exactamente la misma petición con ambos proveedores, si el respaldo está autorizado. */
+    private AiRouter.Result explainWithFallback(String ref,String scripture,String context,String question)
+            throws Exception {
+        return aiRouter.explain(new AiRouter.Request(ref,scripture,context,question),
+            groq.fallbackEnabled(),ai.model(),GroqClient.MODEL);
+    }
+
     /** Consulta puntual con texto acotado; no redibuja el lector ni modifica el EPUB. */
     private void interpretSelectedFragment(BibleStore.Passage passage,int start,int end){
         GeminiSelection.Fragment fragment=GeminiSelection.fromSelection(
@@ -814,12 +827,14 @@ public final class MainActivity extends Activity {
         final ScrollView originalScroll=readingScroll;
         final int savedY=originalScroll==null?0:originalScroll.getScrollY();
         new AlertDialog.Builder(this)
-            .setTitle("Interpretar selección con Gemini")
-            .setMessage("Se enviará a Google Gemini el fragmento seleccionado, "+
-                "su referencia y parte del texto cercano para contextualizarlo. "+
-                "No se envían tu EPUB completo ni tus notas personales. "+
-                "Google puede tratar estas consultas según sus condiciones del servicio. "+
-                "¿Quieres continuar?")
+            .setTitle("Interpretar selección con IA")
+            .setMessage("Se enviará a Gemini el fragmento seleccionado, su referencia y parte "
+                + "del texto cercano para contextualizarlo. "
+                + (groq.fallbackEnabled() ?
+                    "Si Gemini falla, estos mismos datos podrán enviarse automáticamente a Groq, "
+                    + "tal como autorizaste en Ajustes. " : "")
+                + "No se envían el EPUB completo ni las notas personales. "
+                + "Los proveedores tratan las consultas según sus condiciones. ¿Continuar?")
             .setNegativeButton("Cancelar",null)
             .setPositiveButton("Consultar",(d,w)->{
                 LinearLayout content=vertical();
@@ -829,7 +844,7 @@ public final class MainActivity extends Activity {
                 serif(quoteText);
                 content.addView(quoteText);
                 addGap(content,15);
-                TextView explanation=text("Consultando Gemini…",16,DARK,false);
+                TextView explanation=text("Consultando inteligencia artificial…",16,DARK,false);
                 explanation.setTextIsSelectable(true);
                 content.addView(explanation);
                 ScrollView modalScroll=new ScrollView(this);
@@ -850,9 +865,9 @@ public final class MainActivity extends Activity {
                 result.show();
                 worker.execute(()->{
                     try{
-                        String answer=ai.explain(fragment.reference,fragment.context,
+                        String answer=explainWithFallback(fragment.reference,fragment.context,
                             "Texto de lectura bíblica personal, sin notas privadas.",
-                            GeminiSelection.question(fragment));
+                            GeminiSelection.question(fragment)).displayText();
                         runOnUiThread(()->{
                             if(!isFinishing()&&!isDestroyed()&&result.isShowing())
                                 explanation.setText(answer);
@@ -860,8 +875,8 @@ public final class MainActivity extends Activity {
                     }catch(Exception error){
                         runOnUiThread(()->{
                             if(!isFinishing()&&!isDestroyed()&&result.isShowing())
-                                explanation.setText("Gemini no ha podido responder. "+
-                                    "Comprueba la conexión, tu clave o la cuota disponible.");
+                                explanation.setText("No se ha podido generar la interpretación. "
+                                    + "Comprueba la conexión, tus claves y las cuotas disponibles.");
                         });
                     }
                 });
@@ -1214,7 +1229,7 @@ public final class MainActivity extends Activity {
             .setPositiveButton("Consultar",(d,w)->interpret(p,edit.getText().toString().trim(),true)).show();
     }
     private void interpret(BibleStore.Passage p,String question,boolean custom){
-        if(!ai.configured()){showError("Para generar explicaciones configura tu clave gratuita de Gemini en ⚙ Ajustes.");return;}
+        if(!ai.configured()){showError("Para generar explicaciones configura tu clave Gemini en ⚙ Ajustes.");return;}
         String cacheKey="explain:"+ai.model()+":"+p.ref;
         if(!custom){
             String existing=store.getReflection(cacheKey);
@@ -1222,9 +1237,17 @@ public final class MainActivity extends Activity {
         }
         String detail=custom&&question.isEmpty()?"Profundiza en el significado":question;
         new AlertDialog.Builder(this).setTitle("Consulta externa")
-            .setMessage("Se enviará a Gemini el pasaje seleccionado, el fragmento disponible del comentario de Navarra y tu pregunta, si la has escrito. No se envía el EPUB completo. El nivel gratuito puede usar las consultas para mejorar los productos de Google. ¿Continuar?")
+            .setMessage("Se enviará a Gemini el pasaje seleccionado, el fragmento disponible "
+                + "del comentario de Navarra y tu pregunta, si la has escrito. "
+                + (groq.fallbackEnabled() ?
+                    "Si Gemini falla, los mismos datos podrán enviarse automáticamente a Groq "
+                    + "según el consentimiento que activaste en Ajustes. " : "")
+                + "No se envía el EPUB completo. Cada proveedor trata la consulta según sus "
+                + "condiciones y nivel de servicio. ¿Continuar?")
             .setNegativeButton("Cancelar",null)
-            .setPositiveButton("Enviar",(dialog,w)->async("Consultando Gemini...",()->ai.explain(p.ref,p.text,"Traducción personal: Biblia de Navarra. Comentario de la edición: "+notes.get(p.book,p.chapter,p.first),detail),out->{
+            .setPositiveButton("Enviar",(dialog,w)->async("Consultando IA...",()->explainWithFallback(
+                p.ref,p.text,"Traducción personal: Biblia de Navarra. Comentario de la edición: "
+                +notes.get(p.book,p.chapter,p.first),detail).displayText(),out->{
                 if(!custom)store.saveReflection(cacheKey,out);
                 showExplanation(p,out,false);
             })).show();
@@ -1961,10 +1984,20 @@ public final class MainActivity extends Activity {
         button(box,"Restaurar desde un archivo",this::pickRestoreFile,false);
         hint(box,"La copia incluye tus bases de datos, anotaciones, Biblia importada y ajustes de lectura. Las claves privadas no se exportan.");
         addGap(box,17);
-        section(box,"Inteligencia artificial","Solo se consulta Gemini con tu autorización previa.");
-        hint(box,"La clave se cifra mediante Android Keystore y no se sube a GitHub.");
+        section(box,"Inteligencia artificial",
+            "Gemini es el proveedor principal. Groq se usa únicamente como respaldo autorizado.");
+        hint(box,"Las claves se cifran mediante Android Keystore y nunca se suben a GitHub.");
         button(box,ai.configured()?"Cambiar clave Gemini":"Introducir clave Gemini",this::configureKey,true);
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
+        button(box,groq.configured()?"Cambiar clave Groq":"Introducir clave Groq",
+            this::configureGroqKey,false);
+        button(box,groq.fallbackEnabled()?"Desactivar respaldo automático Groq":
+            "Autorizar y activar respaldo automático Groq",this::toggleGroqFallback,false);
+        hint(box,groq.fallbackEnabled()?"Respaldo Groq activado: solo ante problemas "
+            +"de cuota, disponibilidad o tiempo de espera de Gemini.":
+            "Respaldo Groq desactivado. Sin consentimiento no se envía ningún pasaje a Groq.");
+        hint(box,"Groq: consulta opcional a api.groq.com. Puedes activar Zero Data "
+            +"Retention en la consola de Groq; las cuotas gratuitas tienen límites.");
         addGap(box,17);
         section(box,"Lectura","Ajusta la presentación del texto bíblico.");
         button(box,"Aspecto: "+DisplayModes.label(displayMode),this::chooseDisplayMode,false);
@@ -1990,7 +2023,7 @@ public final class MainActivity extends Activity {
         if(!updateError.isEmpty())hint(box,"Última comprobación: "+updateError);
 
         section(box,"Información","Scriptura · versión "+currentVersionName());
-        hint(box,"Los comentarios de Navarra son editoriales. Las respuestas de Gemini son interpretaciones generadas con IA. No se transmiten datos personales automáticamente.");
+        hint(box,"Los comentarios de Navarra son editoriales. Las interpretaciones generadas por IA pueden contener errores. No se envían datos sin una consulta iniciada por ti.");
         ScrollView scroll=new ScrollView(this);scroll.addView(box);
         new AlertDialog.Builder(this).setTitle("Ajustes de Scriptura")
             .setView(scroll).setPositiveButton("Cerrar",null).show();
@@ -2193,6 +2226,63 @@ public final class MainActivity extends Activity {
                 try{ai.model(edit.getText().toString().trim());}catch(Exception e){showError(e.getMessage());}
             }).setNegativeButton("Cancelar",null).show();
     }
+    private void configureGroqKey(){
+        EditText edit=new EditText(this);edit.setHint("Pega tu clave de GroqCloud");edit.setSingleLine();
+        edit.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        new AlertDialog.Builder(this).setTitle("Clave API de Groq")
+            .setMessage("Obtén o administra tu clave en console.groq.com/keys. "
+                +"La clave se guarda cifrada en este móvil. Guardar una clave nueva "
+                +"desactiva el respaldo hasta que vuelvas a autorizarlo.")
+            .setView(edit).setNegativeButton("Cancelar",null)
+            .setNeutralButton("Eliminar clave",(d,w)->{
+                try{
+                    groq.saveKey("");
+                    Toast.makeText(this,"Clave Groq eliminada y respaldo desactivado",
+                        Toast.LENGTH_LONG).show();
+                }catch(Exception error){showError("No se pudo eliminar la clave Groq.");}
+            })
+            .setPositiveButton("Guardar",(d,w)->{
+                try{
+                    groq.saveKey(edit.getText().toString());
+                    Toast.makeText(this,"Clave Groq cifrada. Activa el respaldo en Ajustes.",
+                        Toast.LENGTH_LONG).show();
+                }catch(Exception error){showError("No se pudo guardar la clave Groq.");}
+            }).show();
+    }
+
+    private void toggleGroqFallback(){
+        if(groq.fallbackEnabled()){
+            groq.setFallbackEnabled(false);
+            Toast.makeText(this,"Respaldo Groq desactivado",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if(!groq.configured()){
+            showError("Introduce primero tu clave Groq en Ajustes.");
+            return;
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Autorizar respaldo automático con Groq")
+            .setMessage("Solo si Gemini falla por cuota, saturación o tiempo de espera, "
+                +"Scriptura enviará automáticamente a Groq el mismo pasaje bíblico, "
+                +"su referencia, el contexto (que puede incluir comentarios de Navarra) "
+                +"y la pregunta escrita. No se enviarán el EPUB completo, tus anotaciones "
+                +"privadas, tu historial ni ninguna clave.\n\n"
+                +"Los datos se envían a un proveedor distinto de Google. Groq declara "
+                +"que puede registrar temporalmente entradas y respuestas por fiabilidad "
+                +"o abuso (hasta 30 días; ubicación en EE. UU.). Puedes activar "
+                +"Zero Data Retention en su consola.\n\n"
+                +"Podrás revocar esta autorización en Ajustes en cualquier momento. "
+                +"¿Autorizas activar el respaldo automático?")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Autorizar y activar",(d,w)->{
+                try{
+                    groq.setFallbackEnabled(true);
+                    Toast.makeText(this,"Respaldo automático Groq activado",
+                        Toast.LENGTH_LONG).show();
+                }catch(Exception error){showError("No se pudo activar el respaldo Groq.");}
+            }).show();
+    }
+
     private void reminderSettings(){
         String[] options={"Activar aviso diario a las 09:00","Desactivar avisos"};
         new AlertDialog.Builder(this).setTitle("Recordatorio de lectura")

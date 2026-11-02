@@ -72,7 +72,14 @@ jobs:
       - name: Compilar versión de verificación
         run: sh ./gradlew :app:assembleDebug --no-daemon --max-workers=1
 
+      # La función de lectura solo necesita estas pruebas focalizadas.
+      # Para otros cambios se conserva la batería ordinaria.
+      - name: Probar progreso de lectura y anclajes
+        if: github.head_ref == 'feature/reading-progress-2026-11-02' || contains(github.event.head_commit.message, '[reading-tests-only]')
+        run: sh ./gradlew :app:testDebugUnitTest --tests com.scriptura.app.ReadingProgressTest --tests com.scriptura.app.AnnotationAnchorsTest --no-daemon --max-workers=1
+
       - name: Probar referencias liturgicas y canon catolico
+        if: github.head_ref != 'feature/reading-progress-2026-11-02' && !contains(github.event.head_commit.message, '[reading-tests-only]')
         run: sh ./gradlew :app:testDebugUnitTest --no-daemon --max-workers=1
 
       - name: Comprobar configuración de firma

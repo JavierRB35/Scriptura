@@ -247,6 +247,12 @@ public final class BibleStore extends SQLiteOpenHelper {
     private static int gcd(int a,int b){
         while(b!=0){int t=a%b;a=b;b=t;}return a;
     }
+    public ReadingProgress.Position lastReadPosition(){
+        return ReadingProgress.fromStored(getReflection(ReadingProgress.KEY));
+    }
+    public void saveReadingPosition(ReadingProgress.Position position){
+        if(position!=null)saveReflection(ReadingProgress.KEY,position.toStored());
+    }
     public void record(String ref){
         getWritableDatabase().execSQL("INSERT OR REPLACE INTO history(ref,seen) VALUES(?,?)",new Object[]{ref,System.currentTimeMillis()});
     }

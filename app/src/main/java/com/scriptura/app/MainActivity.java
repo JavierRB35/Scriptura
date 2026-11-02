@@ -69,6 +69,10 @@ public final class MainActivity extends Activity {
     private GeminiClient ai;
     private LinearLayout column,frame,nav;
     private ScrollView readingScroll;
+    private TextView readingBible;
+    private BibleStore.Passage readingPassage;
+    private Runnable readingProgressTask;
+    private boolean readingHasScrolled=false, readingProgressTrackingActive=false;
     private String returnToPassageRef="";
     private int returnToVerse=-1;
     private TextView caption;
@@ -216,6 +220,10 @@ public final class MainActivity extends Activity {
             updateInstaller.start(available);
         }
     }
+    @Override protected void onPause(){
+        flushReadingProgress();
+        super.onPause();
+    }
     @Override protected void onResume(){
         super.onResume();
         if(updateInstaller!=null)updateInstaller.onResume();
@@ -275,6 +283,11 @@ public final class MainActivity extends Activity {
     }
 
     private void render(){
+        flushReadingProgress();
+        readingBible=null;
+        readingPassage=null;
+        readingProgressTask=null;
+        readingProgressTrackingActive=false;
         frame=vertical();frame.setBackgroundColor(BG);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
         head.setPadding(dp(17),dp(12),dp(16),dp(11));head.setBackgroundColor(SURFACE);
@@ -353,6 +366,13 @@ public final class MainActivity extends Activity {
             ScrollView currentScroll=readingScroll;
             currentScroll.post(()->{
                 if(page==5&&readingScroll==currentScroll)currentScroll.scrollTo(0,y);
+            });
+        }
+        // Enable tracking only after any programmatic scroll restoration.
+        if(page==5&&readingScroll!=null){
+            ScrollView currentScroll=readingScroll;
+            currentScroll.post(()->{
+                if(page==5&&readingScroll==currentScroll)readingProgressTrackingActive=true;
             });
         }
     }
@@ -470,6 +490,13 @@ public final class MainActivity extends Activity {
     }
     private void search(){
         title(column,"Leer y buscar en la Biblia");
+        if(store.ready()){
+            ReadingProgress.Position last=store.lastReadPosition();
+            if(last!=null){
+                button(column,"↪ Continuar lectura · "+Books.name(last.book)+" "
+                    +last.chapter+":"+last.verse,this::continueReading,true);
+            }
+        }
         if(!store.ready()){
             hint(column,"La búsqueda de versículos y palabras necesita tu ejemplar EPUB de Navarra. Puedes consultar gratis el índice, los mapas y las obras sin importarlo.");
             button(column,"Importar mi Biblia para leer",this::pickEpub,true);
@@ -515,13 +542,25 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle(Books.name(book))
             .setItems(ch,(d,which)->lookup(Books.name(book)+" "+(which+1))).setNegativeButton("Cancelar",null).show();
     }
-    private void open(BibleStore.Passage p){
+    private void continueReading(){
+        ReadingProgress.Position position=store.lastReadPosition();
+        if(position==null){showError("No hay ninguna posición de lectura guardada.");return;}
+        BibleStore.Passage chapter=store.passage(Books.name(position.book)+" "+position.chapter);
+        if(chapter==null){
+            showError("No se encuentra ese capítulo. Comprueba tu Biblia importada.");
+            return;
+        }
+        open(chapter,position.verse);
+    }
+    private void open(BibleStore.Passage p){open(p,-1);}
+    private void open(BibleStore.Passage p,int targetVerse){
         if(page!=5)readerOrigin=page;
         // Cada pasaje empieza con el contexto cerrado; el estado no se hereda
         // accidentalmente de la lectura anterior.
         historicalExpanded=false;
         selected=p;store.record(p.ref);page=5;
-        returnToPassageRef="";returnToVerse=-1;
+        returnToPassageRef=targetVerse>0?p.ref:"";
+        returnToVerse=targetVerse>0?targetVerse:-1;
         render();
     }
     /**
@@ -563,7 +602,15 @@ public final class MainActivity extends Activity {
         arrow.setEnabled(available);
         arrow.setFocusable(available);
         arrow.setAlpha(available?1f:0.35f);
-        if(available)arrow.setOnClickListener(v->openReference(book,target));
+        if(available)arrow.setOnClickListener(v->{
+            BibleStore.Passage next=store.passage(Books.name(book)+" "+target);
+            if(next==null){showError("No se ha encontrado el capítulo seleccionado.");return;}
+            // Finish tracking the previous chapter before moving the bookmark.
+            flushReadingProgress();
+            int first=AnnotationAnchors.firstVerse(next.text);
+            if(first>0)store.saveReadingPosition(new ReadingProgress.Position(book,target,first));
+            open(next);
+        });
         return arrow;
     }
 
@@ -578,8 +625,26 @@ public final class MainActivity extends Activity {
         applyStudyMarks(bible,p);
         addDefinitionAction(bible,p);
         c.addView(bible);
+        readingBible=bible;
+        readingPassage=p;
+        final ScrollView currentScroll=readingScroll;
+        readingProgressTask=()->{
+            if(page==5&&readingScroll==currentScroll)saveVisibleReadingPosition(false);
+        };
+        currentScroll.setOnScrollChangeListener((v,sx,sy,oldX,oldY)->{
+            if(!readingProgressTrackingActive||page!=5||
+                    readingScroll!=currentScroll||sy==oldY)return;
+            readingHasScrolled=true;
+            currentScroll.removeCallbacks(readingProgressTask);
+            currentScroll.postDelayed(readingProgressTask,550);
+        });
         returnToSavedVerse(bible,p);
         chapterNavigation(c,p,true);
+        button(c,"Marcar aquí mi punto de lectura",()->{
+            if(saveVisibleReadingPosition(true))
+                Toast.makeText(this,"Punto de lectura guardado",Toast.LENGTH_SHORT).show();
+            else showError("No se ha podido determinar el versículo visible.");
+        },false);
         hint(c,"Mantén pulsado el texto y elige «Subrayar», «Anotar» o «Definir». Los subrayados se guardan sin nota; toca uno para quitarlo.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
@@ -803,6 +868,34 @@ public final class MainActivity extends Activity {
             }).show();
     }
 
+    /**
+     * Consultations alone never replace the bookmark: a deliberate scroll,
+     * chapter change, or manual mark is required.
+     */
+    private boolean saveVisibleReadingPosition(boolean force){
+        if((!force&&!readingHasScrolled)||readingBible==null||readingPassage==null||
+                readingScroll==null||readingBible.getLayout()==null)return false;
+        int[] textTop=new int[2],scrollTop=new int[2];
+        readingBible.getLocationOnScreen(textTop);
+        readingScroll.getLocationOnScreen(scrollTop);
+        int relativeY=Math.max(0,scrollTop[1]+dp(24)-textTop[1]);
+        relativeY=Math.min(relativeY,Math.max(0,readingBible.getLayout().getHeight()-1));
+        int charOffset=readingBible.getLayout().getOffsetForVertical(relativeY);
+        int verse=ReadingProgress.verseAtOffset(readingPassage.text,charOffset);
+        if(verse<1&&readingPassage.first==readingPassage.last)verse=readingPassage.first;
+        if(verse<1)return false;
+        ReadingProgress.Position current=new ReadingProgress.Position(
+            readingPassage.book,readingPassage.chapter,verse);
+        ReadingProgress.Position last=store.lastReadPosition();
+        if(!current.equals(last))store.saveReadingPosition(current);
+        readingHasScrolled=false;
+        return true;
+    }
+    private void flushReadingProgress(){
+        if(readingProgressTask!=null&&readingScroll!=null)
+            readingScroll.removeCallbacks(readingProgressTask);
+        saveVisibleReadingPosition(false);
+    }
     /** Reload the passage while returning to the actual verse, not the chapter heading. */
     private void redrawAtVerse(int verse){
         if(selected==null||page!=5)return;

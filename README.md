@@ -22,11 +22,21 @@ App Android nativa para búsqueda local de la Biblia de la Universidad de Navarr
 - Se conservan las cinco pestañas inferiores, el esquema del lector, la firma de APK y las demás pantallas.
 - Validación automática: compilación y pruebas unitarias de Android; **pendiente prueba manual con el EPUB privado en el teléfono**.
 
+## Respaldo automático Groq (rama experimental)
+
+- Gemini sigue siendo el proveedor principal. Ante cuota agotada (HTTP 429), error temporal de servidor (5xx) o timeout, Scriptura realiza **como máximo una** consulta de respaldo a Groq; los demás errores, incluidos los bloqueos de contenido, no provocan un cambio automático.
+- El respaldo empieza **desactivado**. Para activarlo: Ajustes → Inteligencia artificial → Introducir clave Groq → Autorizar y activar respaldo automático. Guardar otra clave o eliminarla desactiva el respaldo y exige nuevo consentimiento.
+- El consentimiento detalla que, **solo tras una consulta iniciada por el usuario**, podrían enviarse a Groq el pasaje, su referencia, un contexto que puede contener comentarios de Navarra y la pregunta. No se envían el EPUB completo, el historial, las notas privadas ni las credenciales.
+- La clave de Groq se cifra con AES-GCM mediante Android Keystore con un alias propio. No se incluye en repositorio, APK ni copia de seguridad de Scriptura. La autorización se puede revocar en Ajustes.
+- Ambas IA usan el mismo texto de instrucciones. Cada respuesta nueva identifica proveedor y modelo; las respuestas anteriores guardadas permanecen intactas y se respeta la clave histórica de caché para no perderlas.
+- El modelo de respaldo inicial es `openai/gpt-oss-120b`. Su disponibilidad y cuota gratuita dependen de la cuenta Groq; consulta https://console.groq.com/docs/rate-limits. Groq permite habilitar Zero Data Retention en su consola (https://console.groq.com/docs/your-data), opción recomendada.
+- No hay reintentos encadenados, biblioteca remota ni servidor intermediario. La compilación automatizada no prueba claves ni cuotas personales: hay que validar Gemini 429/503, Groq y revocación con una clave real en el móvil antes de publicar la versión.
+
 ## Privacidad y licencias
 
 - **No se sube ni distribuye el EPUB protegido**. Cada usuario importa su propio ejemplar adquirido. Se copia y procesa exclusivamente en almacenamiento privado de Android.
 - Las notas/explicaciones de Gemini son generadas por IA, pueden equivocarse y no constituyen doctrina oficial.
-- Gemini recibe únicamente el pasaje y los datos de contexto que el usuario confirma enviar. La cuota gratuita depende del proyecto AI Studio; la aplicación no activa facturación.
+- Gemini recibe únicamente el pasaje y los datos de contexto que el usuario confirma enviar. Con consentimiento específico de respaldo, Groq puede recibir esos mismos datos cuando Gemini no esté disponible. La cuota gratuita de cada proveedor depende de su cuenta; la aplicación no activa facturación.
 - La clave Gemini queda cifrada con Android Keystore, sin incorporarla al código ni guardarla en GitHub.
 - El calendario litúrgico de la Misa consulta **lecturasdeldia.org**, un proyecto **independiente** que usa datos del leccionario de España. El texto oficial del leccionario es propiedad de la CEE. Los textos se leen en el sitio externo o en la traducción personal importada. Se deben contrastar variaciones locales.
 - Las preferencias, favoritos, historial y consultas almacenadas son locales. No hay cuenta ni servidor propio.

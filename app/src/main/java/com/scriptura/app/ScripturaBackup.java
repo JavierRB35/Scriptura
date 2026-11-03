@@ -248,8 +248,11 @@ final class ScripturaBackup {
         // Android propagates the origin connection's OPEN_READWRITE flags to ATTACH.
         // Those flags cannot create the destination. Create an empty SQLite file first,
         // using an independent handle, then attach it on the pinned source connection.
-        try(SQLiteDatabase target=SQLiteDatabase.openOrCreateDatabase(snapshot,null)){
-            // Opening and closing creates a valid writable SQLite destination.
+        try(SQLiteDatabase target=SQLiteDatabase.openDatabase(snapshot.getPath(),null,
+                SQLiteDatabase.OPEN_READWRITE|SQLiteDatabase.CREATE_IF_NECESSARY|SQLiteDatabase.NO_LOCALIZED_COLLATORS)){
+            // Do not let Android create android_metadata: its original definition and
+            // rows are copied below along with the rest of the source schema.
+            target.execSQL("PRAGMA user_version=0");
         }
         // Pin one connection for ATTACH, table reads and the entire transaction.
         db.beginTransaction();

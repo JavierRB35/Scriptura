@@ -40,6 +40,9 @@ aprendidos con origen separado), `geo_occurrences` (referencias), `geo_analyses`
 La clave de cada análisis combina versión, libro, capítulo y SHA-256 del texto
 completo. Cambiar de traducción invalida la coincidencia sin borrar lo anterior.
 Actualizar los datos iniciales conserva los lugares y análisis aprendidos.
+Los registros aprendidos se recuperan también como antecedentes en otros
+capítulos del mismo libro, indicando su contexto de origen. No se asignan
+coordenadas ni se equiparan automáticamente lugares homónimos de otros libros.
 
 Se consulta SQLite antes de la IA. Solo al seleccionar la opción, y previa
 autorización geográfica, puede enviarse a Gemini el capítulo y los nombres

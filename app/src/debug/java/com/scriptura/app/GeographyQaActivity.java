@@ -44,6 +44,8 @@ public final class GeographyQaActivity extends Activity {
                         "Jdt",1,novel,Collections.emptyList(),base,"IA de prueba");
                     store.save("Jdt",1,novel,ai);
                     require(!store.load("Jdt",1,novel).mentions.get(0).place.located(),"Coordenadas inventadas");
+                    require(store.candidates("Jdt",2,novel).stream().anyMatch(p->p.id.startsWith("ai-")),
+                        "Los lugares aprendidos no se reutilizan en otros capítulos");
                 }
                 try(GeographyStore reopened=new GeographyStore(this)){
                     GeographyData.Analysis cached=reopened.load("Jdt",1,"1  Betulia es el lugar de esta prueba sintética.");

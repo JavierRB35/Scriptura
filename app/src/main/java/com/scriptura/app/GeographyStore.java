@@ -68,6 +68,17 @@ final class GeographyStore extends SQLiteOpenHelper {
                 GeographyData.Entry p=new GeographyData.Entry(new JSONObject(c.getString(0)));rows.put(p.id,p);
             }
         }
+        // Reuse learned records as explicitly labelled antecedents in the same book.
+        // They remain unlocated. Do not silently equate homonymous places across books.
+        try(Cursor c=db.rawQuery("SELECT payload FROM geo_places WHERE origin='ai'",null)){
+            while(c.moveToNext()){
+                GeographyData.Entry p=new GeographyData.Entry(new JSONObject(c.getString(0)));
+                if(!book.equals(p.data.optString("learned_book"))||p.name.length()<3||!p.matches(text))continue;
+                boolean documented=false;
+                for(GeographyData.Entry known:rows.values())if(known.namedExactly(p.name)){documented=true;break;}
+                if(!documented)rows.put(p.id,p);
+            }
+        }
         // The external verse index has no deuterocanonical books. Only use explicit Spanish
         // labels there; scanning every English alias would turn words such as "sin" into places.
         if(Arrays.asList("Tb","Jdt","1M","2M","Sb","Si","Ba").contains(book))
@@ -112,7 +123,11 @@ final class GeographyStore extends SQLiteOpenHelper {
         for(GeographyData.Entry p:candidates){
             List<Integer> refs=new ArrayList<>();
             for(Map.Entry<Integer,String> v:verses.entrySet())if(p.matches(v.getValue()))refs.add(v.getKey());
-            if(!refs.isEmpty())mentions.add(new GeographyData.Mention(p,p.name,"mencionado en el texto",p.description,refs,true));
+            if(!refs.isEmpty()){
+                String previous=p.data.optString("learned_from");
+                mentions.add(new GeographyData.Mention(p,p.name,previous.isEmpty()?"mencionado en el texto":"antecedente por contrastar",
+                    previous.isEmpty()?p.description:"Información guardada de "+previous+": "+p.description+" Su relación con este capítulo está pendiente de completar.",refs,true));
+            }
         }
         mentions.sort(Comparator.comparingInt(m->m.verses.get(0)));
         GeographyData.Analysis result=new GeographyData.Analysis(mentions,"Catálogo local · cobertura parcial",false,false);

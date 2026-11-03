@@ -162,7 +162,8 @@ final class GeographyData {
                 id="ai-"+digest(book+":"+chapter+":"+fold(name));
                 place=new Entry(new JSONObject().put("id",id).put("name",name).put("aliases",new JSONArray().put(name))
                     .put("modern","Ubicación pendiente de verificar").put("certainty","DEBATED")
-                    .put("description",description).put("source_name",provider+" · generado por IA"));
+                    .put("description",description).put("source_name",provider+" · generado por IA")
+                    .put("learned_book",book).put("learned_from",Books.name(book)+" "+chapter));
             }
             if(!seen.add(id))throw new IllegalArgumentException("La IA ha devuelto un lugar duplicado.");
             Mention previous=merged.get(id);

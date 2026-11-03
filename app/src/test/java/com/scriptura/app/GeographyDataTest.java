@@ -4,6 +4,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import static org.junit.Assert.*;
 
@@ -11,7 +12,7 @@ public class GeographyDataTest {
     private JSONObject catalog()throws Exception{
         Path path=Paths.get("src/main/assets/geografia_catalogo.json");
         if(!Files.exists(path))path=Paths.get("app/src/main/assets/geografia_catalogo.json");
-        return new JSONObject(Files.readString(path));
+        return new JSONObject(new String(Files.readAllBytes(path),StandardCharsets.UTF_8));
     }
     private GeographyData.Entry place(String id)throws Exception{
         JSONArray a=catalog().getJSONArray("entries");

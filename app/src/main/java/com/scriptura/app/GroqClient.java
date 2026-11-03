@@ -82,6 +82,10 @@ final class GroqClient {
     }
 
     String explain(String reference, String scripture, String contextText, String question) throws Exception {
+        return generate(BibleAiPrompt.build(reference,scripture,contextText,question),false);
+    }
+    String geography(String prompt)throws Exception{return generate(prompt,true);}
+    private String generate(String prompt,boolean structured)throws Exception{
         // Revalidar justo antes de enviar: una revocación impide nuevas transmisiones.
         if (!fallbackEnabled()) throw new IOException("El respaldo de Groq no está autorizado.");
         String apiKey = readKey();
@@ -89,9 +93,10 @@ final class GroqClient {
         payload.put("model", MODEL);
         payload.put("messages", new JSONArray().put(new JSONObject()
             .put("role", "user").put("content",
-                BibleAiPrompt.build(reference, scripture, contextText, question))));
+                prompt)));
         payload.put("temperature", 0.35);
-        payload.put("max_completion_tokens", 1400);
+        payload.put("max_completion_tokens",structured?8192:1400);
+        if(structured)payload.put("response_format",new JSONObject().put("type","json_object"));
         HttpURLConnection con = (HttpURLConnection) new URL(API_URL).openConnection();
         con.setInstanceFollowRedirects(false); // No reenviar el token en redirecciones.
         con.setRequestMethod("POST");
@@ -114,6 +119,8 @@ final class GroqClient {
             JSONArray choices = json.optJSONArray("choices");
             if (choices == null || choices.length() == 0)
                 throw new IOException("Groq no ha devuelto una respuesta.");
+            if(structured&&!"stop".equals(choices.getJSONObject(0).optString("finish_reason")))
+                throw new IOException("La respuesta geográfica no ha terminado. Se conserva la información local.");
             JSONObject message = choices.getJSONObject(0).optJSONObject("message");
             String answer = message == null ? "" : message.optString("content", "").trim();
             if (answer.isEmpty()) throw new IOException("Groq ha devuelto una respuesta vacía.");

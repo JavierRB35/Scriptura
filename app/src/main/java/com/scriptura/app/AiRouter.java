@@ -8,11 +8,16 @@ final class AiRouter {
 
     static final class Request {
         final String reference, scripture, context, question;
+        final boolean geography;
         Request(String reference, String scripture, String context, String question) {
+            this(reference,scripture,context,question,false);
+        }
+        Request(String reference,String scripture,String context,String question,boolean geography){
             this.reference = reference;
             this.scripture = scripture;
             this.context = context;
             this.question = question;
+            this.geography=geography;
         }
     }
 

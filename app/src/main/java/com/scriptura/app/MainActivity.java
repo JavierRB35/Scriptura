@@ -69,6 +69,7 @@ public final class MainActivity extends Activity {
     private GeminiClient ai;
     private GroqClient groq;
     private AiRouter aiRouter;
+    private ChapterPlacesDialog chapterPlaces;
     private TextView groqKeyButton, groqFallbackButton, groqFallbackStatus;
     private LinearLayout column,frame,nav;
     private ScrollView readingScroll;
@@ -174,8 +175,8 @@ public final class MainActivity extends Activity {
         introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);
         ai=new GeminiClient(this);groq=new GroqClient(this);
         aiRouter=new AiRouter(
-            request->ai.explain(request.reference,request.scripture,request.context,request.question),
-            request->groq.explain(request.reference,request.scripture,request.context,request.question));
+            request->request.geography?ai.geography(request.question):ai.explain(request.reference,request.scripture,request.context,request.question),
+            request->request.geography?groq.geography(request.question):groq.explain(request.reference,request.scripture,request.context,request.question));
         textSize=getPreferences(0).getInt("font",18);
         if(state!=null){page=state.getInt("page",0);mood=state.getString("mood","Tranquilidad");
             atlasMode=state.getInt("atlasMode",0);atlasBook=state.getString("atlasBook","Gn");
@@ -676,7 +677,7 @@ public final class MainActivity extends Activity {
         button(c,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
         button(c,"✦  Interpretación con Gemini",()->interpret(p,"Explica este pasaje de forma breve y fiel a su contexto.",false),true);
         button(c,"Profundizar o preguntar",()->ask(p),false);
-        button(c,"⌖  Lugares de este pasaje",()->showPassagePlaces(p),false);
+        button(c,"⌖  Lugares del capítulo",()->showPassagePlaces(p),false);
         button(c,"Atlas del libro "+Books.name(p.book),()->openBookAtlas(p.book),false);
         button(c,"Índice: "+Books.name(p.book),()->openBookInfo(p.book),false);
         java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
@@ -1941,20 +1942,14 @@ public final class MainActivity extends Activity {
         catch(Exception e){showError("No se pudo abrir Google Maps.");}
     }
     private void showPassagePlaces(BibleStore.Passage passage){
-        java.util.List<BibleGeography.Place> hits=BibleGeography.mentionedInPassage(passage.book,passage.text);
-        if(hits.isEmpty()){
-            new AlertDialog.Builder(this).setTitle("Lugares del pasaje")
-                .setMessage("No hemos asociado todavía un lugar a este pasaje. Puedes descubrir otros lugares relacionados con el libro.")
-                .setPositiveButton("Atlas del libro",(d,w)->openBookAtlas(passage.book))
-                .setNegativeButton("Cerrar",null).show();
-            return;
-        }
-        String[] choices=new String[hits.size()];
-        for(int i=0;i<hits.size();i++)choices[i]=hits.get(i).name+" · "+hits.get(i).certainty;
-        new AlertDialog.Builder(this).setTitle("Lugares mencionados en "+passage.ref)
-            .setItems(choices,(d,w)->openPlace(hits.get(w)))
-            .setNeutralButton("Atlas del libro",(d,w)->openBookAtlas(passage.book))
-            .setNegativeButton("Cerrar",null).show();
+        BibleStore.Passage chapter=store.passage(Books.name(passage.book)+" "+passage.chapter);
+        if(chapter==null){showError("No se pudo recuperar el capítulo completo de tu Biblia.");return;}
+        if(chapterPlaces!=null)chapterPlaces.dismiss();
+        chapterPlaces=new ChapterPlacesDialog(this,chapter,prompt->aiRouter.explain(
+            new AiRouter.Request(chapter.ref,chapter.text,"",prompt,true),
+            groq.fallbackEnabled(),ai.model(),GroqClient.MODEL),
+            ai.configured(),groq.fallbackEnabled(),DARK,MUTED,BG);
+        chapterPlaces.show();
     }
 
     private String currentVersionName(){
@@ -1990,6 +1985,15 @@ public final class MainActivity extends Activity {
         hint(box,"Las claves se cifran mediante Android Keystore y nunca se suben a GitHub.");
         button(box,ai.configured()?"Cambiar clave Gemini":"Introducir clave Gemini",this::configureKey,true);
         button(box,"Cambiar modelo ("+ai.model()+")",this::configureModel,false);
+        button(box,"Lugares del capítulo · gestionar IA",()->{
+            boolean enabled=ChapterPlacesDialog.automatic(this);
+            new AlertDialog.Builder(this).setTitle("IA para los lugares")
+                .setMessage(enabled?"Las consultas automáticas están activadas. Solo se consulta al seleccionar los lugares de un capítulo que aún no tenga un análisis guardado.":
+                    "Las consultas automáticas están desactivadas. Abre «Lugares del capítulo» en la Biblia y pulsa «Completar con IA» para autorizar el envío del capítulo.")
+                .setPositiveButton(enabled?"Desactivar":"Entendido",(d,w)->{
+                    if(enabled){ChapterPlacesDialog.disableAutomatic(this);Toast.makeText(this,"Consultas geográficas automáticas desactivadas",Toast.LENGTH_LONG).show();}
+                }).setNegativeButton("Cerrar",null).show();
+        },false);
         button(box,groq.configured()?"Cambiar clave Groq":"Introducir clave Groq",
             this::configureGroqKey,false);
         groqKeyButton=(TextView)box.getChildAt(box.getChildCount()-1);
@@ -2331,6 +2335,7 @@ public final class MainActivity extends Activity {
         if(historyContext!=null)historyContext.close();
     }
     @Override protected void onDestroy(){
+        if(chapterPlaces!=null)chapterPlaces.dismiss();
         if(epubImportDialog!=null){
             epubImportDialog.dismiss();
             epubImportDialog=null;

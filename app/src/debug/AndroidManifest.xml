@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <application>
     <activity android:name=".DefinitionQaActivity" android:exported="true"/>
+    <activity android:name=".GeographyQaActivity" android:exported="true"/>
     <receiver android:name=".BackupQaReceiver" android:exported="true"/>
   </application>
 </manifest>

@@ -55,6 +55,7 @@ public final class GeoMapView extends View {
     private int zoom=6, loaded=0;
     private double lat=32.5, lon=35.1;
     private boolean fitted=false, moved=false, failure=false;
+    private String focusedId="";
     private float previousX,previousY,downX,downY;
     private final ArrayList<float[]> markerPoints=new ArrayList<>();
     private String status="Cargando mapa...";
@@ -159,6 +160,11 @@ public final class GeoMapView extends View {
         invalidate();
     }
     public void zoomIn(){zoomAt(+1,getWidth()/2f,getHeight()/2f);}
+    public void focusPlace(String id){
+        for(BibleGeography.Place place:places)if(place.id.equals(id)){
+            focusedId=id;lat=place.lat;lon=place.lon;invalidate();return;
+        }
+    }
     public void zoomOut(){zoomAt(-1,getWidth()/2f,getHeight()/2f);}
     public void retry(){
         synchronized(images){retryAfter.clear();}
@@ -309,7 +315,8 @@ public final class GeoMapView extends View {
             if(m[0]<-35||m[0]>width+35||m[1]<-35||m[1]>height+35)continue;
             pen.setStyle(Paint.Style.FILL);
             pen.setColor(Color.WHITE);canvas.drawCircle(m[0],m[1],dp(12),pen);
-            pen.setColor(Color.rgb(13,35,56));canvas.drawCircle(m[0],m[1],dp(10),pen);
+            pen.setColor(places.get(i).id.equals(focusedId)?Color.rgb(149,100,44):Color.rgb(13,35,56));
+            canvas.drawCircle(m[0],m[1],dp(10),pen);
             pen.setColor(Color.WHITE);pen.setTextAlign(Paint.Align.CENTER);
             pen.setTextSize(dp(11));
             canvas.drawText(String.valueOf(i+1),m[0],m[1]+dp(4),pen);

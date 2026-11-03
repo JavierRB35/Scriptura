@@ -1,5 +1,19 @@
 # Scriptura · Biblia católica personal
 
+## Lugares del capítulo · catálogo ampliable
+
+El lector consulta un catálogo inicial de 1.342 fichas geográficas y los análisis
+guardados antes de recurrir a la IA. Muestra el capítulo completo en un mapa con
+lista y contexto por lugar; Hechos 16 incluye 15 lugares contextualizados. La IA
+puede completar y guardar información bajo autorización, conservando las
+coordenadas documentadas y dejando sin marcador las ubicaciones no verificadas.
+La nueva base local se incluye en las copias de seguridad.
+
+Datos: OpenBible.info, CC BY 4.0; etiquetas españolas: Wikidata, CC0 y catálogo
+editorial. El índice de origen abarca 66 libros; no se declara cobertura completa
+de los 73 libros ni revisión histórica individual de todas las fichas.
+[Alcance, fuentes y comprobaciones](docs/GEOGRAFIA_CAPITULOS.md).
+
 App Android nativa para búsqueda local de la Biblia de la Universidad de Navarra, lectura por libros/capítulos/versículos, favoritos, historial, recomendaciones por estado de ánimo y comentarios bajo demanda mediante Gemini.
 
 **Serie 0.x: desarrollo preliminar. No declarar v1.0 sin autorización del propietario.**

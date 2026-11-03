@@ -77,14 +77,19 @@ public final class GeminiClient {
         }
     }
     public String explain(String ref,String scripture,String context,String question) throws Exception {
+        return generate(BibleAiPrompt.build(ref,scripture,context,question),420,false);
+    }
+    String geography(String prompt)throws Exception{return generate(prompt,8192,true);}
+    private String generate(String prompt,int maxTokens,boolean structured)throws Exception{
         String api=readKey();
         String m=model();
         if(!m.matches("[a-zA-Z0-9._-]{3,80}"))throw new Exception("Modelo no válido");
-        String prompt=BibleAiPrompt.build(ref,scripture,context,question);
         JSONObject payload=new JSONObject();
         payload.put("contents",new JSONArray().put(new JSONObject().put("role","user").put("parts",
             new JSONArray().put(new JSONObject().put("text",prompt)))));
-        payload.put("generationConfig",new JSONObject().put("temperature",0.35).put("maxOutputTokens",420));
+        JSONObject config=new JSONObject().put("temperature",structured?0.1:0.35).put("maxOutputTokens",maxTokens);
+        if(structured)config.put("responseMimeType","application/json");
+        payload.put("generationConfig",config);
         URL endpoint=new URL("https://generativelanguage.googleapis.com/v1beta/models/"+m+":generateContent");
         HttpURLConnection con=(HttpURLConnection)endpoint.openConnection();
         con.setRequestMethod("POST");con.setDoOutput(true);
@@ -109,6 +114,8 @@ public final class GeminiClient {
             }
             JSONArray candidates=json.optJSONArray("candidates");
             if(candidates==null||candidates.length()==0)throw new IOException("Gemini no ha devuelto una respuesta de texto");
+            if(structured&&!"STOP".equals(candidates.getJSONObject(0).optString("finishReason")))
+                throw new IOException("La respuesta geográfica no ha terminado. Se conserva la información local.");
             JSONObject content=candidates.getJSONObject(0).optJSONObject("content");
             if(content==null)throw new IOException("Respuesta sin contenido");
             JSONArray parts=content.optJSONArray("parts");if(parts==null)throw new IOException("Respuesta vacía");

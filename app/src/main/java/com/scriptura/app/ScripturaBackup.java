@@ -26,7 +26,7 @@ final class ScripturaBackup {
     private static final String PREFS="scriptura_backup_settings";
     private static final String FILE="biblia-usuario.epub";
     private static final String[] DATABASES={"scriptura.db","scriptura_notas.db",
-        "scriptura-study-annotations.db","scriptura_introducciones.db","scriptura_contexto.db"};
+        "scriptura-study-annotations.db","scriptura_introducciones.db","scriptura_contexto.db","scriptura_geografia.db"};
     private static final String[] SIDECARS={"","-wal","-shm"};
     private static final int FORMAT=1;
     private static final long MAX_FILE=180_000_000L;
@@ -245,6 +245,12 @@ final class ScripturaBackup {
     }
     /** Compatibility path for SQLite before VACUUM INTO was added (3.27). */
     private static void snapshotDatabaseLegacy(SQLiteDatabase db,File snapshot) throws Exception {
+        // Android propagates the origin connection's OPEN_READWRITE flags to ATTACH.
+        // Those flags cannot create the destination. Create an empty SQLite file first,
+        // using an independent handle, then attach it on the pinned source connection.
+        try(SQLiteDatabase target=SQLiteDatabase.openOrCreateDatabase(snapshot,null)){
+            // Opening and closing creates a valid writable SQLite destination.
+        }
         // Pin one connection for ATTACH, table reads and the entire transaction.
         db.beginTransaction();
         try{
@@ -294,6 +300,7 @@ final class ScripturaBackup {
             case "scriptura-study-annotations.db":table="study_annotations";maxVersion=1;break;
             case "scriptura_introducciones.db":table="introductions";maxVersion=2;break;
             case "scriptura_contexto.db":table="topics";maxVersion=1;break;
+            case "scriptura_geografia.db":table="geo_places";maxVersion=1;break;
             default:throw new IOException("Base de datos inesperada.");
         }
         try(Cursor c=db.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",new String[]{table})){

@@ -23,7 +23,7 @@ App Android nativa para búsqueda local de la Biblia de la Universidad de Navarr
 - **Sólo Inicio:** se sustituyen las tarjetas apiladas por los cinco accesos directos **Hoy**, **Misa**, **Libros**, **Arte** y **Mapas**, colocados bajo la cabecera. Los accesos abren los destinos originales (misa, índice de los 73 libros, galería y atlas) sin modificar sus pantallas.
 - **Las cinco pestañas inferiores** (**Inicio, Biblia, Misa, Para mí, Guardados**) conservan exactamente su código, estilo y comportamiento. También se conserva la cabecera original con su botón de Ajustes.
 - En Inicio sólo se presentan los dos pasajes recomendados, tarjetas compactas pulsables y renovación de propuestas; se eliminan la ilustración gigante y las tarjetas de Misa/Libros/Arte/Lugares que obligaban a hacer scroll.
-- Para evitar duplicar Mapas en Inicio, la banda fija de Mapas se oculta **sólo mientras se visualiza Inicio**; permanece sin cambios en las demás pantallas. Los accesos del mapa siguen disponibles desde el botón Mapas de Inicio o la banda original en las demás pantallas.
+- Para evitar duplicar Mapas en Inicio, la banda fija se oculta **sólo mientras se visualiza Inicio**. Al leer un capítulo, la banda abre directamente **Lugares del capítulo** y su mapa sin abandonar el lector; en las demás pantallas conserva el acceso al atlas general.
 - Se conserva importación local del EPUB privado, avisos de actualización, anotaciones, ajustes, versión y firma. No se cambian los módulos de Misa, Biblioteca, Arte ni Mapas.
 - La QA automatizada comprueba los enlaces superiores desde Inicio, su ausencia en las otras pantallas y la navegación inferior existente; falta prueba visual en teléfono real. El EPUB personal, los ajustes y los datos locales no se modifican.
 

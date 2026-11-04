@@ -324,18 +324,25 @@ public final class MainActivity extends Activity {
         column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
-        // Acceso persistente a Mapas, separado de las cinco pestañas existentes.
-        TextView mapsFixed=text("⌖  MAPAS BÍBLICOS  ·  Explorar lugares y recorridos",14,DARK,true);
+        // En el lector muestra los lugares del capítulo; fuera de él conserva el atlas general.
+        boolean readingChapter=page==5&&selected!=null;
+        TextView mapsFixed=text(readingChapter?
+            "⌖  LUGARES DEL CAPÍTULO  ·  "+Books.name(selected.book)+" "+selected.chapter:
+            "⌖  MAPAS BÍBLICOS  ·  Explorar lugares y recorridos",14,DARK,true);
         mapsFixed.setGravity(Gravity.CENTER);
         mapsFixed.setMinHeight(dp(44));
         mapsFixed.setBackground(outlined(SOFT,12));
-        mapsFixed.setContentDescription("Abrir Mapas bíblicos");
+        mapsFixed.setContentDescription(readingChapter?
+            "Ver lugares de "+Books.name(selected.book)+" "+selected.chapter:"Abrir Mapas bíblicos");
         mapsFixed.setFocusable(true);
-        mapsFixed.setTooltipText("Atlas de lugares y recorridos");
+        mapsFixed.setTooltipText(readingChapter?"Lugares del capítulo":"Atlas de lugares y recorridos");
         LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
         fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
         if(page!=0)frame.addView(mapsFixed,fixedParams);
-        mapsFixed.setOnClickListener(v->{atlasReturnToStudy=false;openAtlas(0);});
+        mapsFixed.setOnClickListener(v->{
+            if(page==5&&selected!=null)showPassagePlaces(selected);
+            else {atlasReturnToStudy=false;openAtlas(0);}
+        });
 
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);

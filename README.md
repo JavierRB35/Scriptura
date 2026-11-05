@@ -18,6 +18,22 @@ App Android nativa para búsqueda local de la Biblia de la Universidad de Navarr
 
 **Serie 0.x: desarrollo preliminar. No declarar v1.0 sin autorización del propietario.**
 
+## Experiencia de lectura renovada — 0.8.0
+
+Revisión de experiencia de usuario aplicada sobre el código de 0.7.9 (informe completo en `docs/MEJORAS_UX_0_8_0.md`). Sin cambios en proveedores, claves, EPUB ni bases de datos.
+
+- **Lector con jerarquía real:** tras el texto quedan una fila compacta de acciones (favorito, copiar, compartir, escuchar, más), la interpretación con IA destacada y el resto de herramientas de estudio agrupadas en «Más herramientas» desplegable. El avance de capítulo deja de estar enterrado bajo doce botones.
+- **Continuar lectura en Inicio:** la posición guardada aparece como primera tarjeta con acceso directo; antes sólo era visible en la pestaña Biblia.
+- **Tipografía junto al texto:** el botón «Aa» junto al título del capítulo abre una hoja inferior con vista previa, tamaño en pasos de 2 sp aplicado en el propio texto abierto y los cuatro aspectos (Normal, Lectura cómoda, Ahorro de batería y el nuevo **Automático · seguir el sistema**, que respeta el modo oscuro de Android). La etiqueta de tamaño en Ajustes ya no queda desfasada.
+- **Atrás predecible:** navegación con pila; desde los resultados de búsqueda se vuelve al formulario, y cada destino interno regresa a su origen. El scroll se conserva al actualizar la misma pantalla (estado de ánimo, fecha de Misa, favoritos) y hay una transición suave al cambiar de página.
+- **Capítulos en rejilla:** los libros largos (Salmos, Isaías…) eligen capítulo en una rejilla de cinco columnas; la lista plana de 150 filas desaparece. «Elegir capítulo» lleva al índice con filtro.
+- **Escuchar el pasaje:** síntesis de voz local de Android (sin red ni claves) desde la fila de acciones del lector.
+- **Consentimiento IA por sesión:** la casilla «No volver a preguntar durante esta sesión» evita repetir el diálogo completo en cada consulta; el detalle permanente sigue en Ajustes.
+- **Misa sin pasos extra:** al abrir la pestaña con el día de hoy, las referencias se consultan automáticamente (caché primero); sin reintentos automáticos tras un fallo.
+- **Iconografía vectorial Material** en pestañas, ajustes y acciones, sustituyendo glifos Unicode cuyo aspecto cambia según el fabricante; alturas flexibles en la barra inferior para fuentes grandes.
+- **Hojas inferiores** para acciones contextuales: anotar, preguntar, definir palabra y leer reflexiones.
+- **Exportación legible de anotaciones** (Ajustes → Tu Biblia) a texto plano con la acción nativa de guardar archivo; el historial de consultas se unifica en Guardados y «Para mí» rota pasajes por día para cada estado de ánimo. El recordatorio configurado confirma con Toast, no con diálogo de error.
+
 ## Reorganización exclusiva de Inicio
 
 - **Sólo Inicio:** se sustituyen las tarjetas apiladas por los cinco accesos directos **Hoy**, **Misa**, **Libros**, **Arte** y **Mapas**, colocados bajo la cabecera. Los accesos abren los destinos originales (misa, índice de los 73 libros, galería y atlas) sin modificar sus pantallas.

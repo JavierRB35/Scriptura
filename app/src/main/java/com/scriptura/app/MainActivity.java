@@ -28,10 +28,31 @@ public final class MainActivity extends Activity {
     private int OUTLINE=Color.rgb(229,231,232), ACCENT=Color.rgb(149,100,44);
     private int NAV_BG=Color.rgb(13,35,56);
     private int displayMode=DisplayModes.NORMAL;
+    private int resolvedMode=DisplayModes.NORMAL;
     private int restoredScrollY=-1;
+    private int lastRenderedPage=-1;
+    private final Deque<Integer> backStack=new ArrayDeque<>();
+    private String searchResultsQuery="";
+    private boolean readerToolsExpanded=false;
+    private boolean aiSessionConsent=false;
+    private boolean massAutoLoading=false;
+    private boolean speechActive=false;
+    private ReaderSpeech speech;
+    private TextView speechLabel,fontLabel;
+    private String pendingExport=null;
+    private static final int PICK_EXPORT=2034;
+
+    /** El modo «Automático» resuelve al tema claro u oscuro real del sistema. */
+    private int resolveMode(int mode){
+        if(mode!=DisplayModes.SYSTEM)return DisplayModes.normalize(mode);
+        int ui=getResources().getConfiguration().uiMode
+            &android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        return ui==android.content.res.Configuration.UI_MODE_NIGHT_YES?
+            DisplayModes.BATTERY:DisplayModes.NORMAL;
+    }
 
     private void updatePalette(){
-        if(displayMode==DisplayModes.COMFORT){
+        if(resolvedMode==DisplayModes.COMFORT){
             DARK=Color.rgb(62,49,37);
             GOLD=Color.rgb(236,190,107);
             MUTED=Color.rgb(111,91,70);
@@ -41,7 +62,7 @@ public final class MainActivity extends Activity {
             OUTLINE=Color.rgb(218,197,159);
             ACCENT=Color.rgb(117,83,39);
             NAV_BG=Color.rgb(35,50,50);
-        }else if(displayMode==DisplayModes.BATTERY){
+        }else if(resolvedMode==DisplayModes.BATTERY){
             DARK=Color.rgb(227,230,225);
             GOLD=Color.rgb(232,193,123);
             MUTED=Color.rgb(166,173,165);
@@ -147,6 +168,28 @@ public final class MainActivity extends Activity {
     }
     private void hint(LinearLayout l,String s){TextView t=text(s,13,MUTED,false);l.addView(t);}
     private void showError(String s){new AlertDialog.Builder(this).setTitle("Scriptura").setMessage(s).setPositiveButton("Entendido",null).show();}
+    /**
+     * Presenta un diálogo como hoja inferior: acciones contextuales sobre el
+     * texto a un pulgar de distancia, con esquinas superiores redondeadas.
+     */
+    private AlertDialog showAsBottomSheet(AlertDialog.Builder builder){
+        AlertDialog dialog=builder.create();
+        styleAsBottomSheet(dialog);
+        return dialog;
+    }
+    private void styleAsBottomSheet(AlertDialog dialog){
+        dialog.show();
+        android.view.Window window=dialog.getWindow();
+        if(window!=null){
+            GradientDrawable sheet=new GradientDrawable();
+            sheet.setColor(SURFACE);
+            sheet.setCornerRadii(new float[]{dp(22),dp(22),dp(22),dp(22),0,0,0,0});
+            window.setBackgroundDrawable(sheet);
+            window.setGravity(Gravity.BOTTOM);
+            window.setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+    }
     private void async(String wait,Callable<String> task, java.util.function.Consumer<String> ok){
         Toast.makeText(this,wait,Toast.LENGTH_SHORT).show();
         worker.execute(()->{
@@ -157,7 +200,8 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state){
         displayMode=DisplayModes.normalize(getSharedPreferences("scriptura_display",
             MODE_PRIVATE).getInt("display_mode",DisplayModes.NORMAL));
-        if(displayMode==DisplayModes.BATTERY)setTheme(R.style.Theme_ScripturaNight);
+        resolvedMode=resolveMode(displayMode);
+        if(resolvedMode==DisplayModes.BATTERY)setTheme(R.style.Theme_ScripturaNight);
         super.onCreate(state);
         updatePalette();
         try{ScripturaBackup.recoverInterruptedRestore(this);}
@@ -168,7 +212,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(NAV_BG);
         getWindow().setNavigationBarColor(BG);
         if(Build.VERSION.SDK_INT>=26)
-            getWindow().getDecorView().setSystemUiVisibility(displayMode==DisplayModes.BATTERY?
+            getWindow().getDecorView().setSystemUiVisibility(resolvedMode==DisplayModes.BATTERY?
                 0:View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         store=new BibleStore(this);notes=new NavarraNotes(this);studyAnnotations=new StudyAnnotations(this);
         updateInstaller=new UpdateInstaller(this);
@@ -268,15 +312,25 @@ public final class MainActivity extends Activity {
             tab.setMinHeight(dp(48));
             tab.setSingleLine(true);
             tab.setBackground(i==0?bg(SOFT,10):bg(SURFACE,10));
-            tab.setContentDescription("Abrir sección "+labels[i]+(i==0?", seleccionada":""));
+            tab.setContentDescription(i==0?
+                "Renovar las lecturas de hoy":"Abrir sección "+labels[i]);
             tab.setFocusable(true);
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,1);
+            p.topMargin=dp(5);p.bottomMargin=dp(5);
             p.leftMargin=dp(2);p.rightMargin=dp(2);
             bar.addView(tab,p);
             tab.setOnClickListener(v->{
                 switch(destination){
-                    case 0:break;
-                    case 1:massDay=Calendar.getInstance();page=2;render();break;
+                    // Hoy renueva las propuestas sin cambiar de pantalla.
+                    case 0:
+                        getPreferences(0).edit()
+                            .putLong("home_scene_seed",System.nanoTime())
+                            .putInt("home_scene_day",homeDayKey())
+                            .apply();
+                        render();
+                        break;
+                    case 1:massDay=Calendar.getInstance();go(2);break;
                     case 2:openIndex();break;
                     case 3:openGallery();break;
                     case 4:atlasReturnToStudy=false;openAtlas(0);break;
@@ -292,10 +346,14 @@ public final class MainActivity extends Activity {
 
     private void render(){
         flushReadingProgress();
+        if(speech!=null&&speechActive&&page!=5){speech.stop();speechActive=false;}
         readingBible=null;
         readingPassage=null;
         readingProgressTask=null;
         readingProgressTrackingActive=false;
+        speechLabel=null;
+        int previousPage=lastRenderedPage;
+        int previousScrollY=readingScroll==null?-1:readingScroll.getScrollY();
         frame=vertical();frame.setBackgroundColor(BG);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
         head.setPadding(dp(17),dp(12),dp(16),dp(11));head.setBackgroundColor(SURFACE);
@@ -310,8 +368,11 @@ public final class MainActivity extends Activity {
         TextView sub=text("BIBLIA · CONTEXTO · REFLEXIÓN",9,MUTED,true);
         sub.setLetterSpacing(0.08f);branding.addView(sub);
         head.addView(branding,new LinearLayout.LayoutParams(0,-2,1));
-        TextView settings=text("⚙",24,DARK,false);
-        settings.setGravity(Gravity.CENTER);settings.setContentDescription("Abrir ajustes");
+        android.widget.ImageView settings=new android.widget.ImageView(this);
+        settings.setImageResource(R.drawable.ic_action_settings);
+        settings.setColorFilter(DARK);
+        settings.setPadding(dp(13),dp(13),dp(13),dp(13));
+        settings.setContentDescription("Abrir ajustes");
         settings.setFocusable(true);settings.setTooltipText("Ajustes y guía de Scriptura");
         settings.setOnClickListener(v->showSettings());
         head.addView(settings,new LinearLayout.LayoutParams(dp(48),dp(48)));
@@ -327,8 +388,8 @@ public final class MainActivity extends Activity {
         // En el lector muestra los lugares del capítulo; fuera de él conserva el atlas general.
         boolean readingChapter=page==5&&selected!=null;
         TextView mapsFixed=text(readingChapter?
-            "⌖  LUGARES DEL CAPÍTULO  ·  "+Books.name(selected.book)+" "+selected.chapter:
-            "⌖  MAPAS BÍBLICOS  ·  Explorar lugares y recorridos",14,DARK,true);
+            "LUGARES DEL CAPÍTULO  ·  "+Books.name(selected.book)+" "+selected.chapter:
+            "MAPAS BÍBLICOS  ·  Explorar lugares y recorridos",13,DARK,true);
         mapsFixed.setGravity(Gravity.CENTER);
         mapsFixed.setMinHeight(dp(44));
         mapsFixed.setBackground(outlined(SOFT,12));
@@ -348,7 +409,8 @@ public final class MainActivity extends Activity {
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setBackgroundColor(NAV_BG);
         String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
-        String[] symbols={"⌂","▤","✝","♡","★"};
+        int[] glyphs={R.drawable.ic_tab_home,R.drawable.ic_tab_bible,R.drawable.ic_tab_mass,
+            R.drawable.ic_tab_heart,R.drawable.ic_tab_star};
         int active=(page==5||page==7||page==9)?1:(page==6||page==8?0:page);
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
@@ -356,18 +418,31 @@ public final class MainActivity extends Activity {
             LinearLayout item=vertical();item.setGravity(Gravity.CENTER);
             item.setContentDescription(names[i]+(selected?", pestaña seleccionada":""));
             item.setClickable(true);item.setFocusable(true);item.setMinimumHeight(dp(64));
-            TextView glyph=text(symbols[i],21,color,selected);glyph.setGravity(Gravity.CENTER);
-            TextView label=text(names[i],11,color,selected);label.setGravity(Gravity.CENTER);
+            android.widget.ImageView glyph=new android.widget.ImageView(this);
+            glyph.setImageResource(glyphs[i]);glyph.setColorFilter(color);
             glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            LinearLayout.LayoutParams glyphParams=new LinearLayout.LayoutParams(dp(22),dp(22));
+            glyphParams.bottomMargin=dp(3);item.addView(glyph,glyphParams);
+            TextView label=text(names[i],11,color,selected);label.setGravity(Gravity.CENTER);
             label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            item.addView(glyph);item.addView(label);
-            if(selected)item.setBackground(bg(displayMode==DisplayModes.BATTERY?
+            item.addView(label);
+            if(selected)item.setBackground(bg(resolvedMode==DisplayModes.BATTERY?
                 Color.rgb(38,38,38):Color.rgb(29,54,78),10));
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(64),1);
-            lp.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(item,lp);
-            item.setOnClickListener(v->{atlasReturnToStudy=false;page=dest;render();});
+            // Altura flexible con mínimo: el texto no se recorta con fuentes grandes.
+            item.setPadding(dp(2),dp(3),dp(2),dp(3));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,1);
+            nav.addView(item,lp);
+            item.setOnClickListener(v->{atlasReturnToStudy=false;
+                backStack.clear();searchResultsQuery="";page=dest;render();});
         }
         frame.addView(nav);setContentView(frame);
+        // Transición sutil sólo al cambiar de página; los re-render de la misma
+        // pantalla (estado de ánimo, fecha) no deben parpadear.
+        if(previousPage!=-1&&previousPage!=page){
+            frame.setAlpha(0f);
+            frame.animate().alpha(1f).setDuration(130).start();
+        }
         switch(page){
             case 0:home();break;case 1:search();break;case 2:mass();break;
             case 3:personal();break;case 4:saved();break;
@@ -376,13 +451,22 @@ public final class MainActivity extends Activity {
             case 9:bookOverview();break;
             default:page=0;home();
         }
+        // Una actualización de la misma página (estado de ánimo, fecha de Misa,
+        // favoritos) conserva el desplazamiento; navegar a otra página empieza arriba.
         if(page==5&&restoredScrollY>=0&&readingScroll!=null){
             int y=restoredScrollY;restoredScrollY=-1;
             ScrollView currentScroll=readingScroll;
             currentScroll.post(()->{
                 if(page==5&&readingScroll==currentScroll)currentScroll.scrollTo(0,y);
             });
+        }else if(previousPage==page&&previousScrollY>0&&readingScroll!=null){
+            int y=previousScrollY;
+            ScrollView currentScroll=readingScroll;
+            currentScroll.post(()->{
+                if(readingScroll==currentScroll)currentScroll.scrollTo(0,y);
+            });
         }
+        lastRenderedPage=page;
         // Enable tracking only after any programmatic scroll restoration.
         if(page==5&&readingScroll!=null){
             ScrollView currentScroll=readingScroll;
@@ -390,6 +474,17 @@ public final class MainActivity extends Activity {
                 if(page==5&&readingScroll==currentScroll)readingProgressTrackingActive=true;
             });
         }
+    }
+
+    /**
+     * Navegación con memoria: cada destino interno apila la página actual para
+     * que Atrás devuelva al contexto de origen, no siempre a Inicio.
+     */
+    private void go(int destination){
+        if(destination!=page)backStack.push(page);
+        page=destination;
+        if(destination==1)searchResultsQuery="";
+        render();
     }
 
     /**
@@ -423,6 +518,17 @@ public final class MainActivity extends Activity {
             hint(c,"Importa tu EPUB personal de Navarra para leer los pasajes completos. Los libros, las obras y los mapas ya se pueden explorar desde arriba.");
             button(c,"Importar mi Biblia EPUB",this::pickEpub,true);
             return;
+        }
+        // La acción más frecuente de una app de lectura: volver a donde se quedó.
+        ReadingProgress.Position lastPosition=store.lastReadPosition();
+        if(lastPosition!=null){
+            LinearLayout continueCard=card(column);
+            TextView continueEyebrow=text("SEGUIR LEYENDO",11,ACCENT,true);
+            continueEyebrow.setLetterSpacing(0.08f);
+            continueCard.addView(continueEyebrow);
+            continueCard.addView(text(Books.name(lastPosition.book)+" "
+                +lastPosition.chapter+":"+lastPosition.verse,19,DARK,true));
+            button(continueCard,"Continuar donde lo dejé",this::continueReading,true);
         }
         long seed=homeSelectionSeed();
         readingPreview("Antiguo Testamento",store.random(false,seed*911+31));
@@ -504,6 +610,7 @@ public final class MainActivity extends Activity {
         c.setOnClickListener(v->open(p));
     }
     private void search(){
+        searchResultsQuery="";
         title(column,"Leer y buscar en la Biblia");
         if(store.ready()){
             ReadingProgress.Position last=store.lastReadPosition();
@@ -525,13 +632,9 @@ public final class MainActivity extends Activity {
         term.setOnEditorActionListener((v,id,event)->{lookup(term.getText().toString());return true;});
         button(c,"Buscar referencia o palabra",()->lookup(term.getText().toString()),true);
         button(c,"Índice de libros y sus introducciones",this::openIndex,false);
-        button(c,"Elegir capítulo",this::browseBooks,false);
+        button(c,"Elegir capítulo",this::openIndex,false);
         button(c,"Galería de arte bíblico",this::openGallery,false);
-        title(column,"Consultas recientes");
-        for(String ref:store.saved(false)){
-            button(column,ref,()->lookup(ref),false);
-        }
-        hint(column,"Puedes introducir un libro, capítulo, versículo, intervalo o una palabra del texto.");
+        hint(column,"El historial de consultas está en la pestaña Guardados. Puedes introducir un libro, capítulo, versículo, intervalo o una palabra del texto.");
     }
     private void lookup(String query){
         if(query.trim().isEmpty())return;
@@ -539,6 +642,7 @@ public final class MainActivity extends Activity {
         if(passage!=null){open(passage);return;}
         List<BibleStore.Passage> hits=store.searchText(query,35);
         if(hits.isEmpty()){showError("No se ha encontrado la referencia o expresión «"+query+"».");return;}
+        searchResultsQuery=query;
         column.removeAllViews();title(column,"Coincidencias de «"+query+"»");
         hint(column,"Primeros "+hits.size()+" resultados de la biblioteca local.");
         for(BibleStore.Passage p:hits){
@@ -546,16 +650,49 @@ public final class MainActivity extends Activity {
             c.setOnClickListener(v->open(p));
         }
     }
+    /** Los 73 libros se eligen en el índice con filtro y secciones, no en una lista plana. */
     private void browseBooks(){
-        String[] names=Books.NAMES.values().toArray(new String[0]);String[] codes=Books.NAMES.keySet().toArray(new String[0]);
-        new AlertDialog.Builder(this).setTitle("Selecciona un libro")
-            .setItems(names,(d,which)->browseChapters(codes[which])).setNegativeButton("Cancelar",null).show();
+        openIndex();
     }
+    /** Rejilla compacta de capítulos: Salmos ya no exige desplazar 150 filas. */
     private void browseChapters(String book){
         int max=store.chapters(book);if(max==0){showError("Este libro no aparece en la biblioteca importada");return;}
-        String[] ch=new String[max];for(int i=0;i<max;i++)ch[i]="Capítulo "+(i+1);
-        new AlertDialog.Builder(this).setTitle(Books.name(book))
-            .setItems(ch,(d,which)->lookup(Books.name(book)+" "+(which+1))).setNegativeButton("Cancelar",null).show();
+        if(max<=15){
+            String[] ch=new String[max];for(int i=0;i<max;i++)ch[i]="Capítulo "+(i+1);
+            new AlertDialog.Builder(this).setTitle(Books.name(book))
+                .setItems(ch,(d,which)->lookup(Books.name(book)+" "+(which+1))).setNegativeButton("Cancelar",null).show();
+            return;
+        }
+        LinearLayout content=vertical();pad(content,14);
+        content.addView(text("Elige un capítulo del 1 al "+max,14,MUTED,false));
+        addGap(content,8);
+        LinearLayout grid=vertical();
+        int columns=5;
+        final AlertDialog[] holder=new AlertDialog[1];
+        for(int start=1;start<=max;start+=columns){
+            LinearLayout row=new LinearLayout(this);
+            for(int n=start;n<start+columns&&n<=max;n++){
+                final int chapter=n;
+                TextView cell=text(String.valueOf(n),15,DARK,true);
+                cell.setGravity(Gravity.CENTER);
+                cell.setBackground(outlined(BG,10));
+                cell.setContentDescription("Capítulo "+chapter+" de "+Books.name(book));
+                LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);
+                p.setMargins(dp(3),dp(3),dp(3),dp(3));
+                row.addView(cell,p);
+                cell.setOnClickListener(v->{
+                    if(holder[0]!=null)holder[0].dismiss();
+                    lookup(Books.name(book)+" "+chapter);
+                });
+            }
+            grid.addView(row);
+        }
+        ScrollView gridScroll=new ScrollView(this);
+        gridScroll.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+        content.addView(gridScroll,new LinearLayout.LayoutParams(-1,dp(330)));
+        holder[0]=new AlertDialog.Builder(this).setTitle(Books.name(book))
+            .setView(content).setNegativeButton("Cancelar",null).create();
+        holder[0].show();
     }
     private void continueReading(){
         ReadingProgress.Position position=store.lastReadPosition();
@@ -569,10 +706,14 @@ public final class MainActivity extends Activity {
     }
     private void open(BibleStore.Passage p){open(p,-1);}
     private void open(BibleStore.Passage p,int targetVerse){
-        if(page!=5)readerOrigin=page;
+        if(page!=5){
+            readerOrigin=page;
+            backStack.push(page);
+        }
         // Cada pasaje empieza con el contexto cerrado; el estado no se hereda
         // accidentalmente de la lectura anterior.
         historicalExpanded=false;
+        searchResultsQuery="";
         selected=p;store.record(p.ref);page=5;
         returnToPassageRef=targetVerse>0?p.ref:"";
         returnToVerse=targetVerse>0?targetVerse:-1;
@@ -605,6 +746,19 @@ public final class MainActivity extends Activity {
         heading.setPadding(dp(4),0,dp(4),0);
         bar.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
         bar.addView(next,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        // Control de tipografía junto al capítulo: no hay que ir a Ajustes ni buscarlo.
+        if(!afterText){
+            TextView typeChip=text("Aa",15,DARK,true);
+            typeChip.setGravity(Gravity.CENTER);
+            typeChip.setMinHeight(dp(48));
+            typeChip.setPadding(dp(9),0,dp(9),0);
+            typeChip.setBackground(outlined(SOFT,12));
+            typeChip.setContentDescription("Ajustar tamaño y aspecto de la lectura");
+            LinearLayout.LayoutParams chipParams=new LinearLayout.LayoutParams(-2,dp(48));
+            chipParams.leftMargin=dp(8);
+            bar.addView(typeChip,chipParams);
+            typeChip.setOnClickListener(v->showTypographyPanel());
+        }
     }
 
     private TextView chapterArrow(String symbol,String action,String book,int target,boolean available){
@@ -655,11 +809,52 @@ public final class MainActivity extends Activity {
         });
         returnToSavedVerse(bible,p);
         chapterNavigation(c,p,true);
-        button(c,"Marcar aquí mi punto de lectura",()->{
-            if(saveVisibleReadingPosition(true))
-                Toast.makeText(this,"Punto de lectura guardado",Toast.LENGTH_SHORT).show();
-            else showError("No se ha podido determinar el versículo visible.");
-        },false);
+        // Jerarquía clara: acciones rápidas compactas, IA destacada y el resto
+        // agrupado en «Más herramientas» para no enterrar el avance de lectura.
+        LinearLayout quick=new LinearLayout(this);
+        quick.setGravity(Gravity.CENTER_VERTICAL);
+        boolean favorite=store.isFavorite(p.ref);
+        quick.addView(quickAction(R.drawable.ic_tab_star,favorite?"Guardado":"Favorito",
+            favorite?GOLD:MUTED,()->{store.toggleFavorite(p.ref);render();}));
+        quick.addView(quickAction(R.drawable.ic_action_copy,"Copiar",MUTED,()->{
+            ((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(
+                ClipData.newPlainText(p.ref,p.ref+"\n"+p.text+"\nBiblia de Navarra"));
+            Toast.makeText(this,"Texto copiado",Toast.LENGTH_SHORT).show();
+        }));
+        quick.addView(quickAction(R.drawable.ic_action_share,"Compartir",MUTED,()->{
+            Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");
+            i.putExtra(Intent.EXTRA_TEXT,p.ref+"\n"+p.text+"\nBiblia de Navarra");
+            startActivity(Intent.createChooser(i,"Compartir pasaje"));
+        }));
+        LinearLayout speechItem=quickAction(R.drawable.ic_action_volume,
+            speechActive?"Detener":"Escuchar",speechActive?GOLD:MUTED,this::toggleSpeech);
+        speechLabel=(TextView)speechItem.getChildAt(1);
+        quick.addView(speechItem);
+        quick.addView(quickAction(R.drawable.ic_action_more,"Más",MUTED,()->{
+            readerToolsExpanded=!readerToolsExpanded;
+            render();
+        }));
+        c.addView(quick,new LinearLayout.LayoutParams(-1,-2));
+        addGap(c,6);
+        button(c,"✦ Interpretación con IA",()->interpret(p,"Explica este pasaje de forma breve y fiel a su contexto.",false),true);
+        if(readerToolsExpanded){
+            LinearLayout tools=card(column);
+            hint(tools,"Más herramientas de estudio para este pasaje");
+            button(tools,"Marcar aquí mi punto de lectura",()->{
+                if(saveVisibleReadingPosition(true))
+                    Toast.makeText(this,"Punto de lectura guardado",Toast.LENGTH_SHORT).show();
+                else showError("No se ha podido determinar el versículo visible.");
+            },false);
+            button(tools,"Añadir nota a un versículo",()->manualStudyAnnotation(p),false);
+            button(tools,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
+            button(tools,"Profundizar o preguntar",()->ask(p),false);
+            button(tools,"Lugares del capítulo",()->showPassagePlaces(p),false);
+            button(tools,"Atlas del libro "+Books.name(p.book),()->openBookAtlas(p.book),false);
+            button(tools,"Índice: "+Books.name(p.book),()->openBookInfo(p.book),false);
+            java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
+            if(!related.isEmpty())
+                button(tools,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
+        }
         hint(c,"Mantén pulsado el texto y elige «Subrayar», «Anotar» o «Definir». Los subrayados se guardan sin nota; toca uno para quitarlo.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
@@ -667,29 +862,121 @@ public final class MainActivity extends Activity {
         c.addView(alternative);
         showStudyAnnotations(c,p);
         showHistoricalContext(p);
-        c=card(column);
-        button(c,store.isFavorite(p.ref)?"★ Quitar de favoritos":"☆ Guardar favorito",
-            ()->{store.toggleFavorite(p.ref);render();},false);
-        button(c,"Copiar texto",()->{
-            ((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(
-                ClipData.newPlainText(p.ref,p.ref+"\n"+p.text+"\nBiblia de Navarra"));
-            Toast.makeText(this,"Texto copiado",Toast.LENGTH_SHORT).show();
-        },false);
-        button(c,"Compartir pasaje",()->{
-            Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");
-            i.putExtra(Intent.EXTRA_TEXT,p.ref+"\n"+p.text+"\nBiblia de Navarra");
-            startActivity(Intent.createChooser(i,"Compartir pasaje"));
-        },false);
-        button(c,"Añadir nota a un versículo",()->manualStudyAnnotation(p),false);
-        button(c,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
-        button(c,"✦  Interpretación con Gemini",()->interpret(p,"Explica este pasaje de forma breve y fiel a su contexto.",false),true);
-        button(c,"Profundizar o preguntar",()->ask(p),false);
-        button(c,"⌖  Lugares del capítulo",()->showPassagePlaces(p),false);
-        button(c,"Atlas del libro "+Books.name(p.book),()->openBookAtlas(p.book),false);
-        button(c,"Índice: "+Books.name(p.book),()->openBookInfo(p.book),false);
-        java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
-        if(!related.isEmpty())
-            button(c,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
+    }
+
+    /** Acción compacta con icono vectorial y etiqueta, alineada con la barra inferior. */
+    private LinearLayout quickAction(int icon,String label,int tint,Runnable action){
+        LinearLayout item=vertical();item.setGravity(Gravity.CENTER);
+        item.setClickable(true);item.setFocusable(true);item.setMinimumHeight(dp(54));
+        android.widget.ImageView glyph=new android.widget.ImageView(this);
+        glyph.setImageResource(icon);glyph.setColorFilter(tint);
+        glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        item.addView(glyph,new LinearLayout.LayoutParams(dp(21),dp(21)));
+        TextView lab=text(label,11,MUTED,false);lab.setGravity(Gravity.CENTER);
+        lab.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        item.addView(lab);
+        item.setContentDescription(label);
+        item.setBackground(outlined(SURFACE,12));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);
+        lp.setMargins(dp(3),dp(8),dp(3),dp(2));
+        item.setOnClickListener(v->action.run());
+        return item;
+    }
+
+    /** Escucha local del pasaje con el motor de voz de Android; nada sale del teléfono. */
+    private void toggleSpeech(){
+        if(readingPassage==null)return;
+        if(speech==null)speech=new ReaderSpeech();
+        speech.toggle(this,readingPassage.text,new ReaderSpeech.Listener(){
+            @Override public void onSpeaking(boolean active){
+                runOnUiThread(()->{
+                    speechActive=active;
+                    if(speechLabel!=null)speechLabel.setText(active?"Detener":"Escuchar");
+                });
+            }
+            @Override public void onError(String message){
+                runOnUiThread(()->{speechActive=false;showError(message);});
+            }
+        });
+    }
+
+    /**
+     * Panel de tipografía con vista previa y aspecto: el ajuste de lectura vive
+     * junto al texto, no enterrado en Ajustes.
+     */
+    private void showTypographyPanel(){
+        LinearLayout content=vertical();pad(content,18);
+        content.addView(text("Tipografía de lectura",19,DARK,true));
+        addGap(content,10);
+        TextView preview=text("En el principio creó Dios el cielo y la tierra.",
+            textSize,DARK,false);
+        serif(preview);
+        preview.setGravity(Gravity.CENTER);
+        preview.setPadding(dp(6),dp(12),dp(6),dp(12));
+        preview.setBackground(outlined(BG,12));
+        content.addView(preview);
+        addGap(content,12);
+        LinearLayout sizes=new LinearLayout(this);
+        sizes.setGravity(Gravity.CENTER_VERTICAL);
+        TextView minus=text("A −",18,DARK,true);
+        TextView current=text(textSize+" sp",14,MUTED,false);
+        TextView plus=text("A +",18,DARK,true);
+        for(TextView control:new TextView[]{minus,plus}){
+            control.setGravity(Gravity.CENTER);
+            control.setMinHeight(dp(46));
+            control.setBackground(outlined(SOFT,12));
+        }
+        current.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams minusParams=new LinearLayout.LayoutParams(0,-2,1);
+        LinearLayout.LayoutParams currentParams=new LinearLayout.LayoutParams(0,-2,1);
+        LinearLayout.LayoutParams plusParams=new LinearLayout.LayoutParams(0,-2,1);
+        minusParams.setMargins(dp(3),0,dp(3),0);
+        currentParams.setMargins(dp(3),0,dp(3),0);
+        plusParams.setMargins(dp(3),0,dp(3),0);
+        sizes.addView(minus,minusParams);sizes.addView(current,currentParams);sizes.addView(plus,plusParams);
+        minus.setOnClickListener(v->adjustTextSize(-2,preview,current));
+        plus.setOnClickListener(v->adjustTextSize(2,preview,current));
+        content.addView(sizes);
+        addGap(content,12);
+        content.addView(text("Aspecto",15,DARK,true));
+        addGap(content,6);
+        String[] modes={"Normal","Lectura cómoda","Ahorro de batería · OLED","Automático · sistema"};
+        for(int i=0;i<modes.length;i+=2){
+            LinearLayout line=new LinearLayout(this);
+            for(int j=i;j<Math.min(i+2,modes.length);j++){
+                final int mode=j;
+                boolean chosen=displayMode==mode;
+                TextView chip=text(modes[j],13,chosen?Color.WHITE:DARK,chosen);
+                chip.setGravity(Gravity.CENTER);chip.setMinHeight(dp(46));
+                chip.setPadding(dp(6),dp(6),dp(6),dp(6));
+                chip.setBackground(chosen?bg(NAV_BG,11):outlined(SOFT,11));
+                chip.setContentDescription("Aspecto "+modes[j]+(chosen?", seleccionado":""));
+                LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
+                params.setMargins(dp(3),dp(4),dp(3),dp(4));
+                line.addView(chip,params);
+                chip.setOnClickListener(v->{
+                    if(mode==displayMode)return;
+                    getSharedPreferences("scriptura_display",MODE_PRIVATE).edit()
+                        .putInt("display_mode",DisplayModes.normalize(mode)).apply();
+                    // recreate() conserva página y desplazamiento por onSaveInstanceState.
+                    recreate();
+                });
+            }
+            content.addView(line);
+        }
+        showAsBottomSheet(new AlertDialog.Builder(this)
+            .setTitle("Leer con comodidad").setView(content)
+            .setNegativeButton("Listo",null));
+    }
+
+    private void adjustTextSize(int delta,TextView preview,TextView current){
+        textSize=Math.max(14,Math.min(30,textSize+delta));
+        getPreferences(0).edit().putInt("font",textSize).apply();
+        if(preview!=null)preview.setTextSize(textSize);
+        if(current!=null)current.setText(textSize+" sp");
+        if(fontLabel!=null)fontLabel.setText("Tamaño de letra actual: "+textSize+" sp");
+        // Efecto inmediato en el texto abierto, sin perder la posición de lectura.
+        if(readingBible!=null)readingBible.setTextSize(textSize);
     }
     /** Sección desplegable dentro del lector, sin introducir pantallas nuevas. */
     private void showHistoricalContext(BibleStore.Passage passage){
@@ -835,17 +1122,7 @@ public final class MainActivity extends Activity {
         }
         final ScrollView originalScroll=readingScroll;
         final int savedY=originalScroll==null?0:originalScroll.getScrollY();
-        new AlertDialog.Builder(this)
-            .setTitle("Interpretar selección con IA")
-            .setMessage("Se enviará a Gemini el fragmento seleccionado, su referencia y parte "
-                + "del texto cercano para contextualizarlo. "
-                + (groq.fallbackEnabled() ?
-                    "Si Gemini falla, estos mismos datos podrán enviarse automáticamente a Groq, "
-                    + "tal como autorizaste en Ajustes. " : "")
-                + "No se envían el EPUB completo ni las notas personales. "
-                + "Los proveedores tratan las consultas según sus condiciones. ¿Continuar?")
-            .setNegativeButton("Cancelar",null)
-            .setPositiveButton("Consultar",(d,w)->{
+        Runnable proceed=()->{
                 LinearLayout content=vertical();
                 pad(content,16);
                 content.addView(text(fragment.reference,14,ACCENT,true));
@@ -871,7 +1148,7 @@ public final class MainActivity extends Activity {
                             if(readingScroll==originalScroll)originalScroll.scrollTo(0,savedY);
                         });
                 });
-                result.show();
+                styleAsBottomSheet(result);
                 worker.execute(()->{
                     try{
                         String answer=explainWithFallback(fragment.reference,fragment.context,
@@ -889,6 +1166,27 @@ public final class MainActivity extends Activity {
                         });
                     }
                 });
+        };
+        if(aiSessionConsent){proceed.run();return;}
+        LinearLayout consent=vertical();consent.setPadding(dp(22),dp(10),dp(22),dp(4));
+        consent.addView(text("Se enviará a Gemini el fragmento seleccionado, su referencia y parte "
+            +"del texto cercano para contextualizarlo. "
+            +(groq.fallbackEnabled() ?
+                "Si Gemini falla, estos mismos datos podrán enviarse automáticamente a Groq, "
+                +"tal como autorizaste en Ajustes. " : "")
+            +"No se envían el EPUB completo ni las notas personales.",15,DARK,false));
+        addGap(consent,10);
+        android.widget.CheckBox remember=new android.widget.CheckBox(this);
+        remember.setText("No volver a preguntar durante esta sesión");
+        remember.setTextSize(14);remember.setTextColor(DARK);
+        consent.addView(remember);
+        new AlertDialog.Builder(this)
+            .setTitle("Interpretar selección con IA")
+            .setView(consent)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Consultar",(d,w)->{
+                if(remember.isChecked())aiSessionConsent=true;
+                proceed.run();
             }).show();
     }
 
@@ -1119,7 +1417,7 @@ public final class MainActivity extends Activity {
                     studyAnnotations.delete(item.id);popup.dismiss();redrawAtVerse(item.verse);
                 }).show();
         },false);
-        popup.show();
+        styleAsBottomSheet(popup);
     }
     private void editStudyAnnotation(BibleStore.Passage passage,AnnotationAnchors.Anchor anchor,
                                      StudyAnnotations.Item editing){
@@ -1187,7 +1485,7 @@ public final class MainActivity extends Activity {
                     showError("No se pudo guardar la anotación: "+error.getMessage());
                 }
             }));
-        popup.show();
+        styleAsBottomSheet(popup);
     }
 
     private void askForWord(BibleStore.Passage passage){
@@ -1199,7 +1497,7 @@ public final class MainActivity extends Activity {
         LinearLayout form=vertical();
         form.setPadding(dp(20),dp(4),dp(20),dp(6));
         form.addView(entry);
-        new AlertDialog.Builder(this).setTitle("Definir una palabra")
+        styleAsBottomSheet(new AlertDialog.Builder(this).setTitle("Definir una palabra")
             .setMessage("Puedes consultar una palabra sin usar la selección de texto.")
             .setView(form)
             .setNegativeButton("Cancelar",null)
@@ -1217,7 +1515,7 @@ public final class MainActivity extends Activity {
                     }
                     @Override public void showError(String message){MainActivity.this.showError(message);}
                 });
-            }).show();
+            }).create());
     }
 
     private void showNavarraNote(BibleStore.Passage p){
@@ -1233,9 +1531,9 @@ public final class MainActivity extends Activity {
     }
     private void ask(BibleStore.Passage p){
         EditText edit=new EditText(this);edit.setHint("¿Qué quieres comprender o cómo quieres aplicarlo?");edit.setMinLines(3);
-        new AlertDialog.Builder(this).setTitle("Conversar sobre "+p.ref)
+        styleAsBottomSheet(new AlertDialog.Builder(this).setTitle("Conversar sobre "+p.ref)
             .setView(edit).setNegativeButton("Cancelar",null)
-            .setPositiveButton("Consultar",(d,w)->interpret(p,edit.getText().toString().trim(),true)).show();
+            .setPositiveButton("Consultar",(d,w)->interpret(p,edit.getText().toString().trim(),true)).create());
     }
     private void interpret(BibleStore.Passage p,String question,boolean custom){
         if(!ai.configured()){showError("Para generar explicaciones configura tu clave Gemini en ⚙ Ajustes.");return;}
@@ -1245,28 +1543,44 @@ public final class MainActivity extends Activity {
             if(!existing.isEmpty()){showExplanation(p,existing,true);return;}
         }
         String detail=custom&&question.isEmpty()?"Profundiza en el significado":question;
+        Runnable send=()->async("Consultando IA...",()->explainWithFallback(
+            p.ref,p.text,"Traducción personal: Biblia de Navarra. Comentario de la edición: "
+            +notes.get(p.book,p.chapter,p.first),detail).displayText(),out->{
+            if(!custom)store.saveReflection(cacheKey,out);
+            showExplanation(p,out,false);
+        });
+        // El consentimiento completo se pide una vez por sesión; el detalle
+        // permanente queda documentado en Ajustes.
+        if(aiSessionConsent){send.run();return;}
+        LinearLayout consent=vertical();consent.setPadding(dp(22),dp(10),dp(22),dp(4));
+        TextView message=text("Se enviará a Gemini el pasaje seleccionado, el fragmento disponible "
+            +"del comentario de Navarra y tu pregunta, si la has escrito. "
+            +(groq.fallbackEnabled() ?
+                "Si Gemini falla, los mismos datos podrán enviarse automáticamente a Groq "
+                +"según el consentimiento que activaste en Ajustes. " : "")
+            +"No se envía el EPUB completo. Cada proveedor trata la consulta según sus "
+            +"condiciones y nivel de servicio.",15,DARK,false);
+        consent.addView(message);
+        addGap(consent,10);
+        android.widget.CheckBox remember=new android.widget.CheckBox(this);
+        remember.setText("No volver a preguntar durante esta sesión");
+        remember.setTextSize(14);remember.setTextColor(DARK);
+        consent.addView(remember);
         new AlertDialog.Builder(this).setTitle("Consulta externa")
-            .setMessage("Se enviará a Gemini el pasaje seleccionado, el fragmento disponible "
-                + "del comentario de Navarra y tu pregunta, si la has escrito. "
-                + (groq.fallbackEnabled() ?
-                    "Si Gemini falla, los mismos datos podrán enviarse automáticamente a Groq "
-                    + "según el consentimiento que activaste en Ajustes. " : "")
-                + "No se envía el EPUB completo. Cada proveedor trata la consulta según sus "
-                + "condiciones y nivel de servicio. ¿Continuar?")
+            .setView(consent)
             .setNegativeButton("Cancelar",null)
-            .setPositiveButton("Enviar",(dialog,w)->async("Consultando IA...",()->explainWithFallback(
-                p.ref,p.text,"Traducción personal: Biblia de Navarra. Comentario de la edición: "
-                +notes.get(p.book,p.chapter,p.first),detail).displayText(),out->{
-                if(!custom)store.saveReflection(cacheKey,out);
-                showExplanation(p,out,false);
-            })).show();
+            .setPositiveButton("Enviar",(dialog,w)->{
+                if(remember.isChecked())aiSessionConsent=true;
+                send.run();
+            }).show();
     }
     private void showExplanation(BibleStore.Passage p,String text,boolean cache){
         TextView body=text(text,16,DARK,false);body.setTextIsSelectable(true);pad(body,18);
         ScrollView scroll=new ScrollView(this);scroll.addView(body);
-        new AlertDialog.Builder(this).setTitle("Reflexión · "+p.ref+(cache?" (guardada)":""))
+        styleAsBottomSheet(new AlertDialog.Builder(this)
+            .setTitle("Reflexión · "+p.ref+(cache?" (guardada)":""))
             .setView(scroll).setPositiveButton("Cerrar",null)
-            .setNeutralButton("Preguntar más",(d,w)->ask(p)).show();
+            .setNeutralButton("Preguntar más",(d,w)->ask(p)).create());
     }
     private void mass(){
         title(column,"Lecturas de la misa");
@@ -1277,25 +1591,43 @@ public final class MainActivity extends Activity {
             massDay=Calendar.getInstance();massDay.set(y,m,d);render();
         },massDay.get(Calendar.YEAR),massDay.get(Calendar.MONTH),massDay.get(Calendar.DAY_OF_MONTH)).show(),false);
         button(c,"Volver a hoy",()->{massDay=Calendar.getInstance();render();},false);
-        button(c,"Consultar referencias de este día",this::loadMass,true);
+        button(c,"Consultar referencias de este día",()->loadMass(true),true);
         button(c,"Abrir lecturas completas",()->openMassWebsite(Liturgy.link(massDay)),false);
         hint(column,"El texto litúrgico oficial pertenece a la CEE. La web consultada es un proyecto independiente, no un servicio oficial de la CEE. Las referencias pueden variar por celebraciones locales; compruébalas en caso de duda.");
         String previous=store.getReflection("mass:"+Liturgy.link(massDay));
         if(!previous.isEmpty()){
             try{presentMass(new JSONObject(previous));}catch(Exception ex){hint(column,"No se pudo leer la última consulta guardada");}
+        }else if(!massAutoLoading){
+            // Al abrir Misa, el día se consulta solo: la caché primero, la red después.
+            massAutoLoading=true;
+            loadMass(false);
         }
     }
-    private void loadMass(){
+    private void loadMass(boolean manual){
         Calendar date=(Calendar)massDay.clone();
-        async("Consultando el calendario...",()->{
-            Liturgy.Day m=Liturgy.download(date);
-            JSONObject json=new JSONObject();json.put("title",m.title);json.put("date",m.date);json.put("url",m.url);
-            JSONArray a=new JSONArray();for(Liturgy.Reading r:m.readings)a.put(new JSONObject().put("type",r.label).put("ref",r.reference));
-            json.put("readings",a);
-            return json.toString();
-        },out->{
-            store.saveReflection("mass:"+Liturgy.link(date),out);
-            if(Liturgy.link(date).equals(Liturgy.link(massDay)))render();
+        if(manual)Toast.makeText(this,"Consultando el calendario...",Toast.LENGTH_SHORT).show();
+        worker.execute(()->{
+            try{
+                Liturgy.Day m=Liturgy.download(date);
+                JSONObject json=new JSONObject();json.put("title",m.title);json.put("date",m.date);json.put("url",m.url);
+                JSONArray a=new JSONArray();for(Liturgy.Reading r:m.readings)a.put(new JSONObject().put("type",r.label).put("ref",r.reference));
+                json.put("readings",a);
+                String out=json.toString();
+                runOnUiThread(()->{
+                    massAutoLoading=false;
+                    store.saveReflection("mass:"+Liturgy.link(date),out);
+                    if(Liturgy.link(date).equals(Liturgy.link(massDay)))render();
+                });
+            }catch(Exception error){
+                runOnUiThread(()->{
+                    // Sin reintentos automáticos en bucle: el usuario decide cuándo reintentar.
+                    if(manual)massAutoLoading=false;
+                    if(isFinishing()||isDestroyed())return;
+                    if(manual)showError("No se pudo consultar el calendario: "+
+                        (error.getMessage()==null?"inténtalo más tarde.":error.getMessage()));
+                    else hint(column,"No se pudieron consultar hoy las lecturas automáticamente. Pulsa «Consultar referencias de este día» para reintentarlo.");
+                });
+            }
         });
     }
     private void presentMass(JSONObject json) throws Exception{
@@ -1371,17 +1703,26 @@ public final class MainActivity extends Activity {
             if(next!=null)open(next);
         },false);
     }
-    private String selection(String mood){
+    /**
+     * Cada estado de ánimo rota entre varios pasajes según el día: la tercera
+     * visita ya no muestra siempre el mismo texto.
+     */
+    private String[] moodOptions(String mood){
         switch(mood){
-            case "Preocupación":return "Mateo 6:25-34";
-            case "Tristeza":return "Salmos 34:18-20";
-            case "Gratitud":return "Salmos 100";
-            case "Alegría":return "Filipenses 4:4-9";
-            case "Dudas":return "Marcos 9:23-24";
-            case "Miedo":return "Isaías 41:10";
-            case "Esperanza":return "Romanos 8:31-39";
-            default:return "Salmos 23";
+            case "Preocupación":return new String[]{"Mateo 6:25-34","Filipenses 4:6-7","1 Pedro 5:6-7"};
+            case "Tristeza":return new String[]{"Salmos 34:18-20","Salmos 42","Juan 16:20-22"};
+            case "Gratitud":return new String[]{"Salmos 100","Salmos 103:1-5","1 Tesalonicenses 5:16-18"};
+            case "Alegría":return new String[]{"Filipenses 4:4-9","Isaías 12","Juan 15:9-12"};
+            case "Dudas":return new String[]{"Marcos 9:23-24","Juan 20:24-29","Mateo 14:28-31"};
+            case "Miedo":return new String[]{"Isaías 41:10","Salmos 27:1-3","Deuteronomio 31:6"};
+            case "Esperanza":return new String[]{"Romanos 8:31-39","Jeremías 29:11-14","Lamentaciones 3:22-26"};
+            default:return new String[]{"Salmos 23","Mateo 11:28-30","Juan 14:27"};
         }
+    }
+    private String selection(String mood){
+        String[] options=moodOptions(mood);
+        int day=Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
+        return options[Math.floorMod(day,options.length)];
     }
     private void saved(){
         title(column,"Tus lecturas");
@@ -1521,8 +1862,55 @@ public final class MainActivity extends Activity {
                 "No se pudo iniciar la importación. Cierra y vuelve a abrir Scriptura.");
         }
     }
+    /** Exporta todas las anotaciones a un archivo de texto legible elegido por el usuario. */
+    private void exportAnnotations(){
+        worker.execute(()->{
+            try{
+                java.util.List<StudyAnnotations.Item> items=studyAnnotations.all();
+                if(items.isEmpty()){
+                    runOnUiThread(()->showError("Todavía no hay subrayados ni notas que exportar."));
+                    return;
+                }
+                String content=AnnotationExport.build(items);
+                runOnUiThread(()->{
+                    if(isFinishing()||isDestroyed())return;
+                    pendingExport=content;
+                    Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+                    intent.setType("text/plain");
+                    intent.putExtra(Intent.EXTRA_TITLE,"anotaciones-scriptura.txt");
+                    try{startActivityForResult(intent,PICK_EXPORT);}
+                    catch(ActivityNotFoundException error){
+                        showError("Android no dispone de un selector de archivos compatible.");
+                    }
+                });
+            }catch(Exception error){
+                runOnUiThread(()->showError("No se pudieron preparar las anotaciones: "+
+                    (error.getMessage()==null?error.toString():error.getMessage())));
+            }
+        });
+    }
+    private void writeAnnotationExport(Uri uri){
+        if(pendingExport==null)return;
+        try(java.io.OutputStream out=getContentResolver().openOutputStream(uri)){
+            if(out==null)throw new java.io.IOException("Destino no disponible");
+            out.write(pendingExport.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            Toast.makeText(this,"Anotaciones exportadas",Toast.LENGTH_LONG).show();
+        }catch(Exception error){
+            showError("No se pudo escribir el archivo de anotaciones: "+
+                (error.getMessage()==null?error.toString():error.getMessage()));
+        }finally{
+            pendingExport=null;
+        }
+    }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
+        if(request==PICK_EXPORT){
+            if(result==RESULT_OK&&data!=null&&data.getData()!=null)
+                writeAnnotationExport(data.getData());
+            else pendingExport=null;
+            return;
+        }
         if(result!=RESULT_OK||data==null||data.getData()==null)return;
         if(request==PICK_EPUB)beginEpubImport(data.getData());
         else if(request==ScripturaBackup.PICK_DESTINATION||request==PICK_EXISTING_BACKUP){
@@ -1534,10 +1922,10 @@ public final class MainActivity extends Activity {
         }else if(request==ScripturaBackup.PICK_RESTORE)confirmRestore(data.getData());
     }
 
-    private void openIndex(){page=7;render();}
-    private void openBookInfo(String book){indexBook=book;page=9;render();}
-    private void openGallery(){galleryBook="";galleryOffset=0;page=8;render();}
-    private void openGalleryFor(String book){page=8;galleryBook=book;galleryOffset=0;render();}
+    private void openIndex(){go(7);}
+    private void openBookInfo(String book){indexBook=book;go(9);}
+    private void openGallery(){galleryBook="";galleryOffset=0;go(8);}
+    private void openGalleryFor(String book){galleryBook=book;galleryOffset=0;go(8);}
     private String galleryBook="";
     private int galleryOffset=0;
 
@@ -1735,15 +2123,19 @@ public final class MainActivity extends Activity {
     }
 
     private void openAtlas(int mode){
+        if(page!=6)backStack.push(page);
         page=6;atlasMode=mode;render();
     }
     private void openBookAtlas(String book){
+        if(page!=6)backStack.push(page);
         atlasBook=book;atlasMode=2;page=6;render();
     }
     private void openJourney(BibleGeography.Journey route){
+        if(page!=6)backStack.push(page);
         atlasJourney=route;atlasMode=3;page=6;render();
     }
     private void openPlace(BibleGeography.Place place){
+        if(page!=6)backStack.push(page);
         atlasPlace=place;atlasMode=4;page=6;render();
     }
     private void atlas(){
@@ -1970,6 +2362,7 @@ public final class MainActivity extends Activity {
         addGap(box,14);
         section(box,"Tu Biblia","El ejemplar personal se guarda únicamente en este móvil.");
         button(box,"Importar o reemplazar Biblia EPUB",this::pickEpub,false);
+        button(box,"Exportar subrayados y notas (texto)",this::exportAnnotations,false);
         addGap(box,17);
         section(box,"Copia de seguridad","Un único archivo en la ubicación que elijas. Se actualiza al abrir, solo si hay cambios.");
         long last=ScripturaBackup.lastSuccess(this);
@@ -2018,9 +2411,11 @@ public final class MainActivity extends Activity {
         hint(box,"Normal: colores habituales. Lectura cómoda: papel cálido y contraste suave. "+
             "Ahorro de batería: negro y menos imágenes, especialmente útil en OLED. "+
             "El brillo sigue bajo el control del teléfono.");
-        hint(box,"Tamaño de letra actual: "+textSize+" sp");
-        button(box,"Aumentar tamaño de letra",()->{textSize=Math.min(30,textSize+2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
-        button(box,"Disminuir tamaño de letra",()->{textSize=Math.max(14,textSize-2);getPreferences(0).edit().putInt("font",textSize).apply();render();},false);
+        fontLabel=text("Tamaño de letra actual: "+textSize+" sp",13,MUTED,false);
+        box.addView(fontLabel);
+        button(box,"Aumentar tamaño de letra",()->adjustTextSize(2,null,null),false);
+        button(box,"Disminuir tamaño de letra",()->adjustTextSize(-2,null,null),false);
+        hint(box,"Consejo: también puedes ajustarlo desde el botón «Aa» junto al título del capítulo.");
         addGap(box,17);
         section(box,"Avisos","Notificaciones diarias opcionales.");
         button(box,"Configurar recordatorio diario",this::reminderSettings,false);
@@ -2138,7 +2533,7 @@ public final class MainActivity extends Activity {
     /** Token personal opcional y restringido al repo privado. Nunca se registra ni se copia. */
     private void chooseDisplayMode(){
         String[] choices={"Normal","Lectura cómoda · tonos cálidos",
-            "Ahorro de batería · fondo negro OLED"};
+            "Ahorro de batería · fondo negro OLED","Automático · seguir el sistema"};
         new AlertDialog.Builder(this)
             .setTitle("Aspecto y lectura")
             .setSingleChoiceItems(choices,displayMode,(dialog,which)->{
@@ -2316,25 +2711,48 @@ public final class MainActivity extends Activity {
         String[] options={"Activar aviso diario a las 09:00","Desactivar avisos"};
         new AlertDialog.Builder(this).setTitle("Recordatorio de lectura")
             .setItems(options,(d,w)->{
-                if(w==0){Reminders.enable(this);showError("Recordatorio diario configurado. Si Android requiere permiso para notificaciones, concédelo.");}
+                if(w==0){
+                    Reminders.enable(this);
+                    Toast.makeText(this,"Recordatorio diario configurado. Si Android lo pide, concede el permiso de notificaciones.",Toast.LENGTH_LONG).show();
+                }
                 else {Reminders.disable(this);Toast.makeText(this,"Recordatorio desactivado",Toast.LENGTH_SHORT).show();}
             }).show();
     }
+    /**
+     * Atrás respeta la pila de navegación: resultados de búsqueda vuelven al
+     * formulario, el lector regresa a su origen y el atlas despliega sus niveles.
+     */
     @Override public void onBackPressed(){
+        if(page==1&&!searchResultsQuery.isEmpty()){
+            searchResultsQuery="";
+            render();
+            return;
+        }
+        if(!backStack.isEmpty()){
+            Integer target=backStack.pop();
+            if(target!=null&&target>=0&&target<=9&&target!=page){
+                if(target==1)searchResultsQuery="";
+                page=target;
+                render();
+                return;
+            }
+        }
         if(page==5){
             int previous=readerOrigin;
             page=(previous>=0&&previous<=9&&previous!=5)?previous:1;
+            searchResultsQuery="";
             render();
         }
         else if(page==9){page=7;render();}
-        else if(page==7||page==8){page=0;render();}
+        else if(page==7||page==8){page=0;searchResultsQuery="";render();}
         else if(page==6){
-            if(atlasReturnToStudy&&selected!=null){
+            if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
+            else if(atlasReturnToStudy&&selected!=null){
                 atlasReturnToStudy=false;page=5;render();
-            }else if(atlasMode==3||atlasMode==4){atlasMode=0;render();}
-            else {page=0;render();}
+            }
+            else {page=0;searchResultsQuery="";render();}
         }
-        else if(page!=0){page=0;render();}
+        else if(page!=0){page=0;searchResultsQuery="";render();}
         else super.onBackPressed();
     }
     private void closeStores(){
@@ -2342,6 +2760,7 @@ public final class MainActivity extends Activity {
         if(historyContext!=null)historyContext.close();
     }
     @Override protected void onDestroy(){
+        if(speech!=null){speech.shutdown();speech=null;}
         if(chapterPlaces!=null)chapterPlaces.dismiss();
         if(epubImportDialog!=null){
             epubImportDialog.dismiss();

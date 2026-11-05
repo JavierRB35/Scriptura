@@ -34,6 +34,18 @@ public final class StudyAnnotations extends SQLiteOpenHelper {
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
         // v1 is additive; future migrations must retain user notes.
     }
+    /** Every annotation in the library, ordered for a readable export. */
+    public List<Item> all(){
+        ArrayList<Item> result=new ArrayList<>();
+        try(Cursor c=getReadableDatabase().rawQuery(
+            "SELECT id,book,chapter,verse,offset,quote,kind,body,url,created "+
+            "FROM study_annotations ORDER BY book,chapter,verse,created,id",null)){
+            while(c.moveToNext())result.add(new Item(c.getLong(0),c.getString(1),
+                c.getInt(2),c.getInt(3),c.getInt(4),c.getString(5),c.getString(6),
+                c.getString(7),c.getString(8),c.getLong(9)));
+        }
+        return result;
+    }
     public List<Item> forChapter(String book,int chapter){
         ArrayList<Item> result=new ArrayList<>();
         try(Cursor c=getReadableDatabase().rawQuery(

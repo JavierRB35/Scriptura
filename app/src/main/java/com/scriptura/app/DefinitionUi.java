@@ -64,7 +64,8 @@ public final class DefinitionUi {
             private void ensureDefine(Menu menu){
                 if(menu.findItem(DEFINE_ACTION_ID)==null){
                     MenuItem define=menu.add(Menu.NONE,DEFINE_ACTION_ID,Menu.CATEGORY_SECONDARY,"Definir");
-                    define.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                    // Prioridad visible: en muchos móviles IF_ROOM la esconde bajo el desbordamiento.
+                    define.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
                 }
             }
             private void ensureAnnotate(Menu menu){

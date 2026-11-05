@@ -879,6 +879,7 @@ public final class MainActivity extends Activity {
         item.setBackground(outlined(SURFACE,12));
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);
         lp.setMargins(dp(3),dp(8),dp(3),dp(2));
+        item.setLayoutParams(lp);
         item.setOnClickListener(v->action.run());
         return item;
     }

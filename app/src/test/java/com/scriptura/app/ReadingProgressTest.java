@@ -47,6 +47,22 @@ public class ReadingProgressTest {
         assertEquals(-1,ReadingProgress.verseAtOffset("Texto sin numeración",10));
     }
 
+    @Test public void scrollPositionDoesNotLeakIntoAnotherChapter(){
+        assertTrue(ReadingProgress.shouldRestoreScroll(true,true,
+            "Hechos 18","Hechos 18",false));
+        assertFalse(ReadingProgress.shouldRestoreScroll(true,true,
+            "Hechos 18","Hechos 19",false));
+        assertFalse(ReadingProgress.shouldRestoreScroll(true,true,
+            "Hechos 19","Hechos 18",false));
+        // A deliberate return to a verse must not be overridden by the old pixel offset.
+        assertFalse(ReadingProgress.shouldRestoreScroll(true,true,
+            "Hechos 18","Hechos 18",true));
+        assertFalse(ReadingProgress.shouldRestoreScroll(false,true,
+            "Hechos 18","Hechos 18",false));
+        // Other screens keep their existing same-screen scroll behavior.
+        assertTrue(ReadingProgress.shouldRestoreScroll(true,false,null,null,false));
+    }
+
     @Test public void supportsNumberedBooksAndLongerVerses(){
         ReadingProgress.Position p=new ReadingProgress.Position("1Co",13,4);
         assertEquals(p,ReadingProgress.fromStored(p.toStored()));

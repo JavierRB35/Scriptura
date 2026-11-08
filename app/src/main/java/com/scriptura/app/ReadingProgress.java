@@ -34,6 +34,17 @@ public final class ReadingProgress {
             return new Position(parts[1],chapter,verse);
         }catch(NumberFormatException error){return null;}
     }
+    /**
+     * A vertical scroll position belongs to a specific passage, not just to the reader screen.
+     * An explicit jump to a verse takes precedence over restoring the previous scroll.
+     */
+    public static boolean shouldRestoreScroll(boolean samePage,boolean readingPassage,
+                                              String previousRef,String currentRef,
+                                              boolean explicitVerseJump){
+        return samePage&&(!readingPassage||
+            (!explicitVerseJump&&previousRef!=null&&previousRef.equals(currentRef)));
+    }
+
     /** Return the verse at the first visible character, including its number prefix. */
     public static int verseAtOffset(String displayed,int offset){
         if(displayed==null||displayed.isEmpty())return -1;

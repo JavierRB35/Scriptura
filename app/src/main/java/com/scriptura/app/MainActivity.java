@@ -346,6 +346,9 @@ public final class MainActivity extends Activity {
 
     private void render(){
         flushReadingProgress();
+        String previousPassageRef=readingPassage==null?null:readingPassage.ref;
+        boolean explicitVerseJump=page==5&&selected!=null&&returnToVerse>0
+            &&selected.ref.equals(returnToPassageRef);
         if(speech!=null&&speechActive&&page!=5){speech.stop();speechActive=false;}
         readingBible=null;
         readingPassage=null;
@@ -459,7 +462,9 @@ public final class MainActivity extends Activity {
             currentScroll.post(()->{
                 if(page==5&&readingScroll==currentScroll)currentScroll.scrollTo(0,y);
             });
-        }else if(previousPage==page&&previousScrollY>0&&readingScroll!=null){
+        }else if(previousScrollY>0&&readingScroll!=null&&
+                ReadingProgress.shouldRestoreScroll(previousPage==page,page==5,
+                    previousPassageRef,selected==null?null:selected.ref,explicitVerseJump)){
             int y=previousScrollY;
             ScrollView currentScroll=readingScroll;
             currentScroll.post(()->{

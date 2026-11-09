@@ -300,7 +300,7 @@ final class ScripturaBackup {
         switch(name){
             case "scriptura.db":table="verses";maxVersion=2;break;
             case "scriptura_notas.db":table="notes";maxVersion=1;break;
-            case "scriptura-study-annotations.db":table="study_annotations";maxVersion=1;break;
+            case "scriptura-study-annotations.db":table="study_annotations";maxVersion=2;break;
             case "scriptura_introducciones.db":table="introductions";maxVersion=2;break;
             case "scriptura_contexto.db":table="topics";maxVersion=1;break;
             case "scriptura_geografia.db":table="geo_places";maxVersion=1;break;

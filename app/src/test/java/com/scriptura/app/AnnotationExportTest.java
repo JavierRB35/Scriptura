@@ -27,6 +27,17 @@ public class AnnotationExportTest {
         assertTrue(out.contains("Enlace: https://example.org"));
     }
 
+    @Test public void exportPreservesMultiVerseReferenceAndLegacySingleVerse(){
+        List<StudyAnnotations.Item> items=new ArrayList<>();
+        items.add(new StudyAnnotations.Item(1,"Gn",1,1,3,0,
+            "En el principio\\n\\n2  La tierra",StudyAnnotations.NOTE,"Una nota","",1L));
+        items.add(item(2,"Gn",1,3,"Sea la luz",StudyAnnotations.UNDERLINE,"",""));
+        String out=AnnotationExport.build(items);
+        assertTrue(out.contains("· v.1–3 · Nota"));
+        assertTrue(out.contains("· v.3 · Subrayado"));
+        assertFalse(out.contains("· v.3–3"));
+    }
+
     @Test public void emptyListProducesHeaderOnly(){
         String out=AnnotationExport.build(new ArrayList<>());
         assertTrue(out.startsWith("Subrayados y notas de Scriptura"));

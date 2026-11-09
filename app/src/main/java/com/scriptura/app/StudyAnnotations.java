@@ -14,58 +14,74 @@ public final class StudyAnnotations extends SQLiteOpenHelper {
     public static final class Item {
         public final long id,created;
         public final String book,quote,kind,body,url;
-        public final int chapter,verse,offset;
+        public final int chapter,verse,endVerse,offset;
         Item(long id,String book,int chapter,int verse,int offset,String quote,
              String kind,String body,String url,long created){
+            this(id,book,chapter,verse,verse,offset,quote,kind,body,url,created);
+        }
+        Item(long id,String book,int chapter,int verse,int endVerse,int offset,String quote,
+             String kind,String body,String url,long created){
             this.id=id;this.book=book;this.chapter=chapter;this.verse=verse;
-            this.offset=offset;this.quote=quote;this.kind=kind;this.body=body;
+            this.endVerse=endVerse;this.offset=offset;this.quote=quote;this.kind=kind;this.body=body;
             this.url=url;this.created=created;
         }
     }
-    public StudyAnnotations(Context context){super(context,"scriptura-study-annotations.db",null,1);}
+    public StudyAnnotations(Context context){super(context,"scriptura-study-annotations.db",null,2);}
     @Override public void onCreate(SQLiteDatabase db){
         db.execSQL("CREATE TABLE study_annotations ("+
             "id INTEGER PRIMARY KEY AUTOINCREMENT,"+
             "book TEXT NOT NULL,chapter INTEGER NOT NULL,verse INTEGER NOT NULL,"+
+            "end_verse INTEGER NOT NULL DEFAULT 0,"+
             "offset INTEGER NOT NULL,quote TEXT NOT NULL,kind TEXT NOT NULL,"+
             "body TEXT NOT NULL,url TEXT NOT NULL,created INTEGER NOT NULL)");
         db.execSQL("CREATE INDEX idx_study_annotation_location ON study_annotations(book,chapter,verse)");
     }
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
-        // v1 is additive; future migrations must retain user notes.
+        // Additive migration: existing entries retain their ID, quote, notes and original verse.
+        // A zero endpoint identifies legacy single-verse entries without rewriting user data.
+        if(oldVersion<2)
+            db.execSQL("ALTER TABLE study_annotations ADD COLUMN end_verse INTEGER NOT NULL DEFAULT 0");
     }
     /** Every annotation in the library, ordered for a readable export. */
     public List<Item> all(){
         ArrayList<Item> result=new ArrayList<>();
         try(Cursor c=getReadableDatabase().rawQuery(
-            "SELECT id,book,chapter,verse,offset,quote,kind,body,url,created "+
+            "SELECT id,book,chapter,verse,end_verse,offset,quote,kind,body,url,created "+
             "FROM study_annotations ORDER BY book,chapter,verse,created,id",null)){
             while(c.moveToNext())result.add(new Item(c.getLong(0),c.getString(1),
-                c.getInt(2),c.getInt(3),c.getInt(4),c.getString(5),c.getString(6),
-                c.getString(7),c.getString(8),c.getLong(9)));
+                c.getInt(2),c.getInt(3),c.getInt(4)>0?c.getInt(4):c.getInt(3),
+                c.getInt(5),c.getString(6),c.getString(7),c.getString(8),
+                c.getString(9),c.getLong(10)));
         }
         return result;
     }
     public List<Item> forChapter(String book,int chapter){
         ArrayList<Item> result=new ArrayList<>();
         try(Cursor c=getReadableDatabase().rawQuery(
-            "SELECT id,book,chapter,verse,offset,quote,kind,body,url,created "+
+            "SELECT id,book,chapter,verse,end_verse,offset,quote,kind,body,url,created "+
             "FROM study_annotations WHERE book=? AND chapter=? ORDER BY verse,created,id",
             new String[]{book,Integer.toString(chapter)})){
             while(c.moveToNext())result.add(new Item(c.getLong(0),c.getString(1),
-                c.getInt(2),c.getInt(3),c.getInt(4),c.getString(5),c.getString(6),
-                c.getString(7),c.getString(8),c.getLong(9)));
+                c.getInt(2),c.getInt(3),c.getInt(4)>0?c.getInt(4):c.getInt(3),
+                c.getInt(5),c.getString(6),c.getString(7),c.getString(8),
+                c.getString(9),c.getLong(10)));
         }
         return result;
     }
     public void save(long id,String book,int chapter,int verse,int offset,
                      String quote,String kind,String body,String url){
+        save(id,book,chapter,verse,verse,offset,quote,kind,body,url);
+    }
+    public void save(long id,String book,int chapter,int verse,int endVerse,int offset,
+                     String quote,String kind,String body,String url){
         if(!NOTE.equals(kind)&&!MAP.equals(kind)&&!WEB.equals(kind)&&!ATLAS.equals(kind)&&!UNDERLINE.equals(kind))
             throw new IllegalArgumentException("Tipo de anotación incorrecto");
-        if(book==null||book.isEmpty()||chapter<1||verse<1||offset<0)
+        if(book==null||book.isEmpty()||chapter<1||verse<1||endVerse<verse||
+                endVerse>200||offset<0)
             throw new IllegalArgumentException("Referencia bíblica incorrecta");
         ContentValues v=new ContentValues();
         v.put("book",book);v.put("chapter",chapter);v.put("verse",verse);
+        v.put("end_verse",endVerse);
         v.put("offset",offset);v.put("quote",quote==null?"":quote);
         v.put("kind",kind);v.put("body",body==null?"":body);
         v.put("url",url==null?"":url);

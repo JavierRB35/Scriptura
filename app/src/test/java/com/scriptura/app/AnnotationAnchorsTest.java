@@ -30,11 +30,43 @@ public class AnnotationAnchorsTest {
         assertNotNull(range);
         assertEquals("vacía",verseOnly.substring(range.start,range.end));
     }
-    @Test public void rejectsMultiVerseAndOutsideSelection(){
+    @Test public void anchorsTwoAndThreeVersesAndRestoresFullSelection(){
+        int start=CHAPTER.indexOf("cielo.");
+        int end=CHAPTER.indexOf("vacía.")+"vacía.".length();
+        AnnotationAnchors.Anchor two=AnnotationAnchors.fromSelection(CHAPTER,start,end);
+        assertNotNull(two);
+        assertEquals(1,two.verse);
+        assertEquals(2,two.endVerse);
+        assertEquals(CHAPTER.substring(start,end),two.quote);
+        AnnotationAnchors.Range twoRange=AnnotationAnchors.inDisplay(
+            CHAPTER,two.verse,two.endVerse,two.offset,two.quote);
+        assertNotNull(twoRange);
+        assertEquals(start,twoRange.start);
+        assertEquals(end,twoRange.end);
+
+        int third=CHAPTER.length();
+        AnnotationAnchors.Anchor three=AnnotationAnchors.fromSelection(CHAPTER,start,third);
+        assertNotNull(three);
+        assertEquals(3,three.endVerse);
+        assertNotNull(AnnotationAnchors.inDisplay(
+            CHAPTER,three.verse,three.endVerse,three.offset,three.quote));
+    }
+    @Test public void rejectsInvalidBoundariesAndWrongOrIncompleteText(){
         assertNull(AnnotationAnchors.fromSelection(CHAPTER,-1,8));
-        assertNull(AnnotationAnchors.fromSelection(CHAPTER,CHAPTER.indexOf("cielo."),
-            CHAPTER.indexOf("La tierra")+3));
         assertNull(AnnotationAnchors.fromSelection(CHAPTER,0,1));
+        assertNull(AnnotationAnchors.fromSelection(CHAPTER,0,CHAPTER.indexOf("La tierra")+3));
+        // A selection ending inside a verse number label is not a valid anchored fragment.
+        assertNull(AnnotationAnchors.fromSelection(CHAPTER,
+            CHAPTER.indexOf("cielo."),CHAPTER.indexOf("2  ")+2));
+        int start=CHAPTER.indexOf("cielo.");
+        int end=CHAPTER.indexOf("vacía.")+"vacía.".length();
+        AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(CHAPTER,start,end);
+        assertNotNull(anchor);
+        assertNull(AnnotationAnchors.inDisplay(CHAPTER,1,3,anchor.offset,anchor.quote));
+        assertNull(AnnotationAnchors.inDisplay(CHAPTER.replace("desordenada","distinta"),
+            anchor.verse,anchor.endVerse,anchor.offset,anchor.quote));
+        assertNull(AnnotationAnchors.inDisplay("1  En el principio creó Dios el cielo.",
+            anchor.verse,anchor.endVerse,anchor.offset,anchor.quote));
     }
     @Test public void visibleVersesAreEnumerated(){
         assertEquals(Arrays.asList(1,2,3),AnnotationAnchors.verseNumbers(CHAPTER));

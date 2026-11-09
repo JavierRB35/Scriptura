@@ -850,7 +850,7 @@ public final class MainActivity extends Activity {
                     Toast.makeText(this,"Punto de lectura guardado",Toast.LENGTH_SHORT).show();
                 else showError("No se ha podido determinar el versículo visible.");
             },false);
-            button(tools,"Añadir nota a un versículo",()->manualStudyAnnotation(p),false);
+            button(tools,"Añadir nota por versículos",()->manualStudyAnnotation(p),false);
             button(tools,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
             button(tools,"Profundizar o preguntar",()->ask(p),false);
             button(tools,"Lugares del capítulo",()->showPassagePlaces(p),false);
@@ -1085,7 +1085,7 @@ public final class MainActivity extends Activity {
             AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(
                 passage.text,start,end);
             if(anchor==null){
-                showError("Selecciona texto dentro de un solo versículo. Para una nota general, usa «Añadir nota a un versículo».");
+                showError("Selecciona texto de uno o varios versículos del mismo capítulo, o usa «Añadir nota por versículos».");
                 return;
             }
             editStudyAnnotation(passage,anchor,null);
@@ -1093,11 +1093,11 @@ public final class MainActivity extends Activity {
             AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(
                 passage.text,start,end);
             if(anchor==null){
-                showError("Para subrayar, selecciona una frase dentro de un mismo versículo.");
+                showError("Para subrayar, selecciona texto de uno o varios versículos del mismo capítulo.");
                 return;
             }
             try{
-                studyAnnotations.save(0,passage.book,passage.chapter,anchor.verse,
+                studyAnnotations.save(0,passage.book,passage.chapter,anchor.verse,anchor.endVerse,
                     anchor.offset,anchor.quote,StudyAnnotations.UNDERLINE,"","");
                 Toast.makeText(this,"Texto subrayado",Toast.LENGTH_SHORT).show();
                 redrawAtVerse(anchor.verse);
@@ -1253,7 +1253,10 @@ public final class MainActivity extends Activity {
         });
     }
 
-    /** Annotations belong to a precise verse in the user-imported EPUB. */
+    /** Annotations belong to a verse or verse range in the user-imported EPUB. */
+    private static String verseRange(int start,int end){
+        return start==end?String.valueOf(start):start+"–"+end;
+    }
     private static String annotationType(StudyAnnotations.Item item){
         if(StudyAnnotations.UNDERLINE.equals(item.kind))return "Subrayado";
         if(StudyAnnotations.ATLAS.equals(item.kind))return "Atlas bíblico";
@@ -1269,7 +1272,7 @@ public final class MainActivity extends Activity {
         final java.util.ArrayList<AnnotationAnchors.Range> ranges=new java.util.ArrayList<>();
         for(StudyAnnotations.Item item:all){
             AnnotationAnchors.Range range=AnnotationAnchors.inDisplay(
-                passage.text,item.verse,item.offset,item.quote);
+                passage.text,item.verse,item.endVerse,item.offset,item.quote);
             if(range==null)continue;
             if(!StudyAnnotations.UNDERLINE.equals(item.kind)){
                 int color;
@@ -1311,7 +1314,8 @@ public final class MainActivity extends Activity {
             else{
                 String[] labels=new String[touched.size()];
                 for(int i=0;i<labels.length;i++)
-                    labels[i]=annotationType(touched.get(i))+" · versículo "+touched.get(i).verse;
+                    labels[i]=annotationType(touched.get(i))+" · versículos "+
+                        verseRange(touched.get(i).verse,touched.get(i).endVerse);
                 new AlertDialog.Builder(this).setTitle("Anotaciones de este fragmento")
                     .setItems(labels,(dialog,index)->showStudyAnnotation(passage,touched.get(index)))
                     .setNegativeButton("Cerrar",null).show();
@@ -1322,13 +1326,13 @@ public final class MainActivity extends Activity {
     private void showStudyAnnotations(LinearLayout parent,BibleStore.Passage passage){
         java.util.ArrayList<StudyAnnotations.Item> visible=new java.util.ArrayList<>();
         for(StudyAnnotations.Item item:studyAnnotations.forChapter(passage.book,passage.chapter))
-            if(item.verse>=passage.first&&item.verse<=passage.last)visible.add(item);
+            if(item.verse<=passage.last&&item.endVerse>=passage.first)visible.add(item);
         if(visible.isEmpty())return;
         addGap(parent,12);
         parent.addView(text("MIS SUBRAYADOS Y NOTAS · "+visible.size(),12,ACCENT,true));
         for(StudyAnnotations.Item item:visible){
             String label=(StudyAnnotations.UNDERLINE.equals(item.kind)?"﹏  ":"✎  ")
-                +annotationType(item)+" · v. "+item.verse;
+                +annotationType(item)+" · v. "+verseRange(item.verse,item.endVerse);
             if(StudyAnnotations.UNDERLINE.equals(item.kind)&&!item.quote.isEmpty()){
                 String excerpt=item.quote.replace('\n',' ');
                 label+=" · "+(excerpt.length()>60?excerpt.substring(0,60)+"…":excerpt);
@@ -1348,11 +1352,21 @@ public final class MainActivity extends Activity {
     private void manualStudyAnnotation(BibleStore.Passage passage){
         java.util.List<Integer> numbers=AnnotationAnchors.verseNumbers(passage.text);
         if(numbers.isEmpty()){showError("No se han encontrado versículos en esta lectura.");return;}
-        String[] labels=new String[numbers.size()];
-        for(int i=0;i<labels.length;i++)labels[i]="Versículo "+numbers.get(i);
-        new AlertDialog.Builder(this).setTitle("¿Qué versículo quieres anotar?")
-            .setItems(labels,(dialog,which)->editStudyAnnotation(passage,
-                new AnnotationAnchors.Anchor(numbers.get(which),0,""),null))
+        String[] starts=new String[numbers.size()];
+        for(int i=0;i<starts.length;i++)starts[i]="Versículo "+numbers.get(i);
+        new AlertDialog.Builder(this).setTitle("¿Dónde empieza la anotación?")
+            .setItems(starts,(dialog,which)->{
+                int startVerse=numbers.get(which);
+                String[] ends=new String[numbers.size()-which];
+                for(int i=0;i<ends.length;i++)
+                    ends[i]=i==0?"Solo el versículo "+startVerse:
+                        "Hasta el versículo "+numbers.get(which+i);
+                new AlertDialog.Builder(this).setTitle("¿Dónde termina la anotación?")
+                    .setItems(ends,(d,choice)->editStudyAnnotation(passage,
+                        new AnnotationAnchors.Anchor(startVerse,
+                            numbers.get(which+choice),0,""),null))
+                    .setNegativeButton("Cancelar",null).show();
+            })
             .setNegativeButton("Cancelar",null).show();
     }
     private static boolean studyLinkIsSafe(String value){
@@ -1374,7 +1388,7 @@ public final class MainActivity extends Activity {
     }
     private void showStudyAnnotation(BibleStore.Passage passage,StudyAnnotations.Item item){
         LinearLayout body=vertical();pad(body,16);
-        TextView ref=text(Books.name(item.book)+" "+item.chapter+":"+item.verse,13,ACCENT,true);
+        TextView ref=text(Books.name(item.book)+" "+item.chapter+":"+verseRange(item.verse,item.endVerse),13,ACCENT,true);
         body.addView(ref);
         if(!item.quote.isEmpty()){
             addGap(body,10);
@@ -1409,7 +1423,7 @@ public final class MainActivity extends Activity {
         if(!StudyAnnotations.UNDERLINE.equals(item.kind)){
             button(body,"Editar anotación",()->{
                 popup.dismiss();
-                editStudyAnnotation(passage,new AnnotationAnchors.Anchor(item.verse,item.offset,item.quote),item);
+                editStudyAnnotation(passage,new AnnotationAnchors.Anchor(item.verse,item.endVerse,item.offset,item.quote),item);
             },false);
         }
         button(body,StudyAnnotations.UNDERLINE.equals(item.kind)?"Quitar subrayado":"Eliminar anotación",()->{
@@ -1428,7 +1442,7 @@ public final class MainActivity extends Activity {
     private void editStudyAnnotation(BibleStore.Passage passage,AnnotationAnchors.Anchor anchor,
                                      StudyAnnotations.Item editing){
         LinearLayout content=vertical();pad(content,17);
-        content.addView(text(Books.name(passage.book)+" "+passage.chapter+":"+anchor.verse,
+        content.addView(text(Books.name(passage.book)+" "+passage.chapter+":"+verseRange(anchor.verse,anchor.endVerse),
             15,ACCENT,true));
         if(!anchor.quote.isEmpty()){
             addGap(content,8);
@@ -1482,7 +1496,7 @@ public final class MainActivity extends Activity {
                 }
                 try{
                     studyAnnotations.save(editing==null?0:editing.id,
-                        passage.book,passage.chapter,anchor.verse,anchor.offset,
+                        passage.book,passage.chapter,anchor.verse,anchor.endVerse,anchor.offset,
                         anchor.quote,kind,comment,link);
                     popup.dismiss();
                     Toast.makeText(this,"Anotación guardada",Toast.LENGTH_SHORT).show();

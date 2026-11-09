@@ -26,7 +26,9 @@ public final class AnnotationExport {
                 currentChapter=item.chapter;
                 out.append('\n').append(Books.name(item.book)).append(' ').append(item.chapter).append('\n');
             }
-            out.append("· v.").append(item.verse).append(" · ").append(kindLabel(item.kind));
+            out.append("· v.").append(item.verse);
+            if(item.endVerse>item.verse)out.append("–").append(item.endVerse);
+            out.append(" · ").append(kindLabel(item.kind));
             if(!item.quote.isEmpty())
                 out.append("\n  «").append(item.quote.replace('\n',' ')).append("»");
             if(!item.body.isEmpty())

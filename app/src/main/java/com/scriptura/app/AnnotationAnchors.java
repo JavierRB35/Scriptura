@@ -11,9 +11,12 @@ public final class AnnotationAnchors {
     private AnnotationAnchors() {}
 
     public static final class Anchor {
-        public final int verse,offset;
+        public final int verse,endVerse,offset;
         public final String quote;
-        Anchor(int verse,int offset,String quote){this.verse=verse;this.offset=offset;this.quote=quote;}
+        Anchor(int verse,int offset,String quote){this(verse,verse,offset,quote);}
+        Anchor(int verse,int endVerse,int offset,String quote){
+            this.verse=verse;this.endVerse=endVerse;this.offset=offset;this.quote=quote;
+        }
     }
     public static final class Range {
         public final int start,end;
@@ -35,33 +38,45 @@ public final class AnnotationAnchors {
         if(lastStart>=0)list.add(new Verse(lastNumber,lastStart,displayed.length()));
         return list;
     }
-    /** Require a nonempty selection entirely inside one verse's text. */
+    /** Anchor the selection to its first and last verse within the displayed passage. */
     public static Anchor fromSelection(String displayed,int begin,int end){
         if(displayed==null||begin<0||end>displayed.length()||begin>=end)return null;
         while(begin<end&&Character.isWhitespace(displayed.charAt(begin)))begin++;
         while(end>begin&&Character.isWhitespace(displayed.charAt(end-1)))end--;
         if(begin>=end)return null;
-        for(Verse verse:verses(displayed)){
-            if(begin>=verse.start&&end<=verse.end)
-                return new Anchor(verse.number,begin-verse.start,displayed.substring(begin,end));
-        }
-        return null;
-    }
-    /** Fail closed if the quote no longer matches or reanchoring would be ambiguous. */
-    public static Range inDisplay(String displayed,int verse,int offset,String quote){
-        if(displayed==null||quote==null||quote.isEmpty())return null;
+        Verse first=null,last=null;
         for(Verse v:verses(displayed)){
-            if(v.number!=verse)continue;
-            int start=v.start+offset;
-            if(offset>=0&&start+quote.length()<=v.end&&
-                displayed.regionMatches(start,quote,0,quote.length()))
-                return new Range(start,start+quote.length());
-            int match=displayed.indexOf(quote,v.start);
-            if(match>=v.start&&match+quote.length()<=v.end&&
-                (displayed.indexOf(quote,match+1)<0||displayed.indexOf(quote,match+1)>=v.end))
-                return new Range(match,match+quote.length());
-            return null;
+            if(first==null&&begin>=v.start&&begin<v.end)first=v;
+            if(end>v.start&&end<=v.end)last=v;
         }
+        // Do not anchor selections starting/ending in chapter headings or verse-number labels.
+        if(first==null||last==null||last.number<first.number)return null;
+        return new Anchor(first.number,last.number,begin-first.start,displayed.substring(begin,end));
+    }
+    /** Historical single-verse API retained for existing annotations and callers. */
+    public static Range inDisplay(String displayed,int verse,int offset,String quote){
+        return inDisplay(displayed,verse,verse,offset,quote);
+    }
+    /** Fail closed if either boundary or the exact selected text cannot be located safely. */
+    public static Range inDisplay(String displayed,int verse,int endVerse,int offset,String quote){
+        if(displayed==null||quote==null||quote.isEmpty()||endVerse<verse)return null;
+        Verse first=null,last=null;
+        for(Verse v:verses(displayed)){
+            if(v.number==verse)first=v;
+            if(v.number==endVerse)last=v;
+        }
+        if(first==null||last==null||last.start<first.start)return null;
+        int start=first.start+offset;
+        if(offset>=0&&start>=first.start&&start<first.end&&
+            start+quote.length()>last.start&&start+quote.length()<=last.end&&
+            displayed.regionMatches(start,quote,0,quote.length()))
+            return new Range(start,start+quote.length());
+        int match=displayed.indexOf(quote,first.start);
+        if(match>=first.start&&match<first.end&&match+quote.length()>last.start&&
+            match+quote.length()<=last.end&&
+            (displayed.indexOf(quote,match+1)<0||
+             displayed.indexOf(quote,match+1)>=last.end))
+            return new Range(match,match+quote.length());
         return null;
     }
     public static List<Integer> verseNumbers(String displayed){

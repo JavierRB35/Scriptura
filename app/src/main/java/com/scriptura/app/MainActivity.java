@@ -10,6 +10,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.*;
 import android.text.InputType;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.RelativeSizeSpan;
 import android.view.*;
 import android.view.inputmethod.EditorInfo;
 import android.widget.*;
@@ -739,13 +742,27 @@ public final class MainActivity extends Activity {
 
         int chapter=passage.chapter;
         boolean hasPrevious=chapter>1;
-        boolean hasNext=chapter<store.chapters(passage.book);
+        int totalChapters=store.chapters(passage.book);
+        boolean hasNext=chapter<totalChapters;
         TextView previous=chapterArrow("←","Capítulo anterior",passage.book,chapter-1,hasPrevious);
         TextView next=chapterArrow("→","Capítulo siguiente",passage.book,chapter+1,hasNext);
         bar.addView(previous,new LinearLayout.LayoutParams(dp(48),dp(48)));
 
-        TextView heading=text(afterText?"Capítulo "+chapter:passage.ref,
-            afterText?14:26,DARK,afterText);
+        String label=afterText?"Capítulo "+chapter:passage.ref;
+        TextView heading=text(label,afterText?14:26,DARK,afterText);
+        if(totalChapters>0){
+            // Mostrar el total en pequeño en la misma línea, sin otra fila de cabecera.
+            int end=label.indexOf(':');
+            if(end<0)end=label.length();
+            String total="/"+totalChapters;
+            SpannableString count=new SpannableString(
+                label.substring(0,end)+total+label.substring(end));
+            count.setSpan(new RelativeSizeSpan(0.55f),end,end+total.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            heading.setText(count);
+            heading.setContentDescription(passage.ref+", capítulo "+chapter+
+                " de "+totalChapters);
+        }
         if(!afterText)serif(heading);
         heading.setGravity(Gravity.CENTER);
         heading.setPadding(dp(4),0,dp(4),0);
@@ -794,6 +811,9 @@ public final class MainActivity extends Activity {
         TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         chapterNavigation(column,p,false);
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
+        button(c,"✦ Interpretación con IA",()->interpret(p,
+            "Explica este pasaje de forma breve y fiel a su contexto.",false),true);
+        addGap(c,6);
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
         bible.setTextIsSelectable(true);
         applyStudyMarks(bible,p);
@@ -840,8 +860,6 @@ public final class MainActivity extends Activity {
             render();
         }));
         c.addView(quick,new LinearLayout.LayoutParams(-1,-2));
-        addGap(c,6);
-        button(c,"✦ Interpretación con IA",()->interpret(p,"Explica este pasaje de forma breve y fiel a su contexto.",false),true);
         if(readerToolsExpanded){
             LinearLayout tools=card(column);
             hint(tools,"Más herramientas de estudio para este pasaje");

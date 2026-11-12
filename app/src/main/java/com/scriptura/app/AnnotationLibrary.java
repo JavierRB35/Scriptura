@@ -2,6 +2,7 @@ package com.scriptura.app;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,6 +14,14 @@ public final class AnnotationLibrary {
         for(String code:Books.NAMES.keySet())BOOK_ORDER.put(code,ordinal++);
     }
     private AnnotationLibrary(){}
+
+    /** Count marks and notes per book; expects the list already sorted canonically. */
+    public static LinkedHashMap<String,Integer> countsByBook(List<StudyAnnotations.Item> ordered){
+        LinkedHashMap<String,Integer> counts=new LinkedHashMap<>();
+        for(StudyAnnotations.Item item:ordered)
+            counts.put(item.book,counts.getOrDefault(item.book,0)+1);
+        return counts;
+    }
 
     private static int rank(String code){
         Integer value=BOOK_ORDER.get(code);

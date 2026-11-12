@@ -7,7 +7,6 @@ import android.app.job.JobService;
 public final class UpdateJobService extends JobService {
     private volatile Thread running;
     @Override public boolean onStartJob(JobParameters params){
-        if(!UpdateChecker.configured(this))return false;
         running=new Thread(()->{
             UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),true);
             if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);

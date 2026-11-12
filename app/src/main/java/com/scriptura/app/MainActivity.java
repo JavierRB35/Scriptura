@@ -417,7 +417,7 @@ public final class MainActivity extends Activity {
         String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
         int[] glyphs={R.drawable.ic_tab_home,R.drawable.ic_tab_bible,R.drawable.ic_tab_mass,
             R.drawable.ic_tab_heart,R.drawable.ic_tab_star};
-        int active=(page==5||page==7||page==9)?1:(page==6||page==8?0:page);
+        int active=(page==5||page==7||page==9||page==10)?1:(page==6||page==8?0:page);
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
             int color=selected?GOLD:Color.rgb(231,236,242);
@@ -454,7 +454,7 @@ public final class MainActivity extends Activity {
             case 3:personal();break;case 4:saved();break;
             case 5:passagePage();break;case 6:atlas();break;
             case 7:bibleIndex();break;case 8:artGallery();break;
-            case 9:bookOverview();break;
+            case 9:bookOverview();break;case 10:myStudyMarks();break;
             default:page=0;home();
         }
         // Una actualización de la misma página (estado de ánimo, fecha de Misa,
@@ -632,6 +632,7 @@ public final class MainActivity extends Activity {
             button(column,"Importar mi Biblia para leer",this::pickEpub,true);
             button(column,"Explorar el índice de los 73 libros",this::openIndex,false);
             button(column,"Ver obras de arte bíblico",this::openGallery,false);
+            button(column,"Mis subrayados y anotaciones",()->go(10),false);
             return;
         }
         LinearLayout c=card(column);
@@ -642,8 +643,93 @@ public final class MainActivity extends Activity {
         button(c,"Índice de libros y sus introducciones",this::openIndex,false);
         button(c,"Elegir capítulo",this::openIndex,false);
         button(c,"Galería de arte bíblico",this::openGallery,false);
+        button(c,"Mis subrayados y anotaciones",()->go(10),false);
         hint(column,"El historial de consultas está en la pestaña Guardados. Puedes introducir un libro, capítulo, versículo, intervalo o una palabra del texto.");
     }
+    /** Vista de consulta sobre la base de anotaciones existente, sin alterar sus registros. */
+    private void myStudyMarks(){
+        title(column,"Mis subrayados y anotaciones");
+        hint(column,"Tus textos marcados y notas, ordenados por libros del Antiguo al Nuevo Testamento. Pulsa una entrada para volver al versículo en la Biblia.");
+        final List<StudyAnnotations.Item> items;
+        try{
+            items=AnnotationLibrary.ordered(studyAnnotations.all());
+        }catch(RuntimeException error){
+            showError("No se pudieron cargar tus subrayados y anotaciones.");
+            return;
+        }
+        if(items.isEmpty()){
+            LinearLayout empty=card(column);
+            hint(empty,"Todavía no tienes subrayados ni anotaciones. Abre un capítulo, mantén pulsado un fragmento y elige «Subrayar» o «Anotar».");
+            button(empty,"Volver a la Biblia",()->go(1),false);
+            return;
+        }
+        String currentBook="";
+        boolean oldHeading=false,newHeading=false;
+        for(StudyAnnotations.Item item:items){
+            boolean newTestament=Books.isNew(item.book);
+            if(newTestament&&!newHeading){
+                addGap(column,12);
+                section(column,"Nuevo Testamento","Evangelios, escritos apostólicos y Apocalipsis.");
+                newHeading=true;
+            }else if(!newTestament&&!oldHeading){
+                addGap(column,12);
+                section(column,"Antiguo Testamento","Libros anteriores al Nuevo Testamento.");
+                oldHeading=true;
+            }
+            if(!item.book.equals(currentBook)){
+                currentBook=item.book;
+                addGap(column,10);
+                column.addView(text(Books.name(item.book),18,DARK,true));
+            }
+            LinearLayout entry=card(column);
+            entry.setPadding(dp(15),dp(13),dp(15),dp(13));
+            String source=Books.name(item.book)+" "+item.chapter+":"+
+                verseRange(item.verse,item.endVerse);
+            entry.addView(text("FUENTE · "+source,13,ACCENT,true));
+            entry.addView(text(annotationType(item),12,MUTED,true));
+            String excerpt=item.quote.trim();
+            if(excerpt.isEmpty()&&store.ready()){
+                String query=Books.name(item.book)+" "+item.chapter+":"+item.verse+
+                    (item.endVerse>item.verse?"-"+item.endVerse:"");
+                BibleStore.Passage sourcePassage=store.passage(query);
+                if(sourcePassage!=null)excerpt=sourcePassage.text.trim();
+            }
+            if(!excerpt.isEmpty()){
+                addGap(entry,8);
+                String preview=excerpt.length()>320?excerpt.substring(0,320)+"…":excerpt;
+                TextView quote=text("«"+preview+"»",15,DARK,false);
+                serif(quote);
+                entry.addView(quote);
+            }
+            if(!item.body.trim().isEmpty()){
+                addGap(entry,8);
+                TextView note=text("Anotación: "+item.body,14,DARK,false);
+                entry.addView(note);
+            }
+            if(!item.url.isEmpty())
+                hint(entry,"Contiene un enlace asociado; puedes consultarlo al abrir la anotación.");
+            addGap(entry,8);
+            entry.addView(text("Leer en la Biblia  ›",13,ACCENT,true));
+            entry.setClickable(true);
+            entry.setFocusable(true);
+            entry.setContentDescription(annotationType(item)+". Fuente: "+source+". Abrir en la Biblia");
+            entry.setOnClickListener(v->openSavedMark(item));
+        }
+    }
+
+    private void openSavedMark(StudyAnnotations.Item item){
+        if(!store.ready()){
+            showError("Para abrir el texto original, importa tu ejemplar EPUB de la Biblia.");
+            return;
+        }
+        BibleStore.Passage chapter=store.passage(Books.name(item.book)+" "+item.chapter);
+        if(chapter==null){
+            showError("No se encuentra ese capítulo en tu Biblia importada.");
+            return;
+        }
+        open(chapter,item.verse);
+    }
+
     private void lookup(String query){
         if(query.trim().isEmpty())return;
         BibleStore.Passage passage=store.passage(query);
@@ -2768,7 +2854,7 @@ public final class MainActivity extends Activity {
         }
         if(!backStack.isEmpty()){
             Integer target=backStack.pop();
-            if(target!=null&&target>=0&&target<=9&&target!=page){
+            if(target!=null&&target>=0&&target<=10&&target!=page){
                 if(target==1)searchResultsQuery="";
                 page=target;
                 render();
@@ -2777,11 +2863,12 @@ public final class MainActivity extends Activity {
         }
         if(page==5){
             int previous=readerOrigin;
-            page=(previous>=0&&previous<=9&&previous!=5)?previous:1;
+            page=(previous>=0&&previous<=10&&previous!=5)?previous:1;
             searchResultsQuery="";
             render();
         }
         else if(page==9){page=7;render();}
+        else if(page==10){page=1;render();}
         else if(page==7||page==8){page=0;searchResultsQuery="";render();}
         else if(page==6){
             if(atlasMode==3||atlasMode==4){atlasMode=0;render();}

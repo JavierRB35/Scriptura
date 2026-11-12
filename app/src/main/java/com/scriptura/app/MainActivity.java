@@ -251,19 +251,17 @@ public final class MainActivity extends Activity {
             setIntent(new Intent(this,MainActivity.class));
             frame.post(()->updateInstaller.start(target));
         }
-        if(UpdateChecker.configured(this)){
-            UpdateChecker.schedule(this);
-            worker.execute(()->{
-                UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),false);
-                if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);
-                runOnUiThread(()->{
-                    if(isFinishing()||isDestroyed())return;
-                    if(page==0)render();
-                    if(!UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction()))
-                        promptUpdate(result.update,false);
-                });
+        UpdateChecker.schedule(this);
+        worker.execute(()->{
+            UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),false);
+            if(result.available())UpdateChecker.maybeNotify(getApplicationContext(),result.update);
+            runOnUiThread(()->{
+                if(isFinishing()||isDestroyed())return;
+                if(page==0)render();
+                if(!UpdateInstaller.ACTION_UPDATE.equals(getIntent().getAction()))
+                    promptUpdate(result.update,false);
             });
-        }
+        });
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);
@@ -2547,8 +2545,8 @@ public final class MainActivity extends Activity {
         section(box,"Actualizaciones","Recibir avisos de nuevas APK firmadas.");
         addGap(box,18);
         hint(box,"Comprobación al abrir y periódica cada 12 horas. Recibirás un aviso «Actualizar»; la descarga se realiza dentro de Scriptura y Android confirma la instalación.");
-        hint(box,"El repositorio es privado. Necesitas un token GitHub con acceso SOLO a Scriptura y permiso Contents: Read.");
-        button(box,UpdateChecker.configured(this)?"Modificar acceso privado GitHub":"Activar avisos de actualización",
+        hint(box,"Las actualizaciones públicas funcionan sin token. Solo necesitas una credencial de solo lectura si el repositorio vuelve a ser privado.");
+        button(box,UpdateChecker.configured(this)?"Modificar token privado (opcional)":"Configurar token privado (opcional)",
             this::configureUpdateToken,false);
         button(box,"Comprobar actualizaciones ahora",this::checkUpdatesNow,false);
         String updateError=UpdateChecker.lastError(this);
@@ -2678,15 +2676,15 @@ public final class MainActivity extends Activity {
         LinearLayout wrap=vertical();
         wrap.setPadding(dp(22),dp(10),dp(22),dp(0));
         wrap.addView(edit);
-        TextView explanation=text("En GitHub crea un Fine-grained token limitado a JavierRB35/Scriptura, solo Contents: Read, con caducidad. No uses un token con permisos de escritura. Se guarda cifrado en este móvil.",14,MUTED,false);
+        TextView explanation=text("Ahora Scriptura es público y no necesita token para actualizarse. Solo si vuelve a ser privado, crea un Fine-grained token con permiso Contents: Read limitado a este repositorio. Se guardará cifrado en el móvil.",14,MUTED,false);
         wrap.addView(explanation);
-        new AlertDialog.Builder(this).setTitle("Acceso a versiones privadas")
+        new AlertDialog.Builder(this).setTitle("Acceso privado opcional")
             .setView(wrap)
             .setNegativeButton("Cancelar",null)
-            .setNeutralButton("Desactivar avisos",(d,w)->{
+            .setNeutralButton("Usar acceso público",(d,w)->{
                 UpdateChecker.clearToken(this);
-                Toast.makeText(this,"Avisos de versiones desactivados",Toast.LENGTH_SHORT).show();
-                render();
+                Toast.makeText(this,"Acceso público: avisos activos sin token",Toast.LENGTH_SHORT).show();
+                checkUpdatesNow();
             })
             .setPositiveButton("Guardar y activar",(d,w)->{
                 try{
@@ -2702,10 +2700,6 @@ public final class MainActivity extends Activity {
             }).show();
     }
     private void checkUpdatesNow(){
-        if(!UpdateChecker.configured(this)){
-            showError("Primero configura un token de GitHub restringido a este repositorio para acceder a sus Releases privadas.");
-            return;
-        }
         Toast.makeText(this,"Consultando versiones de Scriptura...",Toast.LENGTH_SHORT).show();
         worker.execute(()->{
             UpdateChecker.Result result=UpdateChecker.check(getApplicationContext(),true);

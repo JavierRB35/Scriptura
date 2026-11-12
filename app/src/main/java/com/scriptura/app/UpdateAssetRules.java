@@ -20,6 +20,16 @@ public final class UpdateAssetRules {
             throw new IllegalArgumentException("Huella SHA-256 ausente");
         return digest.substring(7).toLowerCase(Locale.ROOT);
     }
+    /** Ruta pública fija; ningún nombre ni repositorio externo puede influir en la descarga. */
+    public static String publicDownloadUrl(String repository,String tag,String name){
+        if(!"JavierRB35/Scriptura".equals(repository)||
+                tag==null||!tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+-build\\.[0-9]+")||
+                ReleaseVersions.parse(tag)==null||
+                !("Scriptura-"+tag.substring(1)+".apk").equals(name))
+            throw new IllegalArgumentException("URL pública de actualización no autorizada");
+        return "https://github.com/"+repository+"/releases/download/"+tag+"/"+name;
+    }
+
     /** La URL de descarga autenticada se construye solo desde el ID validado. */
     public static String assetApiUrl(String repository,long id){
         if(!"JavierRB35/Scriptura".equals(repository)||id<=0)

@@ -29,6 +29,25 @@ public final class UpdateAssetRulesTest {
             "Scriptura-0.7.6-build.0.apk",SHA,0));
         assertFalse(UpdateAssetRules.valid(null,1,150586,"Scriptura.apk",SHA,1));
     }
+    @Test public void publicReleaseUrlIsFixedAndCannotInjectOtherSources(){
+        assertEquals(
+            "https://github.com/JavierRB35/Scriptura/releases/download/v0.8.0-build.176/Scriptura-0.8.0-build.176.apk",
+            UpdateAssetRules.publicDownloadUrl("JavierRB35/Scriptura",
+                "v0.8.0-build.176","Scriptura-0.8.0-build.176.apk"));
+        String[][] invalid={
+            {"other/repo","v0.8.0-build.176","Scriptura-0.8.0-build.176.apk"},
+            {"JavierRB35/Scriptura","../latest","Scriptura-../latest.apk"},
+            {"JavierRB35/Scriptura","v0.8.0-build.176","other.apk"},
+            {"JavierRB35/Scriptura","v0.8.0-build.176","Scriptura-0.8.0-build.176.apk/../other.apk"}
+        };
+        for(String[] attempt:invalid){
+            try{
+                UpdateAssetRules.publicDownloadUrl(attempt[0],attempt[1],attempt[2]);
+                fail("La URL pública aceptó un origen no autorizado");
+            }catch(IllegalArgumentException expected){}
+        }
+    }
+
     @Test public void downloadEndpointCannotBeControlledExternally(){
         assertEquals("https://api.github.com/repos/JavierRB35/Scriptura/releases/assets/123",
             UpdateAssetRules.assetApiUrl("JavierRB35/Scriptura",123));

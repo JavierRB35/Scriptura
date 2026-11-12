@@ -661,6 +661,43 @@ public final class MainActivity extends Activity {
             button(empty,"Volver a la Biblia",()->go(1),false);
             return;
         }
+        // Índice compacto: solo libros con registros, en el mismo orden que la lista.
+        java.util.LinkedHashMap<String,Integer> bookCounts=AnnotationLibrary.countsByBook(items);
+        final ScrollView indexScroll=readingScroll;
+        final java.util.Map<String,TextView> bookHeadings=new java.util.HashMap<>();
+        LinearLayout indexCard=card(column);
+        indexCard.addView(text("Índice por libros",18,DARK,true));
+        hint(indexCard,"Pulsa un libro para ir a sus subrayados y anotaciones.");
+        LinearLayout indexRow=null;
+        int position=0;
+        for(java.util.Map.Entry<String,Integer> book:bookCounts.entrySet()){
+            if(position%2==0){
+                indexRow=new LinearLayout(this);
+                indexRow.setOrientation(LinearLayout.HORIZONTAL);
+                indexCard.addView(indexRow);
+            }
+            final String bookCode=book.getKey();
+            String bookName=Books.name(bookCode);
+            TextView shortcut=text(bookName+" ("+book.getValue()+")",14,ACCENT,true);
+            shortcut.setGravity(Gravity.CENTER_VERTICAL);
+            shortcut.setMinHeight(dp(48));
+            shortcut.setPadding(dp(10),dp(9),dp(10),dp(9));
+            shortcut.setBackground(outlined(SOFT,10));
+            shortcut.setFocusable(true);
+            shortcut.setContentDescription("Ir a "+bookName+", "+book.getValue()+" subrayados y anotaciones");
+            LinearLayout.LayoutParams shortcutParams=new LinearLayout.LayoutParams(0,-2,1);
+            shortcutParams.setMargins(dp(3),dp(4),dp(3),dp(4));
+            indexRow.addView(shortcut,shortcutParams);
+            shortcut.setOnClickListener(v->{
+                TextView heading=bookHeadings.get(bookCode);
+                if(heading==null)return;
+                indexScroll.post(()->{
+                    if(page==10&&readingScroll==indexScroll)
+                        indexScroll.smoothScrollTo(0,Math.max(0,heading.getTop()-dp(12)));
+                });
+            });
+            position++;
+        }
         String currentBook="";
         boolean oldHeading=false,newHeading=false;
         for(StudyAnnotations.Item item:items){
@@ -677,7 +714,9 @@ public final class MainActivity extends Activity {
             if(!item.book.equals(currentBook)){
                 currentBook=item.book;
                 addGap(column,10);
-                column.addView(text(Books.name(item.book),18,DARK,true));
+                TextView bookHeading=text(Books.name(item.book),18,DARK,true);
+                column.addView(bookHeading);
+                bookHeadings.put(item.book,bookHeading);
             }
             LinearLayout entry=card(column);
             entry.setPadding(dp(15),dp(13),dp(15),dp(13));

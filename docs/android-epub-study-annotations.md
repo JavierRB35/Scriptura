@@ -10,7 +10,8 @@
 
 ## Biblioteca de subrayados y anotaciones
 - En **Biblia → Mis subrayados y anotaciones** se reúnen los textos subrayados y las notas (incluidos enlaces y mapas asociados), mostrando su fuente como libro, capítulo y versículo o intervalo.
-- La biblioteca ordena los registros por el canon de 73 libros de `Books.NAMES`: primero Antiguo Testamento y después Nuevo Testamento, dentro de cada libro por capítulo y versículo. Cada entrada abre el capítulo en el versículo de origen.
+- La biblioteca ordena los registros por el canon de 73 libros de `Books.NAMES`: primero Antiguo Testamento y después Nuevo Testamento, dentro de cada libro por capítulo y versículo.
+- Al principio presenta un índice de los libros con registros, con su número total de subrayados y anotaciones entre paréntesis. Pulsar un libro desplaza la página a su sección, sin abandonar la biblioteca. Cada entrada abre el capítulo en el versículo de origen.
 - Los datos se leen de la base SQLite existente; no se modifican su esquema, contenido, copias de seguridad ni las anotaciones previas. Si no hay anotaciones, se muestra una indicación para crearlas.
 
 ## Identidad de anotación y almacenamiento

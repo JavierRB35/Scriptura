@@ -39,6 +39,19 @@ public class AnnotationLibraryTest {
         assertSame(map,result.get(2));
     }
 
+    @Test public void countsOnlyBooksWithMarksInCanonicalOrder(){
+        List<StudyAnnotations.Item> ordered=AnnotationLibrary.ordered(Arrays.asList(
+            item(7,"Ap",1,1),item(2,"Gn",1,1),item(4,"Mt",2,3),
+            item(1,"Gn",1,1),item(3,"Mt",2,3),item(8,"Gn",1,4)));
+        java.util.LinkedHashMap<String,Integer> totals=AnnotationLibrary.countsByBook(ordered);
+        assertEquals(Arrays.asList("Gn","Mt","Ap"),new ArrayList<>(totals.keySet()));
+        assertEquals(Integer.valueOf(3),totals.get("Gn"));
+        assertEquals(Integer.valueOf(2),totals.get("Mt"));
+        assertEquals(Integer.valueOf(1),totals.get("Ap"));
+        assertFalse(totals.containsKey("Ex"));
+        assertTrue(AnnotationLibrary.countsByBook(new ArrayList<>()).isEmpty());
+    }
+
     @Test public void emptyListRemainsEmpty(){
         assertTrue(AnnotationLibrary.ordered(new ArrayList<>()).isEmpty());
     }

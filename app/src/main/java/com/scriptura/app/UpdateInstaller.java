@@ -43,10 +43,6 @@ public final class UpdateInstaller {
         if(!ReleaseVersions.isNewer(update.tag,installedName())){
             message("Ya tienes una versión igual o más reciente.");return;
         }
-        if(!UpdateChecker.configured(activity)){
-            message("El repositorio privado requiere configurar antes el acceso GitHub de solo lectura en Ajustes.");
-            return;
-        }
         if(!BUSY.compareAndSet(false,true))return;
         AlertDialog progress=new AlertDialog.Builder(activity)
             .setTitle("Actualizando Scriptura")
@@ -64,7 +60,7 @@ public final class UpdateInstaller {
                 if(ready.exists()&&!ready.delete())
                     throw new IllegalStateException("No se puede eliminar la descarga anterior.");
                 // El token solo viaja a api.github.com. Nunca a la URL de redirección.
-                downloadAsset(update,partial,UpdateChecker.downloadToken(activity));
+                downloadAsset(update,partial,activity);
                 verifyApk(partial,update);
                 if(!partial.renameTo(ready))
                     throw new IllegalStateException("No se puede conservar la descarga verificada.");
@@ -94,16 +90,30 @@ public final class UpdateInstaller {
         }catch(Exception e){return "";}
     }
 
-    /** No se permite que el token de acceso privado llegue a dominios de terceros. */
-    private static HttpURLConnection connectDownload(long assetId,String token) throws Exception{
-        URL url=new URL(UpdateAssetRules.assetApiUrl(UpdateChecker.REPO,assetId));
+    /** Las APK públicas se descargan sin token; acceso privado solo como respaldo. */
+    private static HttpURLConnection connectDownload(UpdateChecker.Update update,Activity activity)
+            throws Exception{
+        try{
+            return connectDownloadOnce(update,null);
+        }catch(Exception publicError){
+            if(!UpdateChecker.configured(activity))throw publicError;
+            return connectDownloadOnce(update,UpdateChecker.downloadToken(activity));
+        }
+    }
+    /** No se permite que la credencial llegue a GitHub Releases ni a sus redirecciones. */
+    private static HttpURLConnection connectDownloadOnce(UpdateChecker.Update update,String token)
+            throws Exception{
+        boolean privateAccess=token!=null&&!token.isEmpty();
+        URL url=new URL(privateAccess?
+            UpdateAssetRules.assetApiUrl(UpdateChecker.REPO,update.assetId):
+            UpdateAssetRules.publicDownloadUrl(UpdateChecker.REPO,update.tag,update.assetName));
         for(int hops=0;hops<4;hops++){
             if(!"https".equalsIgnoreCase(url.getProtocol())||url.getUserInfo()!=null||
                 (url.getPort()!=-1&&url.getPort()!=443))
                 throw new IllegalStateException("URL de descarga no autorizada");
             String host=url.getHost().toLowerCase(Locale.ROOT);
             boolean first=(hops==0);
-            if(first?!host.equals("api.github.com"):
+            if(first?(privateAccess?!host.equals("api.github.com"):!host.equals("github.com")):
                 !(host.equals("github.com")||host.endsWith(".githubusercontent.com")))
                 throw new IllegalStateException("Servidor de descarga no autorizado");
             HttpURLConnection connection=(HttpURLConnection)url.openConnection();
@@ -111,7 +121,7 @@ public final class UpdateInstaller {
             connection.setReadTimeout(60000);
             connection.setInstanceFollowRedirects(false);
             connection.setRequestProperty("User-Agent","Scriptura-Android-Updater");
-            if(first){
+            if(first&&privateAccess){
                 connection.setRequestProperty("Authorization","Bearer "+token);
                 connection.setRequestProperty("Accept","application/octet-stream");
                 connection.setRequestProperty("X-GitHub-Api-Version","2022-11-28");
@@ -139,9 +149,9 @@ public final class UpdateInstaller {
         throw new IllegalStateException("Demasiadas redirecciones");
     }
 
-    private static void downloadAsset(UpdateChecker.Update update,File partial,String token)
+    private static void downloadAsset(UpdateChecker.Update update,File partial,Activity activity)
             throws Exception{
-        HttpURLConnection connection=connectDownload(update.assetId,token);
+        HttpURLConnection connection=connectDownload(update,activity);
         try{
             MessageDigest digest=MessageDigest.getInstance("SHA-256");
             long count=0;

@@ -823,7 +823,6 @@ public final class MainActivity extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams row=new LinearLayout.LayoutParams(-1,-2);
         if(afterText)row.topMargin=dp(16);
-        else row.bottomMargin=dp(12);
         parent.addView(bar,row);
 
         int chapter=passage.chapter;
@@ -896,10 +895,10 @@ public final class MainActivity extends Activity {
         BibleStore.Passage p=selected;
         TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         chapterNavigation(column,p,false);
-        LinearLayout c=card(column);c.setBackground(outlined(BG,16));
-        button(c,"✦ Interpretación con IA",()->interpret(p,
+        button(column,"✦ Interpretación con IA",()->interpret(p,
             "Explica este pasaje de forma breve y fiel a su contexto.",false),true);
-        addGap(c,6);
+        addGap(column,6);
+        LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
         bible.setTextIsSelectable(true);
         applyStudyMarks(bible,p);

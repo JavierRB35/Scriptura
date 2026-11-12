@@ -21,7 +21,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Descarga privada bajo petición y abre el instalador del sistema.
+ * Descarga verificada desde Releases públicas, con respaldo privado opcional, y abre el instalador del sistema.
  * No hay instalación silenciosa, no se expone la clave de GitHub ni se toca la Biblia.
  */
 public final class UpdateInstaller {
@@ -59,7 +59,7 @@ public final class UpdateInstaller {
                 File ready=new File(folder,UpdateApkProvider.FILE_NAME);
                 if(ready.exists()&&!ready.delete())
                     throw new IllegalStateException("No se puede eliminar la descarga anterior.");
-                // El token solo viaja a api.github.com. Nunca a la URL de redirección.
+                // El flujo público no usa credenciales; el respaldo privado limita el token a api.github.com.
                 downloadAsset(update,partial,activity);
                 verifyApk(partial,update);
                 if(!partial.renameTo(ready))
@@ -74,13 +74,13 @@ public final class UpdateInstaller {
                 activity.runOnUiThread(()->{
                     progress.dismiss();
                     if(!activity.isFinishing()&&!activity.isDestroyed())
-                        message("No se ha instalado la actualización. La descarga o la verificación ha fallado. Revisa la conexión y el acceso privado de GitHub.");
+                        message("No se ha instalado la actualización. La descarga o la verificación ha fallado. Revisa la conexión y vuelve a intentarlo.");
                 });
             }finally{
                 if(partial!=null&&partial.exists())partial.delete();
                 BUSY.set(false);
             }
-        },"scriptura-private-apk-download").start();
+        },"scriptura-verified-apk-download").start();
     }
 
     private String installedName(){

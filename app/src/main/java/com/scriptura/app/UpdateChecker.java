@@ -35,7 +35,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
 /**
- * Buscador de versiones en los RELEASES publicados del repositorio privado.
+ * Buscador de versiones en Releases públicas, con acceso privado opcional.
  * Comprueba versiones, pero la descarga y la instalación se inician solo tras pulsar Actualizar.
  * Nunca incluye un GitHub token en el código ni permite instalación silenciosa.
  */
@@ -113,8 +113,8 @@ public final class UpdateChecker {
                 .remove("latest_asset_size").remove("latest_asset_sha256")
                 .remove("latest_version_code").remove("last_prompted")
                 .remove("last_notified").apply();
-        JobScheduler jobs=(JobScheduler)c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
-        if(jobs!=null)jobs.cancel(JOB_ID);
+        // Eliminar un token no desactiva los avisos del repositorio público.
+        schedule(c);
     }
     static String downloadToken(Context c) throws Exception{
         return readToken(c);
@@ -130,7 +130,6 @@ public final class UpdateChecker {
         return new String(cipher.doFinal(Base64.decode(parts[1],Base64.NO_WRAP)),StandardCharsets.UTF_8);
     }
     public static void schedule(Context c){
-        if(!configured(c))return;
         JobScheduler scheduler=(JobScheduler)c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if(scheduler==null)return;
         JobInfo job=new JobInfo.Builder(JOB_ID,new ComponentName(c,UpdateJobService.class))
@@ -178,13 +177,23 @@ public final class UpdateChecker {
         prefs(c).edit().putString("last_error",message).putLong("last_checked",
                 System.currentTimeMillis()).apply();
     }
+    private static HttpURLConnection openReleasesConnection(String token) throws Exception {
+        HttpURLConnection connection=(HttpURLConnection)new URL(API).openConnection();
+        connection.setInstanceFollowRedirects(false);
+        connection.setRequestProperty("Accept","application/vnd.github+json");
+        connection.setRequestProperty("X-GitHub-Api-Version","2022-11-28");
+        connection.setRequestProperty("User-Agent","Scriptura-Android-Update-Checker");
+        if(token!=null&&!token.isEmpty())
+            connection.setRequestProperty("Authorization","Bearer "+token);
+        connection.setConnectTimeout(12000);
+        connection.setReadTimeout(16000);
+        return connection;
+    }
     /**
      * Invocar EXCLUSIVAMENTE fuera del hilo principal.
-     * force=true omite la ventana de cinco minutos usada para evitar consultas repetidas.
+     * Consultar anónimamente primero; solo intentar el token privado en caso de acceso denegado.
      */
     public static synchronized Result check(Context c,boolean force){
-        if(!configured(c))return new Result(null,
-            "Para comprobar versiones del repositorio privado, configura tu acceso de solo lectura en Ajustes.");
         SharedPreferences p=prefs(c);
         long now=System.currentTimeMillis();
         if(!force && now-p.getLong("last_checked",0)<FOREGROUND_THROTTLE_MS){
@@ -194,20 +203,17 @@ public final class UpdateChecker {
         }
         HttpURLConnection conn=null;
         try{
-            String token=readToken(c);
-            URL endpoint=new URL(API);
-            conn=(HttpURLConnection)endpoint.openConnection();
-            conn.setInstanceFollowRedirects(false);
-            conn.setRequestProperty("Accept","application/vnd.github+json");
-            conn.setRequestProperty("X-GitHub-Api-Version","2022-11-28");
-            conn.setRequestProperty("Authorization","Bearer "+token);
-            conn.setRequestProperty("User-Agent","Scriptura-Android-Update-Checker");
-            conn.setConnectTimeout(12000);conn.setReadTimeout(16000);
+            conn=openReleasesConnection("");
             int code=conn.getResponseCode();
+            if((code==403||code==404)&&configured(c)){
+                conn.disconnect();
+                conn=openReleasesConnection(readToken(c));
+                code=conn.getResponseCode();
+            }
             if(code!=200){
                 String message=(code==401||code==403) ?
-                    "GitHub ha rechazado la credencial o su cuota. Comprueba que el token siga vigente y tenga Contents: Read." :
-                    code==404 ? "Sin acceso a Scriptura: selecciona el repositorio y permiso Contents: Read en tu token." :
+                    "GitHub ha limitado la consulta o rechazado el acceso privado (HTTP "+code+")." :
+                    code==404 ? "No se encuentran las versiones de Scriptura en GitHub (HTTP 404)." :
                     code==429 ? "Demasiadas consultas a GitHub; inténtalo más tarde." :
                     "GitHub no responde correctamente (HTTP "+code+").";
                 fail(c,message);return new Result(remembered(c),message);
@@ -277,7 +283,7 @@ public final class UpdateChecker {
             return new Result(best,best==null?"La aplicación está actualizada.":"Nueva versión: "+best.tag);
         }catch(Exception ex){
             // Nunca registrar ni mostrar la credencial ni el cuerpo de respuesta de GitHub.
-            String info="No se pudo comprobar GitHub. Revisa conexión y credencial.";
+            String info="No se pudo comprobar GitHub. Revisa la conexión y vuelve a intentarlo.";
             fail(c,info);
             return new Result(remembered(c),info);
         }finally{

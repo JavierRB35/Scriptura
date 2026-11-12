@@ -128,25 +128,25 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 ## Actualización integrada — 0.7.7
 
 - Al encontrar una nueva Release APK firmada, Scriptura muestra un aviso opcional con los botones **Actualizar** y **Más tarde**, además de una notificación Android de alta prioridad con acción **Actualizar** (si se ha concedido el permiso).
-- Al tocar Actualizar, descarga directamente el asset de GitHub Releases **dentro de la app** mediante la API privada, usando el token de solo lectura ya configurado y cifrado en Android Keystore. No abre navegador ni pantalla de GitHub.
+- Al tocar Actualizar, descarga directamente la APK desde **GitHub Releases público, sin token**, y valida el SHA-256 y la firma antes de instalarla. Si el repositorio vuelve a ser privado, admite el acceso autenticado con token de solo lectura. No abre navegador ni pantalla de GitHub.
 - Solo acepta metadatos de la Release oficial con SHA-256 publicado, tamaño válido, nombre exacto y versión superior. Valida los bytes descargados, packageName, versionCode y firma respecto de la APK ya instalada antes de entregar el archivo en caché privada al instalador Android.
-- El token de GitHub solo se envía al dominio api.github.com. Si GitHub redirige la descarga a githubusercontent.com, se sigue sin reenviar el token ni incluirlo en URL.
+- Las descargas públicas jamás llevan token. Si se usa el respaldo privado, la credencial solo se envía a `api.github.com`, nunca a los servidores de redirección.
 - Android pide **una única autorización inicial** para permitir a Scriptura lanzar su instalador cuando sea necesaria y **confirma cada instalación**. No hay instalación silenciosa ni desinstalación, y se conservan el EPUB privado y las bases de datos locales.
-- El repositorio permanece **privado**: sin el token restringido a Scriptura con Contents: Read, no se puede comprobar ni descargar una APK privada. Es una configuración previa opcional.
+- El repositorio es **público**: no hace falta token para detectar ni descargar nuevas Releases. El token se conserva como alternativa opcional para repositorios privados.
 - La comprobación de fondo solo avisa y nunca descarga sin que el usuario pulse Actualizar. La notificación emergente depende de ajustes/permisos de Android; el banner dentro de la app no requiere notificaciones.
 - **Primera transición**: la versión 0.7.6 todavía abre GitHub y no puede incorporar por sí misma el nuevo flujo. Instalar la Release 0.7.7 firmada con el procedimiento anterior una sola vez; a partir de ahí funcionan las actualizaciones directas.
 
 ## Avisos automáticos de actualización — 0.5.1
 
 - Scriptura consulta las versiones `0.x.y-build.N` **publicadas con APK** en las GitHub Releases de `JavierRB35/Scriptura`.
-- **Repositorio privado:** GitHub rechaza consultas no autenticadas. Por eso, en Ajustes, el usuario configura **una sola vez** un Fine-grained personal access token de GitHub, limitado al repositorio Scriptura y **Contents: Read**. No se solicitan otros permisos.
+- **Acceso actual público:** GitHub permite consultar Releases sin autenticar. Si en el futuro Scriptura vuelve a ser privado, se puede configurar en Ajustes un Fine-grained personal access token limitado a Scriptura con permiso **Contents: Read**.
 - El token se cifra con AES-GCM mediante Android Keystore y se guarda **solo en el almacenamiento privado del dispositivo**. No incluirlo en el ZIP, repositorio, APK ni secretos compartidos. Puede revocarse desde GitHub o borrarse en Ajustes.
 - La aplicación realiza comprobaciones al abrir (con control de frecuencia) y mediante `JobScheduler` cada 12 horas, con conexión de red. Android puede retrasar las tareas periódicas; no existe garantía de notificación instantánea.
 - Una actualización disponible se muestra en Inicio y, si está permitido, se envía una notificación Android en un canal independiente al recordatorio de lectura. Se notifica cada etiqueta una sola vez para evitar repeticiones.
-- Al pulsar se abre la página **privada** del Release en el navegador, donde el usuario inicia sesión si es necesario y descarga la APK firmada. **Jamás se instala automáticamente.**
+- Al pulsar **Actualizar**, Scriptura descarga y verifica internamente la APK y abre el instalador de Android para pedir confirmación. **Jamás se instala automáticamente.**
 - En Android 13+ hay que permitir `POST_NOTIFICATIONS` para los avisos del sistema, pero el banner dentro de la app no lo necesita.
 - El modelo de versiones se comprueba con tests unitarios y no se notifica sobre borradores, tags sueltos ni Releases que carezcan de APK.
-- Limitación de seguridad: aunque cifrado en el Keystore, el token personal es una credencial sensible. Usar una credencial limitada con caducidad; regenerarla al vencer.
+- Limitación de seguridad: si se configura un token para acceso privado, sigue siendo una credencial sensible cifrada en el Keystore. Usar permisos mínimos y caducidad; no hace falta para las actualizaciones públicas.
 - Para comprobar un APK publicado nuevo, no basta un commit o una compilación de PR: debe existir una **Release** firmada descargable.
 
 ## Atlas interactivo sobre cartografía real (candidata 0.6.0)

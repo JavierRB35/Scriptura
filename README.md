@@ -109,6 +109,7 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 ## Lectura contextual con Gemini y modos de pantalla — 0.7.9
 
 - Seleccionar palabras o frases en el lector EPUB y elegir **Interpretar con Gemini** en el menú contextual de Android, junto a **Anotar**, **Subrayar** y **Definir**.
+- En cada capítulo, **✦ Interpretación con IA** aparece tanto junto al encabezado como inmediatamente después del texto y la navegación inferior; ambos botones ejecutan la misma interpretación del capítulo.
 - El aviso de autorización explica exactamente qué sale del dispositivo: el fragmento elegido, su referencia y unos cientos de caracteres de contexto adyacente. **No se envían el EPUB completo, las notas privadas ni el historial de lectura**. Es necesaria la clave Gemini guardada en Android Keystore.
 - El resultado aparece en un **cuadro de diálogo dentro de Scriptura** con scroll y botón **Cerrar**. No cambia de página ni invoca render(); al cerrar restaura la coordenada vertical original del lector. Los errores se muestran dentro del mismo cuadro.
 - Para mantener referencias precisas, la selección debe empezar dentro del texto y tener como máximo 1.200 caracteres; puede abarcar varios versículos contiguos.

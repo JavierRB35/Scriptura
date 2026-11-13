@@ -931,10 +931,12 @@ public final class MainActivity extends Activity {
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
+        // Ambos accesos comparten exactamente la misma acción y el mismo pasaje.
+        Runnable interpretChapter=()->interpret(p,
+            "Explica este pasaje de forma breve y fiel a su contexto.",false);
         TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         chapterNavigation(column,p,false);
-        button(column,"✦ Interpretación con IA",()->interpret(p,
-            "Explica este pasaje de forma breve y fiel a su contexto.",false),true);
+        button(column,"✦ Interpretación con IA",interpretChapter,true);
         addGap(column,6);
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
@@ -957,6 +959,7 @@ public final class MainActivity extends Activity {
         });
         returnToSavedVerse(bible,p);
         chapterNavigation(c,p,true);
+        button(c,"✦ Interpretación con IA",interpretChapter,true);
         // Jerarquía clara: acciones rápidas compactas, IA destacada y el resto
         // agrupado en «Más herramientas» para no enterrar el avance de lectura.
         LinearLayout quick=new LinearLayout(this);

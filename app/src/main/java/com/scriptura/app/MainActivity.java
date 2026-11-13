@@ -740,7 +740,8 @@ public final class MainActivity extends Activity {
             }
             if(!item.body.trim().isEmpty()){
                 addGap(entry,8);
-                TextView note=text("Anotación: "+item.body,14,DARK,false);
+                TextView note=text((StudyAnnotations.AI.equals(item.kind)?
+                    "Interpretación IA: ":"Anotación: ")+item.body,14,DARK,false);
                 entry.addView(note);
             }
             if(!item.url.isEmpty())
@@ -1268,6 +1269,7 @@ public final class MainActivity extends Activity {
         }
         final ScrollView originalScroll=readingScroll;
         final int savedY=originalScroll==null?0:originalScroll.getScrollY();
+        final AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(passage.text,start,end);
         Runnable proceed=()->{
                 LinearLayout content=vertical();
                 pad(content,16);
@@ -1281,13 +1283,23 @@ public final class MainActivity extends Activity {
                 content.addView(explanation);
                 ScrollView modalScroll=new ScrollView(this);
                 modalScroll.addView(content);
+                final String[] generated={null};
                 AlertDialog result=new AlertDialog.Builder(this)
                     .setTitle("Interpretación · "+fragment.reference)
                     .setView(modalScroll)
-                    .setPositiveButton("Cerrar",null)
+                    .setNegativeButton("Cerrar",null)
+                    .setPositiveButton("Añadir al texto",null)
                     .create();
+                result.setOnShowListener(ignored->{
+                    Button add=result.getButton(AlertDialog.BUTTON_POSITIVE);
+                    add.setEnabled(false);
+                    add.setOnClickListener(v->{
+                        if(generated[0]!=null&&saveAiInterpretation(passage,anchor,generated[0],savedY))
+                            result.dismiss();
+                    });
+                });
                 result.setOnDismissListener(ignored->{
-                    // No render(); la lectura original permanece tal cual y se repone su scroll.
+                    // Cerrar sin guardar no redibuja ni altera la posición de lectura.
                     if(page==5&&selected!=null&&selected.ref.equals(passage.ref)&&
                             originalScroll!=null&&readingScroll==originalScroll)
                         originalScroll.post(()->{
@@ -1301,8 +1313,15 @@ public final class MainActivity extends Activity {
                             "Texto de lectura bíblica personal, sin notas privadas.",
                             GeminiSelection.question(fragment)).displayText();
                         runOnUiThread(()->{
-                            if(!isFinishing()&&!isDestroyed()&&result.isShowing())
+                            if(!isFinishing()&&!isDestroyed()&&result.isShowing()){
+                                if(answer==null||answer.trim().isEmpty()){
+                                    explanation.setText("La IA no ha devuelto una interpretación que se pueda guardar.");
+                                    return;
+                                }
+                                generated[0]=answer;
                                 explanation.setText(answer);
+                                result.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(anchor!=null);
+                            }
                         });
                     }catch(Exception error){
                         runOnUiThread(()->{
@@ -1399,6 +1418,7 @@ public final class MainActivity extends Activity {
     }
     private static String annotationType(StudyAnnotations.Item item){
         if(StudyAnnotations.UNDERLINE.equals(item.kind))return "Subrayado";
+        if(StudyAnnotations.AI.equals(item.kind))return "Interpretación IA";
         if(StudyAnnotations.ATLAS.equals(item.kind))return "Atlas bíblico";
         if(StudyAnnotations.MAP.equals(item.kind))return "Mapa";
         if(StudyAnnotations.WEB.equals(item.kind))return "Web";
@@ -1560,7 +1580,7 @@ public final class MainActivity extends Activity {
                 ()->openStudyUrl(item.url),true);
         }
         addGap(body,8);
-        if(!StudyAnnotations.UNDERLINE.equals(item.kind)){
+        if(!StudyAnnotations.UNDERLINE.equals(item.kind)&&!StudyAnnotations.AI.equals(item.kind)){
             button(body,"Editar anotación",()->{
                 popup.dismiss();
                 editStudyAnnotation(passage,new AnnotationAnchors.Anchor(item.verse,item.endVerse,item.offset,item.quote),item);
@@ -1734,13 +1754,61 @@ public final class MainActivity extends Activity {
                 send.run();
             }).show();
     }
-    private void showExplanation(BibleStore.Passage p,String text,boolean cache){
-        TextView body=text(text,16,DARK,false);body.setTextIsSelectable(true);pad(body,18);
+    /** Persist the full AI answer as an annotation on the exact quoted verse range. */
+    private boolean saveAiInterpretation(BibleStore.Passage p,AnnotationAnchors.Anchor anchor,
+                                         String answer,int savedY){
+        if(anchor==null||answer==null||answer.trim().isEmpty()){
+            showError("No se pudo asociar la interpretación a un versículo válido.");
+            return false;
+        }
+        try{
+            studyAnnotations.save(0,p.book,p.chapter,anchor.verse,anchor.endVerse,
+                anchor.offset,anchor.quote,StudyAnnotations.AI,answer,"");
+            if(page==5&&selected!=null&&selected.book.equals(p.book)
+                    &&selected.chapter==p.chapter){
+                restoredScrollY=savedY;
+                render(); // Refresh annotation marks, restoring the exact previous scroll.
+            }
+            Toast.makeText(this,"Interpretación añadida al texto",Toast.LENGTH_SHORT).show();
+            return true;
+        }catch(RuntimeException error){
+            showError("No se pudo guardar la interpretación: "+error.getMessage());
+            return false;
+        }
+    }
+
+    /** Unselected chapter interpretations are anchored to verse 1 of their chapter. */
+    private void showExplanation(BibleStore.Passage p,String answer,boolean cache){
+        TextView body=text(answer,16,DARK,false);body.setTextIsSelectable(true);pad(body,18);
         ScrollView scroll=new ScrollView(this);scroll.addView(body);
-        styleAsBottomSheet(new AlertDialog.Builder(this)
+        final ScrollView originalScroll=readingScroll;
+        final int savedY=originalScroll==null?0:originalScroll.getScrollY();
+        AlertDialog popup=new AlertDialog.Builder(this)
             .setTitle("Reflexión · "+p.ref+(cache?" (guardada)":""))
-            .setView(scroll).setPositiveButton("Cerrar",null)
-            .setNeutralButton("Preguntar más",(d,w)->ask(p)).create());
+            .setView(scroll)
+            .setNegativeButton("Cerrar",null)
+            .setPositiveButton("Añadir al texto",null)
+            .setNeutralButton("Preguntar más",(d,w)->ask(p))
+            .create();
+        popup.setOnShowListener(ignored->{
+            Button add=popup.getButton(AlertDialog.BUTTON_POSITIVE);
+            BibleStore.Passage chapter=store.passage(Books.name(p.book)+" "+p.chapter);
+            AnnotationAnchors.Anchor anchor=AnnotationAnchors.firstVerseAnchor(
+                chapter==null?null:chapter.text);
+            add.setEnabled(anchor!=null);
+            add.setOnClickListener(v->{
+                if(saveAiInterpretation(p,anchor,answer,savedY))popup.dismiss();
+            });
+        });
+        popup.setOnDismissListener(ignored->{
+            if(page==5&&selected!=null&&selected.book.equals(p.book)
+                    &&selected.chapter==p.chapter&&originalScroll!=null
+                    &&readingScroll==originalScroll)
+                originalScroll.post(()->{
+                    if(readingScroll==originalScroll)originalScroll.scrollTo(0,savedY);
+                });
+        });
+        styleAsBottomSheet(popup);
     }
     private void mass(){
         title(column,"Lecturas de la misa");

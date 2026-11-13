@@ -53,6 +53,19 @@ public final class AnnotationAnchors {
         if(first==null||last==null||last.number<first.number)return null;
         return new Anchor(first.number,last.number,begin-first.start,displayed.substring(begin,end));
     }
+    /** Anchor the first verse of a full chapter when an AI query has no selected fragment. */
+    public static Anchor firstVerseAnchor(String displayed){
+        if(displayed==null)return null;
+        for(Verse verse:verses(displayed)){
+            if(verse.number!=1)continue;
+            int end=verse.end;
+            while(end>verse.start&&Character.isWhitespace(displayed.charAt(end-1)))end--;
+            if(end==verse.start)return null;
+            return new Anchor(1,1,0,displayed.substring(verse.start,end));
+        }
+        return null;
+    }
+
     /** Historical single-verse API retained for existing annotations and callers. */
     public static Range inDisplay(String displayed,int verse,int offset,String quote){
         return inDisplay(displayed,verse,verse,offset,quote);

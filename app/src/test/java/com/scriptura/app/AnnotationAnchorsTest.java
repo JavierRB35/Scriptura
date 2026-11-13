@@ -100,4 +100,37 @@ public class AnnotationAnchorsTest {
         assertNotNull(afterReload);
         assertEquals("La tierra",CHAPTER.substring(afterReload.start,afterReload.end));
     }
+    @Test public void noSelectionAnchorsAiInterpretationToFirstVerse(){
+        String chapter="1  Primer versículo con una frase para interpretar.\n\n"+
+            "2  Segundo versículo de referencia.";
+        AnnotationAnchors.Anchor anchor=AnnotationAnchors.firstVerseAnchor(chapter);
+        assertNotNull(anchor);
+        assertEquals(1,anchor.verse);
+        assertEquals(1,anchor.endVerse);
+        assertEquals(0,anchor.offset);
+        assertEquals("Primer versículo con una frase para interpretar.",anchor.quote);
+        assertNotNull(AnnotationAnchors.inDisplay(
+            chapter,anchor.verse,anchor.endVerse,anchor.offset,anchor.quote));
+        assertNull(AnnotationAnchors.firstVerseAnchor("2  Solo otro versículo."));
+        assertNull(AnnotationAnchors.firstVerseAnchor("1  \n\n2  Texto."));
+        assertNull(AnnotationAnchors.firstVerseAnchor(null));
+    }
+
+    @Test public void selectedAiFragmentKeepsExactQuoteAndVerseRange(){
+        String chapter="1  Primera frase del capítulo.\n\n"+
+            "2  Segunda frase para analizar.";
+        int start=chapter.indexOf("frase");
+        int end=chapter.indexOf("analizar")+"analizar".length();
+        GeminiSelection.Fragment selection=GeminiSelection.fromSelection(
+            chapter,"Génesis",1,start,end);
+        AnnotationAnchors.Anchor anchor=AnnotationAnchors.fromSelection(chapter,start,end);
+        assertNotNull(selection);
+        assertNotNull(anchor);
+        assertEquals(selection.quote,anchor.quote);
+        assertEquals(selection.firstVerse,anchor.verse);
+        assertEquals(selection.lastVerse,anchor.endVerse);
+        assertNotNull(AnnotationAnchors.inDisplay(
+            chapter,anchor.verse,anchor.endVerse,anchor.offset,anchor.quote));
+    }
+
 }

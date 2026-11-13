@@ -1,12 +1,17 @@
 # Anotaciones de estudio en Scriptura Android
 
 ## Alcance
-- En la Biblia importada desde el EPUB privado de Navarra, pulsación prolongada -> seleccionar texto **dentro de uno o varios versículos del mismo capítulo** -> `Anotar` o `Subrayar`.
-- Tipos: **nota escrita**, **URL de mapa**, **enlace web** y **atlas bíblico interno** (del libro al que pertenece el pasaje).
+- En la Biblia importada desde el EPUB privado de Navarra, pulsación prolongada -> seleccionar texto **dentro de uno o varios versículos del mismo capítulo** -> `Anotar`, `Subrayar` o `Interpretar con IA`.
+- Tipos: **nota escrita**, **URL de mapa**, **enlace web**, **atlas bíblico interno** (del libro al que pertenece el pasaje) e **interpretación IA** asociada al texto.
 - El texto seleccionado queda resaltado (amarillo para nota, verde para mapa/atlas y azul para web). Un toque corto sobre el resaltado abre la anotación completa en un diálogo desplazable.
 - Las anotaciones también figuran bajo el texto para facilitar el acceso con lectores de pantalla o cuando no se puede tocar un resaltado.
 - Desde el diálogo se puede editar, eliminar previa confirmación y abrir el enlace asociado.
 - Alternativa accesible: `Añadir nota por versículos` en la ficha del pasaje. Se elige versículo inicial y final, pudiendo coincidir; la nota aparece en la lista aunque no haya una selección literal que resaltar.
+
+## Interpretaciones IA vinculadas al texto
+- Al seleccionar un fragmento y ejecutar «Interpretar con IA», el diálogo muestra «Cerrar» (sin guardar) y «Añadir al texto» (activo únicamente cuando existe una respuesta válida). Al añadir se guarda la interpretación íntegra vinculada al texto exacto, libro, capítulo y versículos, se cierra el diálogo y se recupera la posición de lectura previa.
+- Al ejecutar la interpretación general sin texto seleccionado, «Añadir al texto» asocia la respuesta al **primer versículo del capítulo**, sin sustituir el texto bíblico. Se puede acceder a esa interpretación desde la anotación del versículo o desde «Mis subrayados y anotaciones».
+- La interpretación IA se almacena como un nuevo tipo en la base SQLite de anotaciones existente, **sin migración de esquema**. Puede consultarse, exportarse o eliminarse como otras anotaciones, pero no se transforma silenciosamente en una nota escrita. El resultado solo se almacena si el usuario pulsa «Añadir al texto».
 
 ## Biblioteca de subrayados y anotaciones
 - En **Biblia → Mis subrayados y anotaciones** se reúnen los textos subrayados y las notas (incluidos enlaces y mapas asociados), mostrando su fuente como libro, capítulo y versículo o intervalo.

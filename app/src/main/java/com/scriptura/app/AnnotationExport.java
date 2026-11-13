@@ -42,6 +42,7 @@ public final class AnnotationExport {
 
     static String kindLabel(String kind){
         if(StudyAnnotations.UNDERLINE.equals(kind))return "Subrayado";
+        if(StudyAnnotations.AI.equals(kind))return "Interpretación IA";
         if(StudyAnnotations.MAP.equals(kind))return "Mapa externo";
         if(StudyAnnotations.WEB.equals(kind))return "Página web";
         if(StudyAnnotations.ATLAS.equals(kind))return "Atlas de Scriptura";

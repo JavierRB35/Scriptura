@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Independent local database: never modifies Scriptura's Bible/EPUB storage. */
 public final class StudyAnnotations extends SQLiteOpenHelper {
-    public static final String NOTE="NOTE",MAP="MAP",WEB="WEB",ATLAS="ATLAS",UNDERLINE="UNDERLINE";
+    public static final String NOTE="NOTE",MAP="MAP",WEB="WEB",ATLAS="ATLAS",UNDERLINE="UNDERLINE",AI="AI";
     public static final class Item {
         public final long id,created;
         public final String book,quote,kind,body,url;
@@ -74,7 +74,7 @@ public final class StudyAnnotations extends SQLiteOpenHelper {
     }
     public void save(long id,String book,int chapter,int verse,int endVerse,int offset,
                      String quote,String kind,String body,String url){
-        if(!NOTE.equals(kind)&&!MAP.equals(kind)&&!WEB.equals(kind)&&!ATLAS.equals(kind)&&!UNDERLINE.equals(kind))
+        if(!NOTE.equals(kind)&&!MAP.equals(kind)&&!WEB.equals(kind)&&!ATLAS.equals(kind)&&!UNDERLINE.equals(kind)&&!AI.equals(kind))
             throw new IllegalArgumentException("Tipo de anotación incorrecto");
         if(book==null||book.isEmpty()||chapter<1||verse<1||endVerse<verse||
                 endVerse>200||offset<0)

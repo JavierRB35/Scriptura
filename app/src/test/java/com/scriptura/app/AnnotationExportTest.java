@@ -38,6 +38,17 @@ public class AnnotationExportTest {
         assertFalse(out.contains("· v.3–3"));
     }
 
+    @Test public void aiInterpretationExportPreservesFullAnswerAndExactReference(){
+        List<StudyAnnotations.Item> items=new ArrayList<>();
+        items.add(new StudyAnnotations.Item(7,"Jn",3,16,17,4,
+            "tanto amó Dios al mundo",StudyAnnotations.AI,
+            "Primera línea de la interpretación.\nSegunda línea.","",7L));
+        String exported=AnnotationExport.build(items);
+        assertTrue(exported.contains("· v.16–17 · Interpretación IA"));
+        assertTrue(exported.contains("«tanto amó Dios al mundo»"));
+        assertTrue(exported.contains("Primera línea de la interpretación.\n  Segunda línea."));
+    }
+
     @Test public void emptyListProducesHeaderOnly(){
         String out=AnnotationExport.build(new ArrayList<>());
         assertTrue(out.startsWith("Subrayados y notas de Scriptura"));
@@ -57,5 +68,6 @@ public class AnnotationExportTest {
         assertEquals("Mapa externo",AnnotationExport.kindLabel(StudyAnnotations.MAP));
         assertEquals("Página web",AnnotationExport.kindLabel(StudyAnnotations.WEB));
         assertEquals("Atlas de Scriptura",AnnotationExport.kindLabel(StudyAnnotations.ATLAS));
+        assertEquals("Interpretación IA",AnnotationExport.kindLabel(StudyAnnotations.AI));
     }
 }

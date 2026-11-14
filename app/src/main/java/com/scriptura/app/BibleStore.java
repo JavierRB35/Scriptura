@@ -280,4 +280,33 @@ public final class BibleStore extends SQLiteOpenHelper {
     public void saveReflection(String key,String text){
         getWritableDatabase().execSQL("INSERT OR REPLACE INTO reflections(key,value,created) VALUES(?,?,?)",new Object[]{key,text,System.currentTimeMillis()});
     }
+    /** Las consultas bíblicas comparten la persistencia y las copias de reflections. */
+    public void saveBibleQuestion(String question,String answer,
+            List<BibleQuestionReferences.Ref> references) throws org.json.JSONException {
+        String value=BibleQuestionHistory.encode(question,answer,references);
+        saveReflection(BibleQuestionHistory.KEY_PREFIX+UUID.randomUUID().toString(),value);
+    }
+    public int bibleQuestionCount(){
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT COUNT(*) FROM reflections WHERE key LIKE ?",
+                new String[]{BibleQuestionHistory.KEY_PREFIX+"%"})){
+            return c.moveToFirst()?c.getInt(0):0;
+        }
+    }
+    public List<BibleQuestionHistory.Entry> bibleQuestions(int offset,int limit){
+        ArrayList<BibleQuestionHistory.Entry> result=new ArrayList<>();
+        int safeOffset=Math.max(0,offset);
+        int safeLimit=Math.max(1,Math.min(30,limit));
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT value,created FROM reflections WHERE key LIKE ? "+
+                "ORDER BY created DESC,key DESC LIMIT ? OFFSET ?",
+                new String[]{BibleQuestionHistory.KEY_PREFIX+"%",
+                    String.valueOf(safeLimit),String.valueOf(safeOffset)})){
+            while(c.moveToNext()){
+                BibleQuestionHistory.Entry entry=BibleQuestionHistory.decode(c.getString(0),c.getLong(1));
+                if(entry!=null)result.add(entry);
+            }
+        }
+        return result;
+    }
 }

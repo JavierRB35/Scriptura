@@ -39,6 +39,8 @@ public final class MainActivity extends Activity {
     private boolean readerToolsExpanded=false;
     private boolean aiSessionConsent=false;
     private boolean bibleQuestionSessionConsent=false;
+    private int bibleQuestionHistoryOffset=0;
+    private static final int BIBLE_QUESTIONS_PER_PAGE=20;
     private boolean massAutoLoading=false;
     private boolean speechActive=false;
     private ReaderSpeech speech;
@@ -233,6 +235,7 @@ public final class MainActivity extends Activity {
             indexQuery=state.getString("indexQuery","");
             indexScope=state.getInt("indexScope",0);
             readerOrigin=state.getInt("readerOrigin",1);
+            bibleQuestionHistoryOffset=state.getInt("bibleQuestionHistoryOffset",0);
             restoredScrollY=state.getInt("readingScrollY",-1);
             String restoredRef=state.getString("selectedRef","");
             if(!restoredRef.isEmpty())selected=store.passage(restoredRef);
@@ -294,6 +297,7 @@ public final class MainActivity extends Activity {
         state.putString("indexQuery",indexQuery);
         state.putInt("indexScope",indexScope);
         state.putInt("readerOrigin",readerOrigin);
+        state.putInt("bibleQuestionHistoryOffset",bibleQuestionHistoryOffset);
         if(page==5&&readingScroll!=null)
             state.putInt("readingScrollY",readingScroll.getScrollY());
         state.putString("selectedRef",selected==null?"":selected.ref);
@@ -416,7 +420,8 @@ public final class MainActivity extends Activity {
         String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
         int[] glyphs={R.drawable.ic_tab_home,R.drawable.ic_tab_bible,R.drawable.ic_tab_mass,
             R.drawable.ic_tab_heart,R.drawable.ic_tab_star};
-        int active=(page==5||page==7||page==9||page==10)?1:(page==6||page==8?0:page);
+        int active=(page==5||page==7||page==9||page==10)?1:
+            (page==11?4:(page==6||page==8?0:page));
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
             int color=selected?GOLD:Color.rgb(231,236,242);
@@ -454,6 +459,7 @@ public final class MainActivity extends Activity {
             case 5:passagePage();break;case 6:atlas();break;
             case 7:bibleIndex();break;case 8:artGallery();break;
             case 9:bookOverview();break;case 10:myStudyMarks();break;
+            case 11:bibleQuestionHistoryPage();break;
             default:page=0;home();
         }
         // Una actualización de la misma página (estado de ánimo, fecha de Misa,
@@ -620,6 +626,7 @@ public final class MainActivity extends Activity {
         searchResultsQuery="";
         title(column,"Leer y buscar en la Biblia");
         button(column,"✦ Pregunta a IA · Toda la Biblia",this::askBibleQuestion,true);
+        button(column,"Mis preguntas y respuestas",()->{bibleQuestionHistoryOffset=0;go(11);},false);
         if(store.ready()){
             ReadingProgress.Position last=store.lastReadPosition();
             if(last!=null){
@@ -1765,8 +1772,10 @@ public final class MainActivity extends Activity {
             worker.execute(()->{
                 try{
                     BibleQuestionResult result=answerBibleQuestion(question);
+                    store.saveBibleQuestion(question,result.answer,result.references);
                     runOnUiThread(()->{
-                        if(!isFinishing()&&!isDestroyed())showBibleQuestionResult(result);
+                        if(!isFinishing()&&!isDestroyed())
+                            showBibleQuestionResult(question,result);
                     });
                 }catch(Exception error){
                     runOnUiThread(()->{
@@ -1853,9 +1862,12 @@ public final class MainActivity extends Activity {
             +"\n\n"+response,verified);
     }
 
-    private void showBibleQuestionResult(BibleQuestionResult result){
+    private void showBibleQuestionResult(String question,BibleQuestionResult result){
         LinearLayout content=vertical();
         pad(content,16);
+        TextView heading=text(question,17,DARK,true);
+        content.addView(heading);
+        addGap(content,12);
         TextView answer=text(result.answer,16,DARK,false);
         answer.setTextIsSelectable(true);
         content.addView(answer);
@@ -2136,6 +2148,15 @@ public final class MainActivity extends Activity {
     }
     private void saved(){
         title(column,"Tus lecturas");
+        section(column,"✦ Mis preguntas a la IA",
+            "Preguntas y respuestas sobre toda la Biblia, guardadas en este dispositivo.");
+        int total=store.bibleQuestionCount();
+        hint(column,total==0?"Todavía no has hecho ninguna consulta general.":
+            total+" "+(total==1?"consulta guardada.":"consultas guardadas."));
+        button(column,"Ver mis preguntas y respuestas",()->{
+            bibleQuestionHistoryOffset=0;go(11);
+        },false);
+        addGap(column,22);
         if(!store.ready()){
             hint(column,"Tus favoritos e historial estarán disponibles cuando importes tu ejemplar personal de la Biblia. Importarlo no exige registrarte.");
             button(column,"Importar mi Biblia EPUB",this::pickEpub,true);
@@ -2151,6 +2172,60 @@ public final class MainActivity extends Activity {
         java.util.List<String> history=store.saved(false);
         if(history.isEmpty())hint(column,"Las lecturas que abras aparecerán aquí.");
         for(String ref:history)button(column,ref,()->lookup(ref),false);
+    }
+    /** Consultas generales independientes de los favoritos y del historial de lectura. */
+    private void bibleQuestionHistoryPage(){
+        title(column,"Mis preguntas a la IA");
+        hint(column,"Tus preguntas y respuestas se guardan localmente, junto con sus citas bíblicas. "
+            +"Pulsa una consulta para volver a leerla y abrir sus versículos.");
+        button(column,"✦ Hacer otra pregunta",this::askBibleQuestion,true);
+        int total=store.bibleQuestionCount();
+        if(total==0){
+            hint(column,"Todavía no hay preguntas guardadas. Haz tu primera consulta desde Biblia.");
+            button(column,"Volver a Guardados",()->{page=4;render();},false);
+            return;
+        }
+        if(bibleQuestionHistoryOffset>=total)
+            bibleQuestionHistoryOffset=Math.max(0,total-BIBLE_QUESTIONS_PER_PAGE);
+        List<BibleQuestionHistory.Entry> entries=store.bibleQuestions(
+            bibleQuestionHistoryOffset,BIBLE_QUESTIONS_PER_PAGE);
+        hint(column,"Consultas "+(bibleQuestionHistoryOffset+1)+"–"+
+            Math.min(total,bibleQuestionHistoryOffset+BIBLE_QUESTIONS_PER_PAGE)+
+            " de "+total+". Más recientes primero.");
+        java.text.SimpleDateFormat dateFormat=new java.text.SimpleDateFormat(
+            "dd MMM yyyy · HH:mm",Locale.getDefault());
+        for(BibleQuestionHistory.Entry entry:entries){
+            LinearLayout item=card(column);
+            item.addView(text(dateFormat.format(new Date(entry.created)),12,MUTED,false));
+            addGap(item,4);
+            item.addView(text(entry.question,17,DARK,true));
+            addGap(item,6);
+            TextView preview=text(entry.answer,14,MUTED,false);
+            preview.setMaxLines(3);
+            preview.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            item.addView(preview);
+            addGap(item,6);
+            item.addView(text("Ver respuesta y citas bíblicas  ›",13,ACCENT,true));
+            item.setClickable(true);
+            item.setFocusable(true);
+            item.setContentDescription("Abrir pregunta guardada: "+entry.question);
+            item.setOnClickListener(v->showBibleQuestionResult(entry.question,
+                new BibleQuestionResult(entry.answer,entry.references)));
+        }
+        if(bibleQuestionHistoryOffset>0){
+            button(column,"← Consultas más recientes",()->{
+                bibleQuestionHistoryOffset=Math.max(0,
+                    bibleQuestionHistoryOffset-BIBLE_QUESTIONS_PER_PAGE);
+                render();
+            },false);
+        }
+        if(bibleQuestionHistoryOffset+BIBLE_QUESTIONS_PER_PAGE<total){
+            button(column,"Consultas anteriores →",()->{
+                bibleQuestionHistoryOffset+=BIBLE_QUESTIONS_PER_PAGE;
+                render();
+            },false);
+        }
+        button(column,"Volver a Guardados",()->{page=4;render();},false);
     }
     private void pickEpub(){
         if(epubImportInProgress){
@@ -3136,7 +3211,7 @@ public final class MainActivity extends Activity {
         }
         if(!backStack.isEmpty()){
             Integer target=backStack.pop();
-            if(target!=null&&target>=0&&target<=10&&target!=page){
+            if(target!=null&&target>=0&&target<=11&&target!=page){
                 if(target==1)searchResultsQuery="";
                 page=target;
                 render();
@@ -3145,7 +3220,7 @@ public final class MainActivity extends Activity {
         }
         if(page==5){
             int previous=readerOrigin;
-            page=(previous>=0&&previous<=10&&previous!=5)?previous:1;
+            page=(previous>=0&&previous<=11&&previous!=5)?previous:1;
             searchResultsQuery="";
             render();
         }

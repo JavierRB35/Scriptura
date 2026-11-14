@@ -1872,8 +1872,11 @@ public final class MainActivity extends Activity {
         answer.setTextIsSelectable(true);
         content.addView(answer);
         addGap(content,16);
+        hint(content,"Consulta guardada en Guardados → Mis preguntas a la IA.");
         section(content,"Fundamento bíblico",
             "Versículos de tu Biblia. Toca una referencia para abrirla en el lector.");
+        if(!store.ready())
+            hint(content,"Tu Biblia no está importada en este momento. Las citas se podrán abrir cuando vuelvas a importarla.");
         final AlertDialog[] dialog=new AlertDialog[1];
         for(BibleQuestionReferences.Ref ref:result.references){
             BibleStore.Passage passage=store.passage(ref.query);
@@ -2182,7 +2185,7 @@ public final class MainActivity extends Activity {
         int total=store.bibleQuestionCount();
         if(total==0){
             hint(column,"Todavía no hay preguntas guardadas. Haz tu primera consulta desde Biblia.");
-            button(column,"Volver a Guardados",()->{page=4;render();},false);
+            button(column,"Volver",this::onBackPressed,false);
             return;
         }
         if(bibleQuestionHistoryOffset>=total)
@@ -2200,7 +2203,10 @@ public final class MainActivity extends Activity {
             addGap(item,4);
             item.addView(text(entry.question,17,DARK,true));
             addGap(item,6);
-            TextView preview=text(entry.answer,14,MUTED,false);
+            String answerPreview=entry.answer;
+            int previewStart=answerPreview.indexOf("\n\n");
+            if(previewStart>=0)answerPreview=answerPreview.substring(previewStart+2);
+            TextView preview=text(answerPreview,14,MUTED,false);
             preview.setMaxLines(3);
             preview.setEllipsize(android.text.TextUtils.TruncateAt.END);
             item.addView(preview);
@@ -2225,7 +2231,7 @@ public final class MainActivity extends Activity {
                 render();
             },false);
         }
-        button(column,"Volver a Guardados",()->{page=4;render();},false);
+        button(column,"Volver",this::onBackPressed,false);
     }
     private void pickEpub(){
         if(epubImportInProgress){

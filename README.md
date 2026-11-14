@@ -62,6 +62,13 @@ Revisión de experiencia de usuario aplicada sobre el código de 0.7.9 (informe 
 - El modelo de respaldo inicial es `openai/gpt-oss-120b`. Su disponibilidad y cuota gratuita dependen de la cuenta Groq; consulta https://console.groq.com/docs/rate-limits. Groq permite habilitar Zero Data Retention en su consola (https://console.groq.com/docs/your-data), opción recomendada.
 - No hay reintentos encadenados, biblioteca remota ni servidor intermediario. La compilación automatizada no prueba claves ni cuotas personales: hay que validar Gemini 429/503, Groq y revocación con una clave real en el móvil antes de publicar la versión.
 
+## Pregunta a IA · Toda la Biblia
+
+- En la pestaña **Biblia**, la nueva opción permite hacer preguntas sin seleccionar un libro.
+- La IA propone posibles pasajes, pero Scriptura recupera su texto exclusivamente del EPUB personal importado. Solo responde cuando puede acompañar su explicación de citas que existen dentro de los versículos utilizados, enlazadas al lector y al versículo inicial.
+- La aplicación no considera los conocimientos generales del modelo como fuente. Las interpretaciones deben comprobarse leyendo los textos y no sustituyen la doctrina oficial.
+- La consulta necesita consentimiento específico. Se envía primero la pregunta y después un máximo de seis extractos locales (hasta 7.800 caracteres), sin enviar el EPUB completo ni anotaciones. Conserva el respaldo opcional Groq existente.
+
 ## Privacidad y licencias
 
 - **No se sube ni distribuye el EPUB protegido**. Cada usuario importa su propio ejemplar adquirido. Se copia y procesa exclusivamente en almacenamiento privado de Android.

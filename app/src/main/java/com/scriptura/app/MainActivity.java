@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
     private String searchResultsQuery="";
     private boolean readerToolsExpanded=false;
     private boolean aiSessionConsent=false;
+    private boolean bibleQuestionSessionConsent=false;
     private boolean massAutoLoading=false;
     private boolean speechActive=false;
     private ReaderSpeech speech;
@@ -618,6 +619,7 @@ public final class MainActivity extends Activity {
     private void search(){
         searchResultsQuery="";
         title(column,"Leer y buscar en la Biblia");
+        button(column,"✦ Pregunta a IA · Toda la Biblia",this::askBibleQuestion,true);
         if(store.ready()){
             ReadingProgress.Position last=store.lastReadPosition();
             if(last!=null){
@@ -1712,6 +1714,183 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Comentario de Navarra · "+p.ref)
             .setView(scroll).setPositiveButton("Cerrar",null).show();
     }
+    /** Preguntas sobre toda la Biblia, fundamentadas exclusivamente en el EPUB privado. */
+    private static final class BibleQuestionResult {
+        final String answer;
+        final List<BibleQuestionReferences.Ref> references;
+        BibleQuestionResult(String answer,List<BibleQuestionReferences.Ref> references){
+            this.answer=answer;this.references=references;
+        }
+    }
+
+    private void askBibleQuestion(){
+        if(!store.ready()){
+            new AlertDialog.Builder(this).setTitle("Pregunta a IA · Toda la Biblia")
+                .setMessage("Importa primero tu Biblia para comprobar las referencias y poder abrir sus versículos.")
+                .setNegativeButton("Cancelar",null)
+                .setPositiveButton("Importar mi Biblia",(d,w)->pickEpub()).show();
+            return;
+        }
+        if(!ai.configured()){
+            showError("Configura primero tu clave de Gemini en Ajustes.");
+            return;
+        }
+        EditText questionInput=new EditText(this);
+        questionInput.setHint("Ej.: ¿Qué personajes aparecieron con Jesús en la transfiguración?");
+        questionInput.setTextColor(DARK);
+        questionInput.setHintTextColor(MUTED);
+        questionInput.setMinLines(3);
+        questionInput.setGravity(Gravity.TOP);
+        questionInput.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        questionInput.setFilters(new android.text.InputFilter[]{
+            new android.text.InputFilter.LengthFilter(900)});
+        pad(questionInput,16);
+        showAsBottomSheet(new AlertDialog.Builder(this)
+            .setTitle("Pregunta a IA · Toda la Biblia")
+            .setView(questionInput)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Consultar",(d,w)->{
+                String question=questionInput.getText().toString().trim();
+                if(question.isEmpty()){
+                    showError("Escribe una pregunta sobre la Biblia.");
+                    return;
+                }
+                confirmBibleQuestion(question);
+            }));
+    }
+
+    private void confirmBibleQuestion(String question){
+        Runnable send=()->{
+            Toast.makeText(this,"Buscando pasajes de la Biblia…",Toast.LENGTH_SHORT).show();
+            worker.execute(()->{
+                try{
+                    BibleQuestionResult result=answerBibleQuestion(question);
+                    runOnUiThread(()->{
+                        if(!isFinishing()&&!isDestroyed())showBibleQuestionResult(result);
+                    });
+                }catch(Exception error){
+                    runOnUiThread(()->{
+                        if(!isFinishing()&&!isDestroyed())
+                            showError(error.getMessage()==null?
+                                "No se pudo completar la consulta bíblica.":error.getMessage());
+                    });
+                }
+            });
+        };
+        if(bibleQuestionSessionConsent){
+            send.run();return;
+        }
+        LinearLayout consent=vertical();
+        pad(consent,17);
+        consent.addView(text("Scriptura enviará primero tu pregunta a Gemini para localizar "
+            +"citas. Después recuperará únicamente los pasajes pertinentes de tu Biblia "
+            +"privada y enviará hasta seis extractos (máximo 7.800 caracteres) para "
+            +"elaborar la respuesta. No enviará el EPUB completo, anotaciones ni historial. "
+            +(groq.fallbackEnabled()?
+                "Si Gemini falla, podrá utilizar el respaldo Groq que ya autorizaste. ":"")
+            +"Se comprobará la existencia de cada cita en tu Biblia antes de mostrarla.",
+            15,DARK,false));
+        android.widget.CheckBox remember=new android.widget.CheckBox(this);
+        remember.setText("No volver a preguntar durante esta sesión");
+        remember.setTextColor(DARK);
+        consent.addView(remember);
+        new AlertDialog.Builder(this).setTitle("Consulta externa sobre toda la Biblia")
+            .setView(consent)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Enviar",(d,w)->{
+                if(remember.isChecked())bibleQuestionSessionConsent=true;
+                send.run();
+            }).show();
+    }
+
+    private static List<String> bibleQuestionJsonValues(JSONObject json,String key){
+        ArrayList<String> result=new ArrayList<>();
+        JSONArray items=json.optJSONArray(key);
+        if(items!=null)for(int i=0;i<items.length();i++){
+            String value=items.optString(i,"").trim();
+            if(!value.isEmpty())result.add(value);
+        }
+        return result;
+    }
+
+    /** Citas válidas en la Biblia local son requisito para mostrar la respuesta. */
+    private BibleQuestionResult answerBibleQuestion(String question) throws Exception {
+        if(!store.ready())throw new java.io.IOException("Importa primero tu Biblia.");
+        AiRouter.Result located=aiRouter.explain(new AiRouter.Request("","","",
+            BibleQuestionReferences.locatingPrompt(question),true),
+            groq.fallbackEnabled(),ai.model(),GroqClient.MODEL);
+        List<BibleQuestionReferences.Ref> proposed=BibleQuestionReferences.parse(
+            bibleQuestionJsonValues(new JSONObject(located.text),"referencias"));
+
+        ArrayList<BibleQuestionReferences.Ref> evidence=new ArrayList<>();
+        StringBuilder scripture=new StringBuilder();
+        for(BibleQuestionReferences.Ref ref:proposed){
+            BibleStore.Passage passage=store.passage(ref.query);
+            if(passage==null)continue;
+            String excerpt="CITA: "+ref.query+"\n"+passage.text+"\n\n";
+            if(scripture.length()+excerpt.length()>7800)continue;
+            scripture.append(excerpt);
+            evidence.add(ref);
+        }
+        if(evidence.isEmpty())throw new java.io.IOException(
+            "No se encontraron pasajes verificables en tu Biblia. Reformula la pregunta.");
+
+        AiRouter.Result generated=aiRouter.explain(new AiRouter.Request("","","",
+            BibleQuestionReferences.answeringPrompt(question,scripture.toString()),true),
+            groq.fallbackEnabled(),ai.model(),GroqClient.MODEL);
+        JSONObject answer=new JSONObject(generated.text);
+        String response=answer.optString("respuesta","").trim();
+        List<BibleQuestionReferences.Ref> cited=BibleQuestionReferences.cited(evidence,
+            bibleQuestionJsonValues(answer,"citas"));
+        ArrayList<BibleQuestionReferences.Ref> verified=new ArrayList<>();
+        for(BibleQuestionReferences.Ref ref:cited){
+            if(store.passage(ref.query)!=null)verified.add(ref);
+        }
+        if(response.isEmpty()||verified.isEmpty())throw new java.io.IOException(
+            "No hay citas bíblicas verificables suficientes para responder. "
+            +"Prueba a precisar la pregunta.");
+        return new BibleQuestionResult(generated.provider+" · "+generated.model
+            +"\n\n"+response,verified);
+    }
+
+    private void showBibleQuestionResult(BibleQuestionResult result){
+        LinearLayout content=vertical();
+        pad(content,16);
+        TextView answer=text(result.answer,16,DARK,false);
+        answer.setTextIsSelectable(true);
+        content.addView(answer);
+        addGap(content,16);
+        section(content,"Fundamento bíblico",
+            "Versículos de tu Biblia. Toca una referencia para abrirla en el lector.");
+        final AlertDialog[] dialog=new AlertDialog[1];
+        for(BibleQuestionReferences.Ref ref:result.references){
+            BibleStore.Passage passage=store.passage(ref.query);
+            if(passage==null)continue;
+            TextView quote=text(passage.text,14,MUTED,false);
+            serif(quote);
+            content.addView(quote);
+            button(content,"Leer "+ref.label(),()->{
+                if(dialog[0]!=null)dialog[0].dismiss();
+                BibleStore.Passage chapter=store.passage(
+                    Books.name(ref.book)+" "+ref.chapter);
+                if(chapter!=null)open(chapter,ref.first);
+                else openStudyReference(ref.query);
+            },false);
+            addGap(content,8);
+        }
+        hint(content,"Una interpretación generada puede contener errores: "
+            +"contrasta siempre la respuesta con los textos enlazados.");
+        ScrollView scroll=new ScrollView(this);
+        scroll.addView(content);
+        dialog[0]=new AlertDialog.Builder(this)
+            .setTitle("Pregunta a IA · Biblia")
+            .setView(scroll)
+            .setNegativeButton("Cerrar",null)
+            .setPositiveButton("Otra pregunta",(d,w)->askBibleQuestion())
+            .create();
+        styleAsBottomSheet(dialog[0]);
+    }
+
     private void ask(BibleStore.Passage p){
         EditText edit=new EditText(this);edit.setHint("¿Qué quieres comprender o cómo quieres aplicarlo?");edit.setMinLines(3);
         styleAsBottomSheet(new AlertDialog.Builder(this).setTitle("Conversar sobre "+p.ref)

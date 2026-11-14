@@ -68,6 +68,7 @@ Revisión de experiencia de usuario aplicada sobre el código de 0.7.9 (informe 
 - La IA propone posibles pasajes, pero Scriptura recupera su texto exclusivamente del EPUB personal importado. Solo responde cuando puede acompañar su explicación de citas que existen dentro de los versículos utilizados, enlazadas al lector y al versículo inicial.
 - La aplicación no considera los conocimientos generales del modelo como fuente. Las interpretaciones deben comprobarse leyendo los textos y no sustituyen la doctrina oficial.
 - La consulta necesita consentimiento específico. Se envía primero la pregunta y después un máximo de seis extractos locales (hasta 7.800 caracteres), sin enviar el EPUB completo ni anotaciones. Conserva el respaldo opcional Groq existente.
+- **Historial de preguntas generales:** cada consulta que obtiene una respuesta y citas verificadas se conserva automáticamente en la base privada del dispositivo. En **Guardados → Mis preguntas a la IA** se puede revisar el historial por fecha, reabrir respuestas y navegar a los versículos originales. La sección también se abre desde **Biblia → Mis preguntas y respuestas**. Se reutiliza la tabla `reflections` ya incluida en las copias de seguridad, sin migración ni nuevas dependencias. Consultas fallidas o sin citas comprobables no se archivan.
 
 ## Privacidad y licencias
 

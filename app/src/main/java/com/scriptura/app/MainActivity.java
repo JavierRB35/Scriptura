@@ -2195,6 +2195,13 @@ public final class MainActivity extends Activity {
             +"Mark M. Mattison (Gospels.net, dominio público). No están revisadas "
             +"filológicamente de forma independiente. Se conservan las lagunas, "
             +"las páginas de manuscrito y las notas editoriales.");
+        LinearLayout searchCard=card(column);
+        EditText libraryTerm=input(searchCard,"Buscar palabra o expresión en la Biblioteca",false);
+        libraryTerm.setOnEditorActionListener((v,id,event)->{
+            searchLibrary(libraryTerm.getText().toString());return true;
+        });
+        button(searchCard,"Buscar en los libros",()->
+            searchLibrary(libraryTerm.getText().toString()),true);
         String last=store.getReflection("library:last_read");
         String[] location=LibraryCatalog.decodeReference(last);
         if(location!=null){
@@ -2217,6 +2224,46 @@ public final class MainActivity extends Activity {
         hint(column,"Se podrán incorporar más libros mediante futuras actualizaciones "
             +"del catálogo y sus textos, sin modificar tu Biblia ni tus anotaciones.");
         button(column,"Volver a Biblia",()->go(1),false);
+    }
+
+    private void searchLibrary(String entered){
+        String query=BookIndexFilter.normalize(entered);
+        if(query.length()<2){showError("Escribe al menos dos caracteres.");return;}
+        class Hit {
+            final LibraryCatalog.Work book;
+            final LibraryCatalog.Section part;
+            Hit(LibraryCatalog.Work book,LibraryCatalog.Section part){
+                this.book=book;this.part=part;
+            }
+        }
+        ArrayList<Hit> matches=new ArrayList<>();
+        try{
+            for(LibraryCatalog.Work work:library.works()){
+                for(LibraryCatalog.Section part:library.sections(work)){
+                    if(BookIndexFilter.normalize(part.title+" "+part.text).contains(query)){
+                        matches.add(new Hit(work,part));
+                        if(matches.size()>=35)break;
+                    }
+                }
+                if(matches.size()>=35)break;
+            }
+        }catch(java.io.IOException error){
+            showError("No se pudo buscar en la Biblioteca: "+error.getMessage());return;
+        }
+        column.removeAllViews();
+        title(column,"Buscar en Biblioteca");
+        hint(column,matches.isEmpty()?"No se encontraron coincidencias.":
+            "Primeras "+matches.size()+" coincidencias en textos extracanonicos.");
+        button(column,"Volver a Biblioteca",this::render,false);
+        for(Hit hit:matches){
+            LinearLayout card=card(column);
+            card.addView(text(hit.book.title,15,ACCENT,true));
+            card.addView(text(hit.part.title,16,DARK,true));
+            String snippet=hit.part.text.replace('\n',' ');
+            if(snippet.length()>220)snippet=snippet.substring(0,220)+"…";
+            card.addView(text(snippet,13,MUTED,false));
+            button(card,"Leer",()->openLibrarySection(hit.book,hit.part.index),false);
+        }
     }
 
     /** Índice con las secciones originales de cada obra; no se inventan versículos. */

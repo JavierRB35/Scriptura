@@ -81,6 +81,11 @@ public final class MainActivity extends Activity {
         }
     }
     private BibleStore store;
+    private LibraryCatalog library;
+    private String libraryBookId="";
+    private int librarySection=1;
+    private int lastLibraryRenderedSection=-1;
+    private boolean libraryAiSessionConsent=false;
     private NavarraNotes notes;
     private UpdateInstaller updateInstaller;
     private StudyAnnotations studyAnnotations;
@@ -221,6 +226,7 @@ public final class MainActivity extends Activity {
             getWindow().getDecorView().setSystemUiVisibility(resolvedMode==DisplayModes.BATTERY?
                 0:View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         store=new BibleStore(this);notes=new NavarraNotes(this);studyAnnotations=new StudyAnnotations(this);
+        library=new LibraryCatalog(this);
         updateInstaller=new UpdateInstaller(this);
         introductions=new NavarraIntroductions(this);historyContext=new HistoricalContextStore(this);
         ai=new GeminiClient(this);groq=new GroqClient(this);
@@ -235,6 +241,8 @@ public final class MainActivity extends Activity {
             indexQuery=state.getString("indexQuery","");
             indexScope=state.getInt("indexScope",0);
             readerOrigin=state.getInt("readerOrigin",1);
+            libraryBookId=state.getString("libraryBookId","");
+            librarySection=state.getInt("librarySection",1);
             bibleQuestionHistoryOffset=state.getInt("bibleQuestionHistoryOffset",0);
             restoredScrollY=state.getInt("readingScrollY",-1);
             String restoredRef=state.getString("selectedRef","");
@@ -297,6 +305,8 @@ public final class MainActivity extends Activity {
         state.putString("indexQuery",indexQuery);
         state.putInt("indexScope",indexScope);
         state.putInt("readerOrigin",readerOrigin);
+        state.putString("libraryBookId",libraryBookId);
+        state.putInt("librarySection",librarySection);
         state.putInt("bibleQuestionHistoryOffset",bibleQuestionHistoryOffset);
         if(page==5&&readingScroll!=null)
             state.putInt("readingScrollY",readingScroll.getScrollY());
@@ -355,7 +365,7 @@ public final class MainActivity extends Activity {
         String previousPassageRef=readingPassage==null?null:readingPassage.ref;
         boolean explicitVerseJump=page==5&&selected!=null&&returnToVerse>0
             &&selected.ref.equals(returnToPassageRef);
-        if(speech!=null&&speechActive&&page!=5){speech.stop();speechActive=false;}
+        if(speech!=null&&speechActive&&page!=5&&page!=14){speech.stop();speechActive=false;}
         readingBible=null;
         readingPassage=null;
         readingProgressTask=null;
@@ -420,7 +430,7 @@ public final class MainActivity extends Activity {
         String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
         int[] glyphs={R.drawable.ic_tab_home,R.drawable.ic_tab_bible,R.drawable.ic_tab_mass,
             R.drawable.ic_tab_heart,R.drawable.ic_tab_star};
-        int active=(page==5||page==7||page==9||page==10)?1:
+        int active=(page==5||page==7||page==9||page==10||page>=12)?1:
             (page==11?4:(page==6||page==8?0:page));
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
@@ -460,6 +470,9 @@ public final class MainActivity extends Activity {
             case 7:bibleIndex();break;case 8:artGallery();break;
             case 9:bookOverview();break;case 10:myStudyMarks();break;
             case 11:bibleQuestionHistoryPage();break;
+            case 12:libraryHome();break;
+            case 13:libraryBookIndex();break;
+            case 14:libraryReader();break;
             default:page=0;home();
         }
         // Una actualización de la misma página (estado de ánimo, fecha de Misa,
@@ -471,7 +484,8 @@ public final class MainActivity extends Activity {
                 if(page==5&&readingScroll==currentScroll)currentScroll.scrollTo(0,y);
             });
         }else if(previousScrollY>0&&readingScroll!=null&&
-                ReadingProgress.shouldRestoreScroll(previousPage==page,page==5,
+                ReadingProgress.shouldRestoreScroll(previousPage==page &&
+                    !(page==14&&lastLibraryRenderedSection!=librarySection),page==5,
                     previousPassageRef,selected==null?null:selected.ref,explicitVerseJump)){
             int y=previousScrollY;
             ScrollView currentScroll=readingScroll;
@@ -480,6 +494,7 @@ public final class MainActivity extends Activity {
             });
         }
         lastRenderedPage=page;
+        if(page==14)lastLibraryRenderedSection=librarySection;
         // Enable tracking only after any programmatic scroll restoration.
         if(page==5&&readingScroll!=null){
             ScrollView currentScroll=readingScroll;
@@ -626,6 +641,7 @@ public final class MainActivity extends Activity {
         searchResultsQuery="";
         title(column,"Leer y buscar en la Biblia");
         button(column,"✦ Pregunta a IA · Toda la Biblia",this::askBibleQuestion,true);
+        button(column,"Biblioteca · Evangelios apócrifos",()->go(12),false);
         button(column,"Mis preguntas y respuestas",()->{bibleQuestionHistoryOffset=0;go(11);},false);
         if(store.ready()){
             ReadingProgress.Position last=store.lastReadPosition();
@@ -779,6 +795,10 @@ public final class MainActivity extends Activity {
 
     private void lookup(String query){
         if(query.trim().isEmpty())return;
+        if(LibraryCatalog.isReference(query)){
+            openLibraryReference(query);
+            return;
+        }
         BibleStore.Passage passage=store.passage(query);
         if(passage!=null){open(passage);return;}
         List<BibleStore.Passage> hits=store.searchText(query,35);
@@ -3217,7 +3237,7 @@ public final class MainActivity extends Activity {
         }
         if(!backStack.isEmpty()){
             Integer target=backStack.pop();
-            if(target!=null&&target>=0&&target<=11&&target!=page){
+            if(target!=null&&target>=0&&target<=14&&target!=page){
                 if(target==1)searchResultsQuery="";
                 page=target;
                 render();
@@ -3226,12 +3246,15 @@ public final class MainActivity extends Activity {
         }
         if(page==5){
             int previous=readerOrigin;
-            page=(previous>=0&&previous<=11&&previous!=5)?previous:1;
+            page=(previous>=0&&previous<=14&&previous!=5)?previous:1;
             searchResultsQuery="";
             render();
         }
         else if(page==9){page=7;render();}
         else if(page==10){page=1;render();}
+        else if(page==14){page=13;render();}
+        else if(page==13){page=12;render();}
+        else if(page==12){page=1;render();}
         else if(page==7||page==8){page=0;searchResultsQuery="";render();}
         else if(page==6){
             if(atlasMode==3||atlasMode==4){atlasMode=0;render();}

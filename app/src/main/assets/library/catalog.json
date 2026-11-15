@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "translation_status": "borrador pendiente de revisión filológica independiente",
+  "source_of_translations": "Traducciones españolas de trabajo derivadas de versiones inglesas de Mark M. Mattison, ofrecidas en dominio público en Gospels.net.",
+  "works": [
+    {
+      "id": "thomas",
+      "title": "Evangelio de Tomás",
+      "structure": "114 dichos",
+      "source_url": "https://www.gospels.net/thomas",
+      "file": "thomas.md"
+    },
+    {
+      "id": "mary",
+      "title": "Evangelio de María",
+      "structure": "Páginas conservadas",
+      "source_url": "https://www.gospels.net/mary",
+      "file": "mary.md"
+    },
+    {
+      "id": "peter",
+      "title": "Evangelio de Pedro",
+      "structure": "60 unidades numeradas",
+      "source_url": "https://www.gospels.net/peter",
+      "file": "peter.md"
+    },
+    {
+      "id": "infancyjames",
+      "title": "Protoevangelio de Santiago",
+      "structure": "25 capítulos y versión alternativa",
+      "source_url": "https://www.gospels.net/infancyjames",
+      "file": "infancyjames.md"
+    },
+    {
+      "id": "infancythomas",
+      "title": "Evangelio de la infancia de Tomás",
+      "structure": "19 capítulos",
+      "source_url": "https://www.gospels.net/infancythomas",
+      "file": "infancythomas.md"
+    },
+    {
+      "id": "judas",
+      "title": "Evangelio de Judas",
+      "structure": "Páginas conservadas",
+      "source_url": "https://www.gospels.net/judas",
+      "file": "judas.md"
+    }
+  ]
+}

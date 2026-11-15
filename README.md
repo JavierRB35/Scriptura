@@ -62,6 +62,16 @@ Revisión de experiencia de usuario aplicada sobre el código de 0.7.9 (informe 
 - El modelo de respaldo inicial es `openai/gpt-oss-120b`. Su disponibilidad y cuota gratuita dependen de la cuenta Groq; consulta https://console.groq.com/docs/rate-limits. Groq permite habilitar Zero Data Retention en su consola (https://console.groq.com/docs/your-data), opción recomendada.
 - No hay reintentos encadenados, biblioteca remota ni servidor intermediario. La compilación automatizada no prueba claves ni cuotas personales: hay que validar Gemini 429/503, Groq y revocación con una clave real en el móvil antes de publicar la versión.
 
+## Biblioteca · Obras extracanonicas (0.9.0)
+
+- La nueva **Biblioteca** (en Inicio y Biblia) incluye seis evangelios apócrifos en español del archivo `JavierRB35/Scriptura-web/data/apocrypha/es`: Tomás, María, Pedro, Judas, Protoevangelio de Santiago y Evangelio de la infancia de Tomás. Funcionan sin Internet y sin importar la Biblia EPUB privada.
+- **Advertencia editorial obligatoria:** son traducciones españolas de trabajo elaboradas a partir de las versiones inglesas de Mark M. Mattison publicadas en dominio público ([Gospels.net](https://www.gospels.net/)); no son traducciones directas de las lenguas antiguas ni cuentan aún con revisión filológica independiente. No forman parte de los 73 libros canónicos de la Biblia católica.
+- Cada obra conserva las divisiones de su archivo (dichos, capítulos, unidades numeradas, secciones y marcas de página), sus lagunas, variantes y notas. **No se inventan números de versículos.** Las secciones de notas y apéndices están etiquetadas como material editorial.
+- Se comparten los mecanismos de la app para selección contextual **Anotar, Subrayar, Definir, Interpretar con IA**, consulta libre, guardar interpretación sobre el texto, favoritos, historial, copiar, compartir, voz y tamaño/tema de lectura. El comentario automatizado distingue textos extracanonicos de la Biblia y requiere consentimiento específico antes de enviar fragmentos a Gemini/Groq.
+- Las anotaciones se guardan en la base local existente de `study_annotations` usando un identificador independiente `LIB/<id>`; por tanto no se altera el EPUB, la base de versículos canónicos ni las claves API, y se reutilizan las copias de seguridad. Las referencias internas `LIB:<id>:<sección>` no se muestran como versículos. En exportaciones de notas se usa «sección», no «versículo».
+- **Catálogo extensible:** se podrán añadir obras en una futura actualización incorporando `app/src/main/assets/library/<id>.md` y su entrada en `app/src/main/assets/library/catalog.json`. Mantener el orden y encabezados de una obra publicada preserva los anclajes de notas. La app no descarga ni modifica automáticamente textos de terceros.
+- Las notas de edición de Navarra y el atlas bíblico no se atribuyen a estas obras; no se inventan dichos recursos. Las pruebas JVM comprueban estructura, anclajes, distinción canónica/extracanónica y el prompt. Pendiente de comprobación funcional de lectura y red real en teléfono.
+
 ## Pregunta a IA · Toda la Biblia
 
 - En la pestaña **Biblia**, la nueva opción permite hacer preguntas sin seleccionar un libro.

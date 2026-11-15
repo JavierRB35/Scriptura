@@ -2417,10 +2417,9 @@ public final class MainActivity extends Activity {
         if(readerToolsExpanded){
             LinearLayout tools=card(column);
             hint(tools,"Herramientas para esta sección de Biblioteca");
-            button(tools,"Añadir nota",
+            button(tools,"Añadir nota a esta sección",
                 ()->editLibraryAnnotation(work,section,0,
-                    section.text.substring(0,Math.min(section.text.length(),240)),
-                    0,StudyAnnotations.NOTE),false);
+                    "",0,StudyAnnotations.NOTE),false);
             button(tools,"Profundizar o preguntar",
                 ()->askLibrary(work,section),false);
             button(tools,"Tamaño y aspecto de lectura",this::showTypographyPanel,false);

@@ -705,7 +705,7 @@ public final class MainActivity extends Activity {
                 indexCard.addView(indexRow);
             }
             final String bookCode=book.getKey();
-            String bookName=Books.name(bookCode);
+            String bookName=libraryStudyTitle(bookCode);
             TextView shortcut=text(bookName+" ("+book.getValue()+")",14,ACCENT,true);
             shortcut.setGravity(Gravity.CENTER_VERTICAL);
             shortcut.setMinHeight(dp(48));
@@ -727,14 +727,19 @@ public final class MainActivity extends Activity {
             position++;
         }
         String currentBook="";
-        boolean oldHeading=false,newHeading=false;
+        boolean oldHeading=false,newHeading=false,libraryHeading=false;
         for(StudyAnnotations.Item item:items){
+            boolean isLibrary=LibraryCatalog.isAnnotationBook(item.book);
             boolean newTestament=Books.isNew(item.book);
-            if(newTestament&&!newHeading){
+            if(isLibrary&&!libraryHeading){
+                addGap(column,12);
+                section(column,"Biblioteca","Notas en documentos extracanonicos.");
+                libraryHeading=true;
+            }else if(!isLibrary&&newTestament&&!newHeading){
                 addGap(column,12);
                 section(column,"Nuevo Testamento","Evangelios, escritos apostólicos y Apocalipsis.");
                 newHeading=true;
-            }else if(!newTestament&&!oldHeading){
+            }else if(!isLibrary&&!newTestament&&!oldHeading){
                 addGap(column,12);
                 section(column,"Antiguo Testamento","Libros anteriores al Nuevo Testamento.");
                 oldHeading=true;
@@ -742,20 +747,20 @@ public final class MainActivity extends Activity {
             if(!item.book.equals(currentBook)){
                 currentBook=item.book;
                 addGap(column,10);
-                TextView bookHeading=text(Books.name(item.book),18,DARK,true);
+                TextView bookHeading=text(libraryStudyTitle(item.book),18,DARK,true);
                 column.addView(bookHeading);
                 bookHeadings.put(item.book,bookHeading);
             }
             LinearLayout entry=card(column);
             entry.setPadding(dp(15),dp(13),dp(15),dp(13));
             String source=LibraryCatalog.isAnnotationBook(item.book)?
-                "Biblioteca · "+item.book.substring(4)+" · sección "+item.chapter:
+                libraryStudyTitle(item.book)+" · sección "+item.chapter:
                 Books.name(item.book)+" "+item.chapter+":"+
                 verseRange(item.verse,item.endVerse);
             entry.addView(text("FUENTE · "+source,13,ACCENT,true));
             entry.addView(text(annotationType(item),12,MUTED,true));
             String excerpt=item.quote.trim();
-            if(excerpt.isEmpty()&&store.ready()){
+            if(excerpt.isEmpty()&&store.ready()&&!LibraryCatalog.isAnnotationBook(item.book)){
                 String query=Books.name(item.book)+" "+item.chapter+":"+item.verse+
                     (item.endVerse>item.verse?"-"+item.endVerse:"");
                 BibleStore.Passage sourcePassage=store.passage(query);
@@ -2625,8 +2630,41 @@ public final class MainActivity extends Activity {
             }).show();
     }
 
+    private String libraryReferenceLabel(String reference){
+        String[] decoded=LibraryCatalog.decodeReference(reference);
+        if(decoded==null)return reference;
+        try{
+            LibraryCatalog.Work w=library.find(decoded[0]);
+            LibraryCatalog.Section part=w==null?null:
+                library.section(w,Integer.parseInt(decoded[1]));
+            return part==null?reference:w.title+" · "+part.title;
+        }catch(Exception error){return reference;}
+    }
+    private String libraryStudyTitle(String studyBook){
+        if(!LibraryCatalog.isAnnotationBook(studyBook))return Books.name(studyBook);
+        try{
+            LibraryCatalog.Work work=library.find(studyBook.substring(4));
+            return work==null?"Biblioteca · "+studyBook.substring(4):work.title;
+        }catch(java.io.IOException error){return "Biblioteca · "+studyBook.substring(4);}
+    }
     private void saved(){
         title(column,"Tus lecturas");
+        java.util.List<String> allFavorites=store.saved(true);
+        java.util.List<String> allHistory=store.saved(false);
+        int libraryCount=0;
+        for(String ref:allFavorites)if(LibraryCatalog.isReference(ref))libraryCount++;
+        for(String ref:allHistory)if(LibraryCatalog.isReference(ref))libraryCount++;
+        if(libraryCount>0){
+            section(column,"Biblioteca · Guardados",
+                "Obras extracanonicas en tus favoritos o historial reciente.");
+            for(String ref:allFavorites)if(LibraryCatalog.isReference(ref))
+                button(column,"★ "+libraryReferenceLabel(ref),
+                    ()->openLibraryReference(ref),false);
+            for(String ref:allHistory)if(LibraryCatalog.isReference(ref))
+                button(column,"↪ "+libraryReferenceLabel(ref),
+                    ()->openLibraryReference(ref),false);
+            addGap(column,18);
+        }
         section(column,"✦ Mis preguntas a la IA",
             "Preguntas y respuestas sobre toda la Biblia, guardadas en este dispositivo.");
         int total=store.bibleQuestionCount();
@@ -2645,20 +2683,14 @@ public final class MainActivity extends Activity {
         section(column,"★ Favoritos","Pasajes que decidiste guardar.");
         java.util.List<String> favorites=store.saved(true);
         if(favorites.isEmpty())hint(column,"Todavía no has guardado ningún pasaje.");
-        for(String ref:favorites){
-            if(LibraryCatalog.isReference(ref))
-                button(column,"Biblioteca · "+ref,()->openLibraryReference(ref),false);
-            else button(column,ref,()->lookup(ref),false);
-        }
+        for(String ref:favorites)if(!LibraryCatalog.isReference(ref))
+            button(column,ref,()->lookup(ref),false);
         addGap(column,24);
         section(column,"Historial","Tus consultas recientes.");
         java.util.List<String> history=store.saved(false);
         if(history.isEmpty())hint(column,"Las lecturas que abras aparecerán aquí.");
-        for(String ref:history){
-            if(LibraryCatalog.isReference(ref))
-                button(column,"Biblioteca · "+ref,()->openLibraryReference(ref),false);
-            else button(column,ref,()->lookup(ref),false);
-        }
+        for(String ref:history)if(!LibraryCatalog.isReference(ref))
+            button(column,ref,()->lookup(ref),false);
     }
     /** Consultas generales independientes de los favoritos y del historial de lectura. */
     private void bibleQuestionHistoryPage(){

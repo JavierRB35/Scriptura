@@ -2169,6 +2169,195 @@ public final class MainActivity extends Activity {
         int day=Calendar.getInstance().get(Calendar.DAY_OF_YEAR);
         return options[Math.floorMod(day,options.length)];
     }
+    /** Una colección documental separada de la Biblia canónica y de su EPUB privado. */
+    private void libraryHome(){
+        title(column,"Biblioteca");
+        hint(column,"Libros relacionados con el cristianismo antiguo. Esta colección es "
+            +"extracanónica: ninguno de estos textos forma parte de los 73 libros de la Biblia.");
+        LinearLayout warning=card(column);
+        warning.addView(text("Ediciones de trabajo",17,DARK,true));
+        hint(warning,"Las traducciones españolas proceden de versiones inglesas de "
+            +"Mark M. Mattison (Gospels.net, dominio público). No están revisadas "
+            +"filológicamente de forma independiente. Se conservan las lagunas, "
+            +"las páginas de manuscrito y las notas editoriales.");
+        String last=store.getReflection("library:last_read");
+        String[] location=LibraryCatalog.decodeReference(last);
+        if(location!=null){
+            button(column,"↪ Continuar lectura de Biblioteca",
+                ()->openLibraryReference(last),true);
+        }
+        try{
+            for(LibraryCatalog.Work work:library.works()){
+                LinearLayout book=card(column);
+                book.addView(text(work.title,19,DARK,true));
+                hint(book,work.structure+" · Extracanónico");
+                button(book,"Abrir obra",()->{
+                    libraryBookId=work.id;
+                    go(13);
+                },false);
+            }
+        }catch(java.io.IOException error){
+            showError("No se pudo cargar el catálogo de Biblioteca: "+error.getMessage());
+        }
+        hint(column,"Se podrán incorporar más libros mediante futuras actualizaciones "
+            +"del catálogo y sus textos, sin modificar tu Biblia ni tus anotaciones.");
+        button(column,"Volver a Biblia",()->go(1),false);
+    }
+
+    /** Índice con las secciones originales de cada obra; no se inventan versículos. */
+    private void libraryBookIndex(){
+        final LibraryCatalog.Work work;
+        final List<LibraryCatalog.Section> sections;
+        try{
+            work=library.find(libraryBookId);
+            sections=library.sections(work);
+        }catch(java.io.IOException error){
+            showError("La obra no está disponible: "+error.getMessage());
+            return;
+        }
+        if(work==null){hint(column,"No se ha encontrado esta obra.");return;}
+        title(column,work.title);
+        hint(column,"Texto extracanónico · "+work.structure+
+            " · Traducción española de trabajo pendiente de revisión independiente.");
+        button(column,"Ver fuente y atribución",()->openLibrarySource(work),false);
+        addGap(column,12);
+        for(LibraryCatalog.Section section:sections){
+            LinearLayout entry=card(column);
+            entry.addView(text(section.title,16,DARK,true));
+            if(section.editorial)
+                hint(entry,"Apéndice o nota editorial, separado del relato principal");
+            button(entry,"Leer",()->openLibrarySection(work,section.index),false);
+        }
+    }
+
+    private void openLibrarySource(LibraryCatalog.Work work){
+        try{
+            startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(work.sourceUrl))
+                .addCategory(Intent.CATEGORY_BROWSABLE));
+        }catch(RuntimeException error){showError("No se pudo abrir la fuente.");}
+    }
+
+    private void openLibraryReference(String reference){
+        String[] parts=LibraryCatalog.decodeReference(reference);
+        if(parts==null){showError("Referencia de Biblioteca inválida.");return;}
+        try{
+            LibraryCatalog.Work work=library.find(parts[0]);
+            int index=Integer.parseInt(parts[1]);
+            if(work==null||library.section(work,index)==null){
+                showError("La sección guardada ya no está disponible.");return;
+            }
+            openLibrarySection(work,index);
+        }catch(Exception error){showError("No se pudo abrir la lectura: "+error.getMessage());}
+    }
+
+    private void openLibrarySection(LibraryCatalog.Work work,int section){
+        if(work==null)return;
+        try{
+            LibraryCatalog.Section source=library.section(work,section);
+            if(source==null){showError("Sección no disponible.");return;}
+            libraryBookId=work.id;
+            librarySection=section;
+            String ref=LibraryCatalog.reference(work,source);
+            store.record(ref);
+            store.saveReflection("library:last_read",ref);
+            if(page==14)render();
+            else go(14);
+        }catch(java.io.IOException error){showError("No se puede abrir el texto: "+error.getMessage());}
+    }
+
+    private void libraryReader(){
+        final LibraryCatalog.Work work;
+        final LibraryCatalog.Section section;
+        final int total;
+        try{
+            work=library.find(libraryBookId);
+            if(work==null){hint(column,"No se ha encontrado la obra.");return;}
+            List<LibraryCatalog.Section> all=library.sections(work);
+            total=all.size();
+            section=library.section(work,librarySection);
+            if(section==null){hint(column,"Sección no disponible.");return;}
+        }catch(java.io.IOException error){
+            hint(column,"No se pudo leer la Biblioteca: "+error.getMessage());return;
+        }
+        final String reference=work.title+" · "+section.title;
+        column.addView(text("BIBLIOTECA · TEXTO EXTRACANÓNICO",11,ACCENT,true));
+        title(column,work.title);
+        hint(column,"Traducción española de trabajo · Sin revisión filológica independiente");
+        addGap(column,6);
+        column.addView(text(section.title,20,DARK,true));
+        if(section.editorial)hint(column,"Material editorial o variante textual: no forma parte de una secuencia de versículos.");
+        button(column,"✦ Interpretación con IA",
+            ()->interpretLibrary(work,section,"Explica este texto en su contexto, "
+                +"sin atribuirle autoridad canónica.",null,0,false),true);
+        LinearLayout content=card(column);
+        content.setBackground(outlined(BG,16));
+        TextView reading=text(section.text,textSize,DARK,false);
+        serif(reading);
+        reading.setTextIsSelectable(true);
+        applyLibraryMarks(reading,work,section);
+        attachLibrarySelection(reading,work,section);
+        content.addView(reading);
+        readingBible=reading;
+        readingPassage=null;
+        addGap(content,12);
+        button(content,"✦ Interpretación con IA",
+            ()->interpretLibrary(work,section,"Explica este texto en su contexto, "
+                +"sin atribuirle autoridad canónica.",null,0,false),true);
+        LinearLayout quick=new LinearLayout(this);
+        quick.setGravity(Gravity.CENTER_VERTICAL);
+        String id=LibraryCatalog.reference(work,section);
+        boolean favorite=store.isFavorite(id);
+        quick.addView(quickAction(R.drawable.ic_tab_star,favorite?"Guardado":"Favorito",
+            favorite?GOLD:MUTED,()->{store.toggleFavorite(id);render();}));
+        quick.addView(quickAction(R.drawable.ic_action_copy,"Copiar",MUTED,()->{
+            ((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE))
+                .setPrimaryClip(ClipData.newPlainText(reference,
+                    reference+"\n"+section.text+"\nFuente: "+work.sourceUrl));
+            Toast.makeText(this,"Texto copiado",Toast.LENGTH_SHORT).show();
+        }));
+        quick.addView(quickAction(R.drawable.ic_action_share,"Compartir",MUTED,()->{
+            Intent intent=new Intent(Intent.ACTION_SEND);
+            intent.setType("text/plain");
+            intent.putExtra(Intent.EXTRA_TEXT,reference+"\n"+section.text+
+                "\nTraducción española de trabajo · "+work.sourceUrl);
+            startActivity(Intent.createChooser(intent,"Compartir lectura"));
+        }));
+        LinearLayout audio=quickAction(R.drawable.ic_action_volume,
+            speechActive?"Detener":"Escuchar",speechActive?GOLD:MUTED,this::toggleSpeech);
+        speechLabel=(TextView)audio.getChildAt(1);
+        quick.addView(audio);
+        quick.addView(quickAction(R.drawable.ic_action_more,"Más",MUTED,()->{
+            readerToolsExpanded=!readerToolsExpanded;
+            render();
+        }));
+        content.addView(quick);
+        if(readerToolsExpanded){
+            LinearLayout tools=card(column);
+            hint(tools,"Herramientas para esta sección de Biblioteca");
+            button(tools,"Añadir nota",
+                ()->editLibraryAnnotation(work,section,0,
+                    section.text.substring(0,Math.min(section.text.length(),240)),
+                    0,StudyAnnotations.NOTE),false);
+            button(tools,"Profundizar o preguntar",
+                ()->askLibrary(work,section),false);
+            button(tools,"Tamaño y aspecto de lectura",this::showTypographyPanel,false);
+            button(tools,"Consultar fuente original",()->openLibrarySource(work),false);
+        }
+        hint(content,"Mantén pulsado el texto para Definir, Anotar, Subrayar o "
+            +"Interpretar con IA. Las marcas se guardan en este dispositivo.");
+        showLibraryAnnotations(content,work,section);
+        addGap(column,12);
+        LinearLayout movement=vertical();
+        if(section.index>1){
+            button(movement,"← Sección anterior",()->openLibrarySection(work,section.index-1),false);
+        }
+        button(movement,"Índice de "+work.title,()->go(13),false);
+        if(section.index<total){
+            button(movement,"Sección siguiente →",()->openLibrarySection(work,section.index+1),true);
+        }
+        column.addView(movement);
+    }
+
     private void saved(){
         title(column,"Tus lecturas");
         section(column,"✦ Mis preguntas a la IA",

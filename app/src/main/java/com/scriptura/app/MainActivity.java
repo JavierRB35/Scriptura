@@ -2358,6 +2358,261 @@ public final class MainActivity extends Activity {
         column.addView(movement);
     }
 
+    /** Menú nativo reutilizado: mismas acciones, ancladas al texto extracanonico. */
+    private void attachLibrarySelection(TextView view,
+            LibraryCatalog.Work work,LibraryCatalog.Section section){
+        DefinitionUi.attach(this,view,ai.configured(),new DefinitionUi.Delegate(){
+            @Override public void openExternal(String url){
+                try{
+                    startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))
+                        .addCategory(Intent.CATEGORY_BROWSABLE));
+                }catch(RuntimeException error){showError("No se pudo abrir la fuente.");}
+            }
+            @Override public void explainWithGemini(String word){
+                interpretLibrary(work,section,"Explica la palabra «"+word+
+                    "» dentro de este documento extracanonico.",null,0,true);
+            }
+            @Override public void showError(String message){MainActivity.this.showError(message);}
+        },(quote,start,end)->{
+            String selectedText=LibraryTextAnchors.selection(section.text,start,end);
+            if(selectedText==null){showError("Selecciona un fragmento de texto válido.");return;}
+            editLibraryAnnotation(work,section,0,selectedText,start,StudyAnnotations.NOTE);
+        },(quote,start,end)->{
+            String selectedText=LibraryTextAnchors.selection(section.text,start,end);
+            if(selectedText==null){showError("Selecciona un fragmento válido.");return;}
+            try{
+                studyAnnotations.save(0,work.annotationBook(),section.index,
+                    1,1,start,selectedText,StudyAnnotations.UNDERLINE,"","");
+                render();
+            }catch(RuntimeException error){showError("No se pudo guardar el subrayado.");}
+        },(quote,start,end)->{
+            String selectedText=LibraryTextAnchors.selection(section.text,start,end);
+            if(selectedText==null||selectedText.length()>1200){
+                showError("Selecciona hasta 1.200 caracteres del texto.");return;
+            }
+            interpretLibrary(work,section,"Interpreta el fragmento seleccionado "
+                +"con rigor histórico y sin tratarlo como Biblia canónica.",
+                selectedText,start,true);
+        });
+    }
+
+    private void applyLibraryMarks(TextView view,LibraryCatalog.Work work,
+            LibraryCatalog.Section section){
+        List<StudyAnnotations.Item> marks=
+            studyAnnotations.forChapter(work.annotationBook(),section.index);
+        android.text.SpannableString painted=new android.text.SpannableString(section.text);
+        ArrayList<StudyAnnotations.Item> visible=new ArrayList<>();
+        ArrayList<int[]> ranges=new ArrayList<>();
+        for(StudyAnnotations.Item mark:marks){
+            int start=LibraryTextAnchors.locate(section.text,mark.offset,mark.quote);
+            if(start<0)continue;
+            int end=start+mark.quote.length();
+            if(!StudyAnnotations.UNDERLINE.equals(mark.kind)){
+                int tint=resolvedMode==DisplayModes.BATTERY?
+                    Color.rgb(82,62,27):Color.rgb(255,234,174);
+                painted.setSpan(new android.text.style.BackgroundColorSpan(tint),
+                    start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+            painted.setSpan(new android.text.style.UnderlineSpan(),
+                start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            visible.add(mark);
+            ranges.add(new int[]{start,end});
+        }
+        view.setText(painted,TextView.BufferType.SPANNABLE);
+        if(visible.isEmpty())return;
+        final float[] first={0f,0f};
+        final int slop=ViewConfiguration.get(this).getScaledTouchSlop();
+        view.setOnTouchListener((v,event)->{
+            if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
+                first[0]=event.getX();first[1]=event.getY();return false;
+            }
+            if(event.getActionMasked()!=MotionEvent.ACTION_UP
+                ||event.getEventTime()-event.getDownTime()>
+                    ViewConfiguration.getLongPressTimeout()/2
+                ||Math.abs(event.getX()-first[0])>slop
+                ||Math.abs(event.getY()-first[1])>slop)return false;
+            int where=view.getOffsetForPosition(event.getX(),event.getY());
+            for(int i=0;i<ranges.size();i++){
+                int[] range=ranges.get(i);
+                if(where>=range[0]&&where<range[1]){
+                    showLibraryAnnotation(work,section,visible.get(i));
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    private void showLibraryAnnotations(LinearLayout container,
+            LibraryCatalog.Work work,LibraryCatalog.Section section){
+        List<StudyAnnotations.Item> annotations=
+            studyAnnotations.forChapter(work.annotationBook(),section.index);
+        if(annotations.isEmpty())return;
+        addGap(container,12);
+        container.addView(text("MIS SUBRAYADOS Y NOTAS · "+annotations.size(),
+            12,ACCENT,true));
+        for(StudyAnnotations.Item item:annotations){
+            String headline=StudyAnnotations.UNDERLINE.equals(item.kind)?
+                "Subrayado":StudyAnnotations.AI.equals(item.kind)?"Interpretación IA":"Nota";
+            String snippet=item.body.isEmpty()?item.quote:item.body;
+            snippet=snippet.replace('\n',' ');
+            if(snippet.length()>70)snippet=snippet.substring(0,70)+"…";
+            button(container,headline+" · "+snippet,
+                ()->showLibraryAnnotation(work,section,item),false);
+        }
+    }
+
+    private void showLibraryAnnotation(LibraryCatalog.Work work,
+            LibraryCatalog.Section section,StudyAnnotations.Item item){
+        LinearLayout body=vertical();pad(body,17);
+        body.addView(text(work.title+" · "+section.title,14,ACCENT,true));
+        if(!item.quote.isEmpty()){
+            addGap(body,9);
+            TextView quotation=text("«"+item.quote+"»",15,DARK,false);
+            quotation.setTextIsSelectable(true);serif(quotation);
+            body.addView(quotation);
+        }
+        if(!item.body.isEmpty()){
+            addGap(body,11);
+            TextView content=text(item.body,16,DARK,false);
+            content.setTextIsSelectable(true);
+            body.addView(content);
+        }
+        final boolean underline=StudyAnnotations.UNDERLINE.equals(item.kind);
+        new AlertDialog.Builder(this)
+            .setTitle(underline?"Subrayado":"Nota de Biblioteca")
+            .setView(body)
+            .setNegativeButton("Cerrar",null)
+            .setPositiveButton(underline?"Quitar subrayado":"Editar",(dialog,which)->{
+                if(underline){
+                    studyAnnotations.delete(item.id);
+                    render();
+                }else editLibraryAnnotation(work,section,item.id,item.quote,item.offset,item.kind);
+            })
+            .setNeutralButton(underline?"":"Eliminar",(dialog,which)->{
+                if(underline)return;
+                new AlertDialog.Builder(this)
+                    .setTitle("Eliminar nota")
+                    .setMessage("¿Quieres borrar esta anotación? No modifica el texto del libro.")
+                    .setNegativeButton("Cancelar",null)
+                    .setPositiveButton("Eliminar",(d,w)->{
+                        studyAnnotations.delete(item.id);render();
+                    }).show();
+            }).show();
+    }
+
+    private void editLibraryAnnotation(LibraryCatalog.Work work,
+            LibraryCatalog.Section section,long id,String quote,int offset,String kind){
+        LinearLayout editor=vertical();pad(editor,16);
+        hint(editor,work.title+" · "+section.title);
+        if(quote!=null&&!quote.isEmpty()){
+            String excerpt=quote.length()>200?quote.substring(0,200)+"…":quote;
+            editor.addView(text("«"+excerpt+"»",14,MUTED,false));
+            addGap(editor,9);
+        }
+        EditText input=input(editor,"Escribe tu nota personal…",true);
+        if(id>0){
+            for(StudyAnnotations.Item item:studyAnnotations.forChapter(
+                    work.annotationBook(),section.index)){
+                if(item.id==id){input.setText(item.body);break;}
+            }
+        }
+        new AlertDialog.Builder(this).setTitle(id>0?"Editar nota":"Añadir nota")
+            .setView(editor)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Guardar",(dialog,which)->{
+                String text=input.getText().toString().trim();
+                if(text.isEmpty()){showError("La nota no puede estar vacía.");return;}
+                try{
+                    studyAnnotations.save(id,work.annotationBook(),section.index,
+                        1,1,offset,quote==null?"":quote,kind,text,"");
+                    render();
+                }catch(RuntimeException error){showError("No se pudo guardar la nota.");}
+            }).show();
+    }
+
+    private void askLibrary(LibraryCatalog.Work work,LibraryCatalog.Section section){
+        EditText edit=new EditText(this);
+        edit.setHint("¿Qué quieres comprender de este texto?");
+        edit.setMinLines(3);pad(edit,15);
+        showAsBottomSheet(new AlertDialog.Builder(this)
+            .setTitle("Preguntar · "+work.title)
+            .setView(edit)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Consultar",(dialog,which)->{
+                String question=edit.getText().toString().trim();
+                if(question.isEmpty())question="Explica el significado de esta sección.";
+                interpretLibrary(work,section,question,null,0,true);
+            }));
+    }
+
+    /** En ambos proveedores se aplica la política de comentario extracanonico. */
+    private void interpretLibrary(LibraryCatalog.Work work,LibraryCatalog.Section section,
+            String question,String selectedQuote,int offset,boolean custom){
+        if(!ai.configured()){
+            showError("Para interpretar la Biblioteca, configura Gemini en Ajustes.");
+            return;
+        }
+        String key="library:interpret:"+ai.model()+":"+work.id+":"+section.index;
+        if(!custom&&selectedQuote==null){
+            String saved=store.getReflection(key);
+            if(!saved.isEmpty()){
+                showLibraryExplanation(work,section,saved,null,0);return;
+            }
+        }
+        final String excerpt=selectedQuote==null?section.text:selectedQuote;
+        final String instruction="Texto extracanonico en traducción española de trabajo "
+            +"derivada del inglés de Mark M. Mattison; no pertenece al canon bíblico. "
+            +"Conserva lagunas y distingue los títulos/observaciones editoriales.";
+        Runnable send=()->async("Interpretando texto de Biblioteca…",
+            ()->explainWithFallback("BIBLIOTECA EXTRACANÓNICA · "+work.title+
+                    " · "+section.title,excerpt,instruction,question).displayText(),
+            answer->{
+                if(!custom&&selectedQuote==null)store.saveReflection(key,answer);
+                showLibraryExplanation(work,section,answer,selectedQuote,offset);
+            });
+        if(libraryAiSessionConsent){send.run();return;}
+        LinearLayout consent=vertical();pad(consent,17);
+        consent.addView(text("Se enviará a Gemini el fragmento de Biblioteca "
+            +"que estás leyendo y tu pregunta. Estos textos son extracanonicos "
+            +"y traducciones de trabajo sin revisión independiente. "
+            +(groq.fallbackEnabled()?
+                "Si Gemini no está disponible, Groq podrá recibir los mismos datos "
+                +"según la autorización que activaste en Ajustes. ":"")
+            +"No se envían tu Biblia EPUB, las notas privadas ni el historial.",
+            15,DARK,false));
+        android.widget.CheckBox remember=new android.widget.CheckBox(this);
+        remember.setText("No volver a preguntar durante esta sesión");
+        remember.setTextColor(DARK);consent.addView(remember);
+        new AlertDialog.Builder(this).setTitle("Consulta externa · Biblioteca")
+            .setView(consent).setNegativeButton("Cancelar",null)
+            .setPositiveButton("Enviar",(dialog,which)->{
+                if(remember.isChecked())libraryAiSessionConsent=true;
+                send.run();
+            }).show();
+    }
+
+    private void showLibraryExplanation(LibraryCatalog.Work work,
+            LibraryCatalog.Section section,String answer,String quote,int offset){
+        TextView value=text(answer,16,DARK,false);value.setTextIsSelectable(true);pad(value,18);
+        ScrollView scroll=new ScrollView(this);scroll.addView(value);
+        new AlertDialog.Builder(this)
+            .setTitle("Interpretación · "+work.title+" · "+section.title)
+            .setView(scroll)
+            .setNegativeButton("Cerrar",null)
+            .setNeutralButton("Preguntar más",(dialog,which)->askLibrary(work,section))
+            .setPositiveButton("Añadir al texto",(dialog,which)->{
+                String anchor=quote==null?
+                    section.text.substring(0,Math.min(section.text.length(),240)):quote;
+                int at=quote==null?0:offset;
+                try{
+                    studyAnnotations.save(0,work.annotationBook(),section.index,
+                        1,1,at,anchor,StudyAnnotations.AI,answer,"");
+                    render();
+                }catch(RuntimeException error){showError("No se pudo guardar la interpretación.");}
+            }).show();
+    }
+
     private void saved(){
         title(column,"Tus lecturas");
         section(column,"✦ Mis preguntas a la IA",

@@ -63,7 +63,7 @@ final class LibraryCatalog {
                 String source=row.getString("source_url");
                 String structure=row.getString("structure");
                 if(!ID.matcher(id).matches()||title.trim().isEmpty()||
-                        !source.startsWith("https://www.gospels.net/")||
+                        !source.startsWith("https://")||
                         !id.concat(".md").equals(row.getString("file"))||
                         unique.containsKey(id))
                     throw new IOException("Entrada de catálogo no válida");

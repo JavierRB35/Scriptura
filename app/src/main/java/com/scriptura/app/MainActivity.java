@@ -84,6 +84,7 @@ public final class MainActivity extends Activity {
     private LibraryCatalog library;
     private String libraryBookId="";
     private int librarySection=1;
+    private int libraryReturnOffset=-1;
     private int lastLibraryRenderedSection=-1;
     private boolean libraryAiSessionConsent=false;
     private NavarraNotes notes;
@@ -244,6 +245,7 @@ public final class MainActivity extends Activity {
             readerOrigin=state.getInt("readerOrigin",1);
             libraryBookId=state.getString("libraryBookId","");
             librarySection=state.getInt("librarySection",1);
+            libraryReturnOffset=state.getInt("libraryReturnOffset",-1);
             bibleQuestionHistoryOffset=state.getInt("bibleQuestionHistoryOffset",0);
             restoredScrollY=state.getInt("readingScrollY",-1);
             String restoredRef=state.getString("selectedRef","");
@@ -308,6 +310,7 @@ public final class MainActivity extends Activity {
         state.putInt("readerOrigin",readerOrigin);
         state.putString("libraryBookId",libraryBookId);
         state.putInt("librarySection",librarySection);
+        state.putInt("libraryReturnOffset",libraryReturnOffset);
         state.putInt("bibleQuestionHistoryOffset",bibleQuestionHistoryOffset);
         if(page==5&&readingScroll!=null)
             state.putInt("readingScrollY",readingScroll.getScrollY());
@@ -792,6 +795,7 @@ public final class MainActivity extends Activity {
 
     private void openSavedMark(StudyAnnotations.Item item){
         if(LibraryCatalog.isAnnotationBook(item.book)){
+            libraryReturnOffset=item.offset;
             openLibraryReference("LIB:"+item.book.substring(4)+":"+item.chapter);
             return;
         }
@@ -2360,6 +2364,21 @@ public final class MainActivity extends Activity {
         applyLibraryMarks(reading,work,section);
         attachLibrarySelection(reading,work,section);
         content.addView(reading);
+        if(libraryReturnOffset>=0){
+            final int target=libraryReturnOffset;
+            libraryReturnOffset=-1;
+            final ScrollView scroll=readingScroll;
+            scroll.post(()->{
+                if(page!=14||readingScroll!=scroll||reading.getLayout()==null)return;
+                int at=Math.max(0,Math.min(target,section.text.length()));
+                int line=reading.getLayout().getLineForOffset(at);
+                android.graphics.Rect bounds=new android.graphics.Rect(
+                    0,reading.getLayout().getLineTop(line),reading.getWidth(),
+                    reading.getLayout().getLineBottom(line));
+                scroll.offsetDescendantRectToMyCoords(reading,bounds);
+                scroll.scrollTo(0,Math.max(0,scroll.getScrollY()+bounds.top-dp(88)));
+            });
+        }
         readingBible=reading;
         readingPassage=null;
         readingLibraryText=section.text;

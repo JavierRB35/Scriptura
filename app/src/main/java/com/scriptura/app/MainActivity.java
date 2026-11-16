@@ -1017,12 +1017,10 @@ public final class MainActivity extends Activity {
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
-        // Ambos accesos comparten exactamente la misma acción y el mismo pasaje.
-        Runnable interpretChapter=()->interpret(p,
-            "Explica este pasaje de forma breve y fiel a su contexto.",false);
         TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         chapterNavigation(column,p,false);
-        button(column,"✦ Interpretación con IA",interpretChapter,true);
+        hint(column,"Selecciona texto y pulsa «Interpretar con IA»; "
+            +"sin selección, interpretará el capítulo.");
         addGap(column,6);
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
@@ -1045,7 +1043,11 @@ public final class MainActivity extends Activity {
         });
         returnToSavedVerse(bible,p);
         chapterNavigation(c,p,true);
-        button(c,"✦ Interpretación con IA",interpretChapter,true);
+        BibleReadingNavigation.Destination nextBook=BibleReadingNavigation.adjacent(
+            p.book,p.chapter,true,store::chapters);
+        if(nextBook!=null&&!nextBook.book.equals(p.book))
+            button(c,"Continuar en "+nextBook.label()+" →",
+                ()->openBibleDestination(nextBook),true);
         // Jerarquía clara: acciones rápidas compactas, IA destacada y el resto
         // agrupado en «Más herramientas» para no enterrar el avance de lectura.
         LinearLayout quick=new LinearLayout(this);
@@ -1083,14 +1085,16 @@ public final class MainActivity extends Activity {
             button(tools,"Añadir nota por versículos",()->manualStudyAnnotation(p),false);
             button(tools,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
             button(tools,"Profundizar o preguntar",()->ask(p),false);
-            button(tools,"Lugares del capítulo",()->showPassagePlaces(p),false);
             button(tools,"Atlas del libro "+Books.name(p.book),()->openBookAtlas(p.book),false);
             button(tools,"Índice: "+Books.name(p.book),()->openBookInfo(p.book),false);
             java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
             if(!related.isEmpty())
                 button(tools,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
         }
-        hint(c,"Mantén pulsado el texto y elige «Subrayar», «Anotar» o «Definir». Los subrayados se guardan sin nota; toca uno para quitarlo.");
+        button(c,"Lugares de este capítulo",()->showPassagePlaces(p),false);
+        hint(c,"Mantén pulsado el texto para seleccionar un fragmento, subrayar, "
+            +"anotar o definir. El botón fijo de IA interpreta la selección, "
+            +"o el capítulo si no has seleccionado nada.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
         alternative.setOnClickListener(v->askForWord(p));
@@ -1335,7 +1339,52 @@ public final class MainActivity extends Activity {
             }catch(RuntimeException error){
                 showError("No se pudo guardar el subrayado.");
             }
-        },(quote,start,end)->interpretSelectedFragment(passage,start,end));
+        },(quote,start,end)->interpretSelectedFragment(passage,start,end),
+            new DefinitionUi.SelectionLifecycle(){
+                @Override public void onSelectionChanged(int start,int end){
+                    if(page==5&&selected!=null&&selected.ref.equals(passage.ref)
+                            &&start>=0&&end>start){
+                        readerSelectionActive=true;
+                        readerSelectedStart=start;
+                        readerSelectedEnd=end;
+                    }
+                }
+                @Override public void onSelectionFinished(){
+                    // Al tocar la acción IA fija no se descarta la selección
+                    // antes de procesar el clic; al cancelar normalmente, sí.
+                    if(!readerSelectionPreserved){
+                        readerSelectionActive=false;
+                        readerSelectedStart=-1;
+                        readerSelectedEnd=-1;
+                    }
+                }
+            });
+    }
+
+    /** La barra fija reutiliza el flujo existente de fragmentos o capítulos. */
+    private void interpretReaderSelectionOrChapter(){
+        BibleStore.Passage passage=readingPassage;
+        if(page!=5||passage==null||selected==null
+                ||!passage.ref.equals(selected.ref))return;
+        int start=-1,end=-1;
+        if(readerSelectionActive){
+            if(readingBible!=null){
+                start=readingBible.getSelectionStart();
+                end=readingBible.getSelectionEnd();
+            }
+            if(start<0||end<=start){
+                start=readerSelectedStart;
+                end=readerSelectedEnd;
+            }
+        }
+        readerSelectionPreserved=false;
+        readerSelectionActive=false;
+        readerSelectedStart=-1;
+        readerSelectedEnd=-1;
+        if(start>=0&&end>start)
+            interpretSelectedFragment(passage,start,end);
+        else
+            interpret(passage,"Explica este pasaje de forma breve y fiel a su contexto.",false);
     }
 
     /** Mantiene exactamente la misma petición con ambos proveedores, si el respaldo está autorizado. */

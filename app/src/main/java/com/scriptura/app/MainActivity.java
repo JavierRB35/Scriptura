@@ -86,6 +86,10 @@ public final class MainActivity extends Activity {
     private int librarySection=1;
     private int libraryReturnOffset=-1;
     private int lastLibraryRenderedSection=-1;
+    private boolean libraryJumpPending=false;
+    private int restoredLibraryScrollY=-1;
+    private Runnable libraryProgressTask;
+    private final List<TextView> libraryReadingViews=new ArrayList<>();
     private boolean libraryAiSessionConsent=false;
     private NavarraNotes notes;
     private UpdateInstaller updateInstaller;
@@ -248,6 +252,8 @@ public final class MainActivity extends Activity {
             libraryBookId=state.getString("libraryBookId","");
             librarySection=state.getInt("librarySection",1);
             libraryReturnOffset=state.getInt("libraryReturnOffset",-1);
+            restoredLibraryScrollY=state.getInt("libraryScrollY",-1);
+            libraryJumpPending=page==14&&restoredLibraryScrollY<0;
             bibleQuestionHistoryOffset=state.getInt("bibleQuestionHistoryOffset",0);
             restoredScrollY=state.getInt("readingScrollY",-1);
             String restoredRef=state.getString("selectedRef","");
@@ -292,6 +298,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause(){
         flushReadingProgress();
+        flushLibraryReadingProgress();
         super.onPause();
     }
     @Override protected void onResume(){
@@ -316,6 +323,8 @@ public final class MainActivity extends Activity {
         state.putInt("bibleQuestionHistoryOffset",bibleQuestionHistoryOffset);
         if(page==5&&readingScroll!=null)
             state.putInt("readingScrollY",readingScroll.getScrollY());
+        if(page==14&&readingScroll!=null)
+            state.putInt("libraryScrollY",readingScroll.getScrollY());
         state.putString("selectedRef",selected==null?"":selected.ref);
         state.putString("atlasPlace",atlasPlace==null?"":atlasPlace.id);
         state.putString("atlasJourney",atlasJourney==null?"":atlasJourney.id);
@@ -368,12 +377,16 @@ public final class MainActivity extends Activity {
 
     private void render(){
         flushReadingProgress();
+        if(!libraryJumpPending)flushLibraryReadingProgress();
+        boolean explicitLibraryJump=page==14&&libraryJumpPending;
         String previousPassageRef=readingPassage==null?null:readingPassage.ref;
         boolean explicitVerseJump=page==5&&selected!=null&&returnToVerse>0
             &&selected.ref.equals(returnToPassageRef);
         if(speech!=null&&speechActive&&page!=5&&page!=14){speech.stop();speechActive=false;}
         readingBible=null;
         readingPassage=null;
+        libraryReadingViews.clear();
+        libraryProgressTask=null;
         readerSelectionActive=false;
         readerSelectionPreserved=false;
         readerSelectedStart=-1;
@@ -499,7 +512,14 @@ public final class MainActivity extends Activity {
             currentScroll.post(()->{
                 if(page==5&&readingScroll==currentScroll)currentScroll.scrollTo(0,y);
             });
-        }else if(previousScrollY>0&&readingScroll!=null&&
+        }else if(page==14&&restoredLibraryScrollY>=0&&readingScroll!=null){
+            int y=restoredLibraryScrollY;restoredLibraryScrollY=-1;
+            ScrollView currentScroll=readingScroll;
+            currentScroll.post(()->{
+                if(page==14&&readingScroll==currentScroll)
+                    currentScroll.scrollTo(0,y);
+            });
+        }else if(previousScrollY>0&&readingScroll!=null&&!explicitLibraryJump&&
                 ReadingProgress.shouldRestoreScroll(previousPage==page &&
                     !(page==14&&lastLibraryRenderedSection!=librarySection),page==5,
                     previousPassageRef,selected==null?null:selected.ref,explicitVerseJump)){
@@ -511,6 +531,7 @@ public final class MainActivity extends Activity {
         }
         lastRenderedPage=page;
         if(page==14)lastLibraryRenderedSection=librarySection;
+        libraryJumpPending=false;
         // Enable tracking only after any programmatic scroll restoration.
         if(page==5&&readingScroll!=null){
             ScrollView currentScroll=readingScroll;
@@ -1125,7 +1146,9 @@ public final class MainActivity extends Activity {
 
     /** Escucha local del pasaje con el motor de voz de Android; nada sale del teléfono. */
     private void toggleSpeech(){
-        String spoken=readingPassage!=null?readingPassage.text:readingLibraryText;
+        toggleSpeechText(readingPassage!=null?readingPassage.text:readingLibraryText);
+    }
+    private void toggleSpeechText(String spoken){
         if(spoken==null)return;
         if(speech==null)speech=new ReaderSpeech();
         speech.toggle(this,spoken,new ReaderSpeech.Listener(){
@@ -1216,8 +1239,9 @@ public final class MainActivity extends Activity {
         if(preview!=null)preview.setTextSize(textSize);
         if(current!=null)current.setText(textSize+" sp");
         if(fontLabel!=null)fontLabel.setText("Tamaño de letra actual: "+textSize+" sp");
-        // Efecto inmediato en el texto abierto, sin perder la posición de lectura.
+        // Efecto inmediato en todos los fragmentos de la obra abierta.
         if(readingBible!=null)readingBible.setTextSize(textSize);
+        for(TextView reading:libraryReadingViews)reading.setTextSize(textSize);
     }
     /** Sección desplegable dentro del lector, sin introducir pantallas nuevas. */
     private void showHistoricalContext(BibleStore.Passage passage){
@@ -2373,8 +2397,12 @@ public final class MainActivity extends Activity {
         title(column,work.title);
         hint(column,"Texto extracanónico · "+work.structure+
             " · Traducción española de trabajo pendiente de revisión independiente.");
+        button(column,"Leer la obra completa (lectura continua)",()->
+            openLibrarySection(work,1),true);
         button(column,"Ver fuente y atribución",()->openLibrarySource(work),false);
         addGap(column,12);
+        hint(column,"Índice de secciones (opcional): toca un dicho o capítulo para "
+            +"abrirlo en su posición dentro del texto completo.");
         for(LibraryCatalog.Section section:sections){
             LinearLayout entry=card(column);
             entry.addView(text(section.title,16,DARK,true));
@@ -2412,6 +2440,7 @@ public final class MainActivity extends Activity {
             if(speech!=null&&speechActive){speech.stop();speechActive=false;}
             libraryBookId=work.id;
             librarySection=section;
+            libraryJumpPending=true;
             String ref=LibraryCatalog.reference(work,source);
             store.record(ref);
             store.saveReflection("library:last_read",ref);
@@ -2420,112 +2449,187 @@ public final class MainActivity extends Activity {
         }catch(java.io.IOException error){showError("No se puede abrir el texto: "+error.getMessage());}
     }
 
+    /** Lector de obra completa: cada dicho/escena conserva su ancla original. */
     private void libraryReader(){
         final LibraryCatalog.Work work;
-        final LibraryCatalog.Section section;
-        final int total;
+        final List<LibraryCatalog.Section> sections;
         try{
             work=library.find(libraryBookId);
             if(work==null){hint(column,"No se ha encontrado la obra.");return;}
-            List<LibraryCatalog.Section> all=library.sections(work);
-            total=all.size();
-            section=library.section(work,librarySection);
-            if(section==null){hint(column,"Sección no disponible.");return;}
+            sections=library.sections(work);
+            if(librarySection<1||librarySection>sections.size())librarySection=1;
         }catch(java.io.IOException error){
             hint(column,"No se pudo leer la Biblioteca: "+error.getMessage());return;
         }
-        final String reference=work.title+" · "+section.title;
         column.addView(text("BIBLIOTECA · TEXTO EXTRACANÓNICO",11,ACCENT,true));
         title(column,work.title);
-        hint(column,"Traducción española de trabajo · Sin revisión filológica independiente");
-        addGap(column,6);
-        column.addView(text(section.title,20,DARK,true));
-        if(section.editorial)hint(column,"Material editorial o variante textual: no forma parte de una secuencia de versículos.");
-        button(column,"✦ Interpretación con IA",
-            ()->interpretLibrary(work,section,"Explica este texto en su contexto, "
-                +"sin atribuirle autoridad canónica.",null,0,false),true);
+        hint(column,"Lectura continua · "+work.structure+" · Traducción de trabajo "
+            +"sin revisión filológica independiente. Las divisiones y numeraciones "
+            +"originales se conservan.");
+        button(column,"Índice de la obra",()->go(13),false);
+        button(column,"Escuchar o detener la obra",this::toggleSpeech,false);
+        button(column,"Aa · Ajustar letra",this::showTypographyPanel,false);
+        addGap(column,12);
+
         LinearLayout content=card(column);
         content.setBackground(outlined(BG,16));
-        TextView reading=text(section.text,textSize,DARK,false);
-        serif(reading);
-        reading.setTextIsSelectable(true);
-        applyLibraryMarks(reading,work,section);
-        attachLibrarySelection(reading,work,section);
-        content.addView(reading);
-        if(libraryReturnOffset>=0){
-            final int target=libraryReturnOffset;
-            libraryReturnOffset=-1;
-            final ScrollView scroll=readingScroll;
-            scroll.post(()->{
-                if(page!=14||readingScroll!=scroll||reading.getLayout()==null)return;
-                int at=Math.max(0,Math.min(target,section.text.length()));
-                int line=reading.getLayout().getLineForOffset(at);
-                android.graphics.Rect bounds=new android.graphics.Rect(
-                    0,reading.getLayout().getLineTop(line),reading.getWidth(),
-                    reading.getLayout().getLineBottom(line));
-                scroll.offsetDescendantRectToMyCoords(reading,bounds);
-                scroll.scrollTo(0,Math.max(0,scroll.getScrollY()+bounds.top-dp(88)));
+        LinkedHashMap<Integer,TextView> headings=new LinkedHashMap<>();
+        StringBuilder spoken=new StringBuilder();
+        final int targetSection=librarySection;
+        final int targetOffset=libraryReturnOffset;
+        libraryReturnOffset=-1;
+        TextView targetHeading=null,targetText=null;
+        boolean editorialStarted=false;
+
+        for(LibraryCatalog.Section section:sections){
+            if(section.editorial&&!editorialStarted){
+                editorialStarted=true;
+                addGap(content,20);
+                content.addView(text("NOTAS, VARIANTES Y APÉNDICES",12,ACCENT,true));
+                hint(content,"Material editorial diferenciado del relato original.");
+            }
+            addGap(content,section.index==1?4:17);
+            LinearLayout line=new LinearLayout(this);
+            line.setOrientation(LinearLayout.HORIZONTAL);
+            line.setGravity(Gravity.CENTER_VERTICAL);
+            TextView heading=text(section.title,16,ACCENT,true);
+            heading.setGravity(Gravity.CENTER_VERTICAL);
+            line.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
+            headings.put(section.index,heading);
+            TextView actions=text("⋯",25,DARK,true);
+            actions.setGravity(Gravity.CENTER);
+            actions.setMinHeight(dp(48));
+            actions.setBackground(outlined(SOFT,11));
+            actions.setContentDescription("Opciones del texto: "+section.title);
+            actions.setFocusable(true);
+            line.addView(actions,new LinearLayout.LayoutParams(dp(48),dp(48)));
+            actions.setOnClickListener(v->showLibrarySectionActions(work,section));
+            content.addView(line);
+            TextView reading=text(section.text,textSize,DARK,false);
+            serif(reading);
+            reading.setTextIsSelectable(true);
+            applyLibraryMarks(reading,work,section);
+            attachLibrarySelection(reading,work,section);
+            content.addView(reading);
+            libraryReadingViews.add(reading);
+            spoken.append(section.title).append(".\n").append(section.text).append("\n\n");
+            showLibraryAnnotations(content,work,section);
+            if(section.index==targetSection){
+                targetHeading=heading;
+                targetText=reading;
+            }
+        }
+        readingBible=null;
+        readingPassage=null;
+        readingLibraryText=spoken.toString();
+        hint(content,"Mantén pulsado un fragmento para Definir, Anotar, Subrayar o "
+            +"Interpretar con IA. Usa ⋯ junto a cada título para guardar, compartir "
+            +"o consultar esa sección individual.");
+        button(column,"Volver al índice de "+work.title,()->go(13),false);
+
+        final ScrollView currentScroll=readingScroll;
+        final TextView jumpHeading=targetHeading,jumpText=targetText;
+        if(libraryJumpPending&&jumpHeading!=null){
+            currentScroll.post(()->{
+                if(page!=14||readingScroll!=currentScroll
+                    ||!libraryBookId.equals(work.id))return;
+                TextView target=targetOffset>=0&&jumpText!=null?jumpText:jumpHeading;
+                android.graphics.Rect bounds=new android.graphics.Rect(0,0,
+                    target.getWidth(),target.getHeight());
+                if(targetOffset>=0&&jumpText!=null&&jumpText.getLayout()!=null){
+                    int offset=Math.max(0,Math.min(targetOffset,
+                        Math.max(0,jumpText.length()-1)));
+                    int line=jumpText.getLayout().getLineForOffset(offset);
+                    bounds.top=jumpText.getLayout().getLineTop(line);
+                    bounds.bottom=jumpText.getLayout().getLineBottom(line);
+                }
+                currentScroll.offsetDescendantRectToMyCoords(target,bounds);
+                currentScroll.scrollTo(0,Math.max(0,
+                    currentScroll.getScrollY()+bounds.top-dp(60)));
             });
         }
-        readingBible=reading;
-        readingPassage=null;
-        readingLibraryText=section.text;
-        addGap(content,12);
-        button(content,"✦ Interpretación con IA",
-            ()->interpretLibrary(work,section,"Explica este texto en su contexto, "
-                +"sin atribuirle autoridad canónica.",null,0,false),true);
-        LinearLayout quick=new LinearLayout(this);
-        quick.setGravity(Gravity.CENTER_VERTICAL);
-        String id=LibraryCatalog.reference(work,section);
-        boolean favorite=store.isFavorite(id);
-        quick.addView(quickAction(R.drawable.ic_tab_star,favorite?"Guardado":"Favorito",
-            favorite?GOLD:MUTED,()->{store.toggleFavorite(id);render();}));
-        quick.addView(quickAction(R.drawable.ic_action_copy,"Copiar",MUTED,()->{
-            ((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE))
-                .setPrimaryClip(ClipData.newPlainText(reference,
-                    reference+"\n"+section.text+"\nFuente: "+work.sourceUrl));
-            Toast.makeText(this,"Texto copiado",Toast.LENGTH_SHORT).show();
-        }));
-        quick.addView(quickAction(R.drawable.ic_action_share,"Compartir",MUTED,()->{
-            Intent intent=new Intent(Intent.ACTION_SEND);
-            intent.setType("text/plain");
-            intent.putExtra(Intent.EXTRA_TEXT,reference+"\n"+section.text+
-                "\nTraducción española de trabajo · "+work.sourceUrl);
-            startActivity(Intent.createChooser(intent,"Compartir lectura"));
-        }));
-        LinearLayout audio=quickAction(R.drawable.ic_action_volume,
-            speechActive?"Detener":"Escuchar",speechActive?GOLD:MUTED,this::toggleSpeech);
-        speechLabel=(TextView)audio.getChildAt(1);
-        quick.addView(audio);
-        quick.addView(quickAction(R.drawable.ic_action_more,"Más",MUTED,()->{
-            readerToolsExpanded=!readerToolsExpanded;
-            render();
-        }));
-        content.addView(quick);
-        if(readerToolsExpanded){
-            LinearLayout tools=card(column);
-            hint(tools,"Herramientas para esta sección de Biblioteca");
-            button(tools,"Añadir nota a esta sección",
-                ()->editLibraryAnnotation(work,section,0,
-                    "",0,StudyAnnotations.NOTE),false);
-            button(tools,"Profundizar o preguntar",
-                ()->askLibrary(work,section),false);
-            button(tools,"Tamaño y aspecto de lectura",this::showTypographyPanel,false);
-            button(tools,"Consultar fuente original",()->openLibrarySource(work),false);
+        libraryProgressTask=()->{
+            if(page!=14||readingScroll!=currentScroll
+                ||!libraryBookId.equals(work.id))return;
+            int[] location=new int[2],scrollTop=new int[2];
+            currentScroll.getLocationOnScreen(scrollTop);
+            int visible=sections.get(0).index;
+            for(java.util.Map.Entry<Integer,TextView> item:headings.entrySet()){
+                item.getValue().getLocationOnScreen(location);
+                if(location[1]<=scrollTop[1]+dp(100))visible=item.getKey();
+                else break;
+            }
+            if(visible!=librarySection){
+                librarySection=visible;
+                lastLibraryRenderedSection=visible;
+                store.saveReflection("library:last_read",
+                    LibraryCatalog.reference(work,sections.get(visible-1)));
+            }
+        };
+        currentScroll.setOnScrollChangeListener((v,sx,sy,oldX,oldY)->{
+            if(sy==oldY||readingScroll!=currentScroll||page!=14)return;
+            currentScroll.removeCallbacks(libraryProgressTask);
+            currentScroll.postDelayed(libraryProgressTask,500);
+        });
+    }
+
+    /** Acciones de cada sección independientes de la presentación continua. */
+    private void showLibrarySectionActions(LibraryCatalog.Work work,
+            LibraryCatalog.Section section){
+        String ref=LibraryCatalog.reference(work,section);
+        boolean favorite=store.isFavorite(ref);
+        String[] options={
+            favorite?"Quitar de favoritos":"Añadir a favoritos",
+            "Interpretar esta sección con IA",
+            "Preguntar sobre esta sección",
+            "Añadir nota a esta sección",
+            "Copiar sección",
+            "Compartir sección",
+            "Escuchar esta sección",
+            "Consultar fuente original"
+        };
+        new AlertDialog.Builder(this).setTitle(section.title)
+            .setItems(options,(dialog,which)->{
+                switch(which){
+                    case 0:
+                        store.toggleFavorite(ref);
+                        render();
+                        break;
+                    case 1:
+                        interpretLibrary(work,section,"Explica este texto en su contexto, "
+                            +"sin atribuirle autoridad canónica.",null,0,false);
+                        break;
+                    case 2:askLibrary(work,section);break;
+                    case 3:editLibraryAnnotation(work,section,0,
+                        "",0,StudyAnnotations.NOTE);break;
+                    case 4:
+                        ((android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE))
+                            .setPrimaryClip(ClipData.newPlainText(section.title,
+                                work.title+" · "+section.title+"\n"+section.text+
+                                "\nFuente: "+work.sourceUrl));
+                        Toast.makeText(this,"Sección copiada",Toast.LENGTH_SHORT).show();
+                        break;
+                    case 5:
+                        Intent intent=new Intent(Intent.ACTION_SEND);
+                        intent.setType("text/plain");
+                        intent.putExtra(Intent.EXTRA_TEXT,work.title+" · "+
+                            section.title+"\n"+section.text+
+                            "\nTraducción española de trabajo · "+work.sourceUrl);
+                        startActivity(Intent.createChooser(intent,"Compartir lectura"));
+                        break;
+                    case 6:toggleSpeechText(section.text);break;
+                    case 7:openLibrarySource(work);break;
+                    default:break;
+                }
+            }).show();
+    }
+
+    /** Actualiza el marcador de Biblioteca antes de ocultar la lectura. */
+    private void flushLibraryReadingProgress(){
+        if(libraryProgressTask!=null&&readingScroll!=null){
+            readingScroll.removeCallbacks(libraryProgressTask);
+            if(page==14)libraryProgressTask.run();
         }
-        hint(content,"Mantén pulsado el texto para Definir, Anotar, Subrayar o "
-            +"Interpretar con IA. Las marcas se guardan en este dispositivo.");
-        showLibraryAnnotations(content,work,section);
-        addGap(column,12);
-        LinearLayout movement=vertical();
-        if(section.index>1){
-            button(movement,"← Sección anterior",()->openLibrarySection(work,section.index-1),false);
-        }
-        button(movement,"Índice de "+work.title,()->go(13),false);
-        if(section.index<total){
-            button(movement,"Sección siguiente →",()->openLibrarySection(work,section.index+1),true);
-        }
-        column.addView(movement);
     }
 
     /** Menú nativo reutilizado: mismas acciones, ancladas al texto extracanonico. */

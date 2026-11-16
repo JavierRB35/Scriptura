@@ -16,6 +16,14 @@ de los 73 libros ni revisión histórica individual de todas las fichas.
 
 App Android nativa para búsqueda local de la Biblia de la Universidad de Navarra, lectura por libros/capítulos/versículos, favoritos, historial, recomendaciones por estado de ánimo y comentarios bajo demanda mediante Gemini.
 
+## Biblia y lectura continua · mejora de experiencia
+- **Biblia sin mezclas:** la pestaña Biblia muestra únicamente el canon de 73 libros, búsqueda de pasajes, acceso al índice, preguntas generales a la IA, historial personal, notas y recursos bíblicos. El acceso a los apócrifos se ha retirado de ese menú. No se duplican «Elegir capítulo» e «Índice de libros».
+- **Biblioteca independiente:** se abre desde el acceso superior de **Inicio** y desde la tarjeta de Inicio, incluso sin EPUB. Está identificada explícitamente como material extrabíblico; mantiene su lector, anotaciones, favoritos, navegación y consultas.
+- **Continuar entre libros:** las flechas de los capítulos avanzan también entre libros según el orden del canon católico (por ejemplo, Mateo 28 → Marcos 1). Al terminar un libro aparece además «Continuar en [siguiente libro]». El extremo final de Apocalipsis permanece cerrado.
+- **Una sola IA fija en el lector:** sustituye a la banda fija de lugares. Si existe una selección de texto activa, reutiliza la interpretación de fragmentos con consentimiento; si no existe, interpreta el capítulo. Se eliminan las dos acciones de interpretación duplicadas junto al texto. **Lugares de este capítulo** permanece accesible desplazándose hasta las herramientas inferiores.
+- No cambian el EPUB, sus versículos, las claves/API, la importación, los datos guardados ni el número de pestañas inferiores. En Biblioteca se sigue indicando que los textos no pertenecen al canon.
+
+
 **Serie 0.x: desarrollo preliminar. No declarar v1.0 sin autorización del propietario.**
 
 ## Experiencia de lectura renovada — 0.8.0
@@ -36,10 +44,10 @@ Revisión de experiencia de usuario aplicada sobre el código de 0.7.9 (informe 
 
 ## Reorganización exclusiva de Inicio
 
-- **Sólo Inicio:** se sustituyen las tarjetas apiladas por los cinco accesos directos **Hoy**, **Misa**, **Libros**, **Arte** y **Mapas**, colocados bajo la cabecera. Los accesos abren los destinos originales (misa, índice de los 73 libros, galería y atlas) sin modificar sus pantallas.
+- **Sólo Inicio:** se sustituyen las tarjetas apiladas por los cinco accesos directos **Hoy**, **Biblioteca**, **Libros**, **Arte** y **Mapas**, colocados bajo la cabecera. Los accesos abren los destinos originales (misa, índice de los 73 libros, galería y atlas) sin modificar sus pantallas.
 - **Las cinco pestañas inferiores** (**Inicio, Biblia, Misa, Para mí, Guardados**) conservan exactamente su código, estilo y comportamiento. También se conserva la cabecera original con su botón de Ajustes.
 - En Inicio sólo se presentan los dos pasajes recomendados, tarjetas compactas pulsables y renovación de propuestas; se eliminan la ilustración gigante y las tarjetas de Misa/Libros/Arte/Lugares que obligaban a hacer scroll.
-- Para evitar duplicar Mapas en Inicio, la banda fija se oculta **sólo mientras se visualiza Inicio**. Al leer un capítulo, la banda abre directamente **Lugares del capítulo** y su mapa sin abandonar el lector; en las demás pantallas conserva el acceso al atlas general.
+- La antigua banda fija de lugares se reemplaza por la interpretación de IA únicamente en el lector bíblico. Los mapas siguen accesibles desde Inicio, Biblia y el pie del capítulo; fuera del lector se recupera espacio vertical.
 - Se conserva importación local del EPUB privado, avisos de actualización, anotaciones, ajustes, versión y firma. No se cambian los módulos de Misa, Biblioteca, Arte ni Mapas.
 - La QA automatizada comprueba los enlaces superiores desde Inicio, su ausencia en las otras pantallas y la navegación inferior existente; falta prueba visual en teléfono real. El EPUB personal, los ajustes y los datos locales no se modifican.
 
@@ -64,7 +72,7 @@ Revisión de experiencia de usuario aplicada sobre el código de 0.7.9 (informe 
 
 ## Biblioteca · Obras extracanonicas (0.9.0)
 
-- La nueva **Biblioteca** (en Inicio y Biblia) incluye seis evangelios apócrifos en español del archivo `JavierRB35/Scriptura-web/data/apocrypha/es`: Tomás, María, Pedro, Judas, Protoevangelio de Santiago y Evangelio de la infancia de Tomás. Funcionan sin Internet y sin importar la Biblia EPUB privada.
+- La **Biblioteca**, accesible desde Inicio e independiente del menú Biblia, incluye seis evangelios apócrifos en español del archivo `JavierRB35/Scriptura-web/data/apocrypha/es`: Tomás, María, Pedro, Judas, Protoevangelio de Santiago y Evangelio de la infancia de Tomás. Funcionan sin Internet y sin importar la Biblia EPUB privada.
 - **Advertencia editorial obligatoria:** son traducciones españolas de trabajo elaboradas a partir de las versiones inglesas de Mark M. Mattison publicadas en dominio público ([Gospels.net](https://www.gospels.net/)); no son traducciones directas de las lenguas antiguas ni cuentan aún con revisión filológica independiente. No forman parte de los 73 libros canónicos de la Biblia católica.
 - Cada obra conserva las divisiones de su archivo (dichos, capítulos, unidades numeradas, secciones y marcas de página), sus lagunas, variantes y notas. **No se inventan números de versículos.** Las secciones de notas y apéndices están etiquetadas como material editorial.
 - Se comparten los mecanismos de la app para selección contextual **Anotar, Subrayar, Definir, Interpretar con IA**, consulta libre, guardar interpretación sobre el texto, favoritos, historial, copiar, compartir, voz y tamaño/tema de lectura. El comentario automatizado distingue textos extracanonicos de la Biblia y requiere consentimiento específico antes de enviar fragmentos a Gemini/Groq.
@@ -127,7 +135,7 @@ El APK sigue firmado con el keystore privado de GitHub Actions; las credenciales
 ## Lectura contextual con Gemini y modos de pantalla — 0.7.9
 
 - Seleccionar palabras o frases en el lector EPUB y elegir **Interpretar con Gemini** en el menú contextual de Android, junto a **Anotar**, **Subrayar** y **Definir**.
-- En cada capítulo, **✦ Interpretación con IA** aparece tanto junto al encabezado como inmediatamente después del texto y la navegación inferior; ambos botones ejecutan la misma interpretación del capítulo.
+- En cada capítulo, **✦ Interpretar con IA** aparece una sola vez en una barra fija: interpreta el fragmento seleccionado o, si no hay selección activa, el capítulo.
 - El aviso de autorización explica exactamente qué sale del dispositivo: el fragmento elegido, su referencia y unos cientos de caracteres de contexto adyacente. **No se envían el EPUB completo, las notas privadas ni el historial de lectura**. Es necesaria la clave Gemini guardada en Android Keystore.
 - El resultado aparece en un **cuadro de diálogo dentro de Scriptura** con scroll y botón **Cerrar**. No cambia de página ni invoca render(); al cerrar restaura la coordenada vertical original del lector. Los errores se muestran dentro del mismo cuadro.
 - Para mantener referencias precisas, la selección debe empezar dentro del texto y tener como máximo 1.200 caracteres; puede abarcar varios versículos contiguos.

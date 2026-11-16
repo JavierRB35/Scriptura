@@ -108,6 +108,8 @@ public final class MainActivity extends Activity {
     private ScrollView readingScroll;
     private TextView readingBible;
     private BibleStore.Passage readingPassage;
+    private boolean readerSelectionActive=false,readerSelectionPreserved=false;
+    private int readerSelectedStart=-1,readerSelectedEnd=-1;
     private String readingLibraryText;
     private Runnable readingProgressTask;
     private boolean readingHasScrolled=false, readingProgressTrackingActive=false;
@@ -320,14 +322,14 @@ public final class MainActivity extends Activity {
     }
     /** Accesos directos únicamente de Inicio. El resto de vistas no cambia. */
     private void discoveryTabs(){
-        String[] labels={"Hoy","Misa","Libros","Arte","Mapas"};
+        String[] labels={"Hoy","Biblioteca","Libros","Arte","Mapas"};
         LinearLayout bar=new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setPadding(dp(10),dp(5),dp(10),dp(5));
         bar.setBackgroundColor(SURFACE);
         for(int i=0;i<labels.length;i++){
             final int destination=i;
-            TextView tab=text(labels[i],12,i==0?DARK:MUTED,i==0);
+            TextView tab=text(labels[i],i==1?11:12,i==0?DARK:MUTED,i==0);
             tab.setGravity(Gravity.CENTER);
             tab.setMinHeight(dp(48));
             tab.setSingleLine(true);
@@ -350,7 +352,7 @@ public final class MainActivity extends Activity {
                             .apply();
                         render();
                         break;
-                    case 1:massDay=Calendar.getInstance();go(2);break;
+                    case 1:go(12);break;
                     case 2:openIndex();break;
                     case 3:openGallery();break;
                     case 4:atlasReturnToStudy=false;openAtlas(0);break;
@@ -372,6 +374,10 @@ public final class MainActivity extends Activity {
         if(speech!=null&&speechActive&&page!=5&&page!=14){speech.stop();speechActive=false;}
         readingBible=null;
         readingPassage=null;
+        readerSelectionActive=false;
+        readerSelectionPreserved=false;
+        readerSelectedStart=-1;
+        readerSelectedEnd=-1;
         readingLibraryText=null;
         readingProgressTask=null;
         readingProgressTrackingActive=false;
@@ -409,25 +415,30 @@ public final class MainActivity extends Activity {
         column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
-        // En el lector muestra los lugares del capítulo; fuera de él conserva el atlas general.
-        boolean readingChapter=page==5&&selected!=null;
-        TextView mapsFixed=text(readingChapter?
-            "LUGARES DEL CAPÍTULO  ·  "+Books.name(selected.book)+" "+selected.chapter:
-            "MAPAS BÍBLICOS  ·  Explorar lugares y recorridos",13,DARK,true);
-        mapsFixed.setGravity(Gravity.CENTER);
-        mapsFixed.setMinHeight(dp(44));
-        mapsFixed.setBackground(outlined(SOFT,12));
-        mapsFixed.setContentDescription(readingChapter?
-            "Ver lugares de "+Books.name(selected.book)+" "+selected.chapter:"Abrir Mapas bíblicos");
-        mapsFixed.setFocusable(true);
-        mapsFixed.setTooltipText(readingChapter?"Lugares del capítulo":"Atlas de lugares y recorridos");
-        LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(44));
-        fixedParams.setMargins(dp(13),dp(3),dp(13),dp(5));
-        if(page!=0)frame.addView(mapsFixed,fixedParams);
-        mapsFixed.setOnClickListener(v->{
-            if(page==5&&selected!=null)showPassagePlaces(selected);
-            else {atlasReturnToStudy=false;openAtlas(0);}
-        });
+        // El lector reserva la única acción permanente para interpretar.
+        // Fuera del lector se libera espacio: Biblioteca y mapas se abren desde su sección.
+        if(page==5&&selected!=null){
+            TextView interpretFixed=text("✦ Interpretar con IA",15,Color.WHITE,true);
+            interpretFixed.setGravity(Gravity.CENTER);
+            interpretFixed.setMinHeight(dp(52));
+            interpretFixed.setBackground(bg(NAV_BG,12));
+            interpretFixed.setContentDescription("Interpretar el texto seleccionado; "
+                +"si no hay selección, interpretar el capítulo actual");
+            interpretFixed.setFocusable(true);
+            interpretFixed.setTooltipText(
+                "Selecciona un fragmento para interpretarlo, o pulsa sin seleccionar para el capítulo");
+            LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(52));
+            fixedParams.setMargins(dp(13),dp(4),dp(13),dp(7));
+            frame.addView(interpretFixed,fixedParams);
+            interpretFixed.setOnTouchListener((v,event)->{
+                if(event.getActionMasked()==MotionEvent.ACTION_DOWN)
+                    readerSelectionPreserved=true;
+                else if(event.getActionMasked()==MotionEvent.ACTION_CANCEL)
+                    readerSelectionPreserved=false;
+                return false;
+            });
+            interpretFixed.setOnClickListener(v->interpretReaderSelectionOrChapter());
+        }
 
         // Cinco pestañas reales. El lector y el atlas son destinos internos.
         nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER_VERTICAL);
@@ -435,8 +446,8 @@ public final class MainActivity extends Activity {
         String[] names={"Inicio","Biblia","Misa","Para mí","Guardados"};
         int[] glyphs={R.drawable.ic_tab_home,R.drawable.ic_tab_bible,R.drawable.ic_tab_mass,
             R.drawable.ic_tab_heart,R.drawable.ic_tab_star};
-        int active=(page==5||page==7||page==9||page==10||page>=12)?1:
-            (page==11?4:(page==6||page==8?0:page));
+        int active=(page==5||page==7||page==9||page==10)?1:
+            (page==11?4:(page==6||page==8||page>=12?0:page));
         for(int i=0;i<names.length;i++){
             final int dest=i;boolean selected=active==i;
             int color=selected?GOLD:Color.rgb(231,236,242);
@@ -550,6 +561,7 @@ public final class MainActivity extends Activity {
             c.addView(text("Prepara tu biblioteca",19,DARK,true));
             hint(c,"Importa tu EPUB personal de Navarra para leer los pasajes completos. Los libros, las obras y los mapas ya se pueden explorar desde arriba.");
             button(c,"Importar mi Biblia EPUB",this::pickEpub,true);
+            button(column,"Biblioteca · Textos no bíblicos",()->go(12),false);
             return;
         }
         // La acción más frecuente de una app de lectura: volver a donde se quedó.
@@ -574,8 +586,9 @@ public final class MainActivity extends Activity {
             render();
         },false);
         addGap(column,9);
-        button(column,"Biblioteca · Evangelios apócrifos",()->go(12),false);
-        hint(column,"Explora más desde las secciones superiores: Misa, Libros, Arte y Mapas.");
+        button(column,"Biblioteca · Textos no bíblicos",()->go(12),false);
+        hint(column,"Explora libros bíblicos, arte y mapas desde los accesos superiores. "
+            +"La Biblioteca reúne obras distintas de los 73 libros canónicos.");
     }
     private int homeDayKey(){
         Calendar c=Calendar.getInstance();
@@ -645,35 +658,55 @@ public final class MainActivity extends Activity {
     }
     private void search(){
         searchResultsQuery="";
-        title(column,"Leer y buscar en la Biblia");
-        button(column,"✦ Pregunta a IA · Toda la Biblia",this::askBibleQuestion,true);
-        button(column,"Biblioteca · Evangelios apócrifos",()->go(12),false);
-        button(column,"Mis preguntas y respuestas",()->{bibleQuestionHistoryOffset=0;go(11);},false);
+        title(column,"Biblia");
+        hint(column,"Lee y estudia los 73 libros de la Biblia católica. "
+            +"Los textos extrabíblicos están en Biblioteca, desde Inicio.");
+
         if(store.ready()){
             ReadingProgress.Position last=store.lastReadPosition();
             if(last!=null){
-                button(column,"↪ Continuar lectura · "+Books.name(last.book)+" "
+                button(column,"↪ Seguir leyendo · "+Books.name(last.book)+" "
                     +last.chapter+":"+last.verse,this::continueReading,true);
+                addGap(column,10);
             }
         }
-        if(!store.ready()){
-            hint(column,"La búsqueda de versículos y palabras necesita tu ejemplar EPUB de Navarra. Puedes consultar gratis el índice, los mapas y las obras sin importarlo.");
-            button(column,"Importar mi Biblia para leer",this::pickEpub,true);
-            button(column,"Explorar el índice de los 73 libros",this::openIndex,false);
-            button(column,"Ver obras de arte bíblico",this::openGallery,false);
-            button(column,"Mis subrayados y anotaciones",()->go(10),false);
-            return;
+
+        LinearLayout searchCard=card(column);
+        searchCard.addView(text("Buscar un pasaje",18,DARK,true));
+        if(store.ready()){
+            EditText term=input(searchCard,"Ej. Juan 3:16-18 · Salmo 23 · Génesis",false);
+            term.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+            term.setOnEditorActionListener((v,id,event)->{
+                lookup(term.getText().toString());return true;
+            });
+            button(searchCard,"Buscar en la Biblia",
+                ()->lookup(term.getText().toString()),true);
+        }else{
+            hint(searchCard,"Importa tu ejemplar EPUB para buscar o leer el texto bíblico.");
+            button(searchCard,"Importar mi Biblia",this::pickEpub,true);
         }
-        LinearLayout c=card(column);
-        EditText term=input(c,"Ej. Juan 3:16-18 · Salmo 23 · Génesis",false);
-        term.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
-        term.setOnEditorActionListener((v,id,event)->{lookup(term.getText().toString());return true;});
-        button(c,"Buscar referencia o palabra",()->lookup(term.getText().toString()),true);
-        button(c,"Índice de libros y sus introducciones",this::openIndex,false);
-        button(c,"Elegir capítulo",this::openIndex,false);
-        button(c,"Galería de arte bíblico",this::openGallery,false);
-        button(c,"Mis subrayados y anotaciones",()->go(10),false);
-        hint(column,"El historial de consultas está en la pestaña Guardados. Puedes introducir un libro, capítulo, versículo, intervalo o una palabra del texto.");
+
+        section(column,"Leer los libros","Índice y capítulos del canon bíblico.");
+        button(column,"Índice de los 73 libros",this::openIndex,false);
+
+        addGap(column,16);
+        section(column,"Preguntar y comprender",
+            "Consulta cualquier tema bíblico sin elegir antes un libro.");
+        button(column,"✦ Pregunta a IA · Toda la Biblia",this::askBibleQuestion,true);
+        button(column,"Mis preguntas y respuestas",()->{
+            bibleQuestionHistoryOffset=0;go(11);
+        },false);
+
+        addGap(column,16);
+        section(column,"Mi estudio","Accede a tus marcas y anotaciones.");
+        button(column,"Mis subrayados y anotaciones",()->go(10),false);
+
+        addGap(column,16);
+        section(column,"Explorar más","Recursos visuales y geográficos de los relatos.");
+        button(column,"Arte bíblico",this::openGallery,false);
+        button(column,"Mapas bíblicos",()->{
+            atlasReturnToStudy=false;openAtlas(0);
+        },false);
     }
     /** Vista de consulta sobre la base de anotaciones existente, sin alterar sus registros. */
     private void myStudyMarks(){
@@ -911,17 +944,16 @@ public final class MainActivity extends Activity {
         parent.addView(bar,row);
 
         int chapter=passage.chapter;
-        boolean hasPrevious=chapter>1;
         int totalChapters=store.chapters(passage.book);
-        boolean hasNext=chapter<totalChapters;
-        TextView previous=chapterArrow("←","Capítulo anterior",passage.book,chapter-1,hasPrevious);
-        TextView next=chapterArrow("→","Capítulo siguiente",passage.book,chapter+1,hasNext);
-        bar.addView(previous,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        BibleReadingNavigation.Destination previous=BibleReadingNavigation.adjacent(
+            passage.book,chapter,false,store::chapters);
+        BibleReadingNavigation.Destination next=BibleReadingNavigation.adjacent(
+            passage.book,chapter,true,store::chapters);
+        bar.addView(chapterArrow("←",previous),new LinearLayout.LayoutParams(dp(48),dp(48)));
 
         String label=afterText?"Capítulo "+chapter:passage.ref;
         TextView heading=text(label,afterText?14:26,DARK,afterText);
         if(totalChapters>0){
-            // Mostrar el total en pequeño en la misma línea, sin otra fila de cabecera.
             int end=label.indexOf(':');
             if(end<0)end=label.length();
             String total="/"+totalChapters;
@@ -937,8 +969,8 @@ public final class MainActivity extends Activity {
         heading.setGravity(Gravity.CENTER);
         heading.setPadding(dp(4),0,dp(4),0);
         bar.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
-        bar.addView(next,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        // Control de tipografía junto al capítulo: no hay que ir a Ajustes ni buscarlo.
+        bar.addView(chapterArrow("→",next),new LinearLayout.LayoutParams(dp(48),dp(48)));
+
         if(!afterText){
             TextView typeChip=text("Aa",15,DARK,true);
             typeChip.setGravity(Gravity.CENTER);
@@ -953,37 +985,42 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private TextView chapterArrow(String symbol,String action,String book,int target,boolean available){
+    private TextView chapterArrow(String symbol,BibleReadingNavigation.Destination destination){
+        boolean available=destination!=null;
         TextView arrow=text(symbol,29,available?DARK:MUTED,true);
         arrow.setGravity(Gravity.CENTER);
         arrow.setMinHeight(dp(48));
         arrow.setBackground(outlined(available?SOFT:BG,12));
-        arrow.setContentDescription(available?action+", "+Books.name(book)+" "+target:
-            "No hay "+action.toLowerCase(java.util.Locale.ROOT));
+        arrow.setContentDescription(available?
+            "Leer "+destination.label():"No hay más libros de la Biblia en esta dirección");
         arrow.setEnabled(available);
         arrow.setFocusable(available);
         arrow.setAlpha(available?1f:0.35f);
-        if(available)arrow.setOnClickListener(v->{
-            BibleStore.Passage next=store.passage(Books.name(book)+" "+target);
-            if(next==null){showError("No se ha encontrado el capítulo seleccionado.");return;}
-            // Finish tracking the previous chapter before moving the bookmark.
-            flushReadingProgress();
-            int first=AnnotationAnchors.firstVerse(next.text);
-            if(first>0)store.saveReadingPosition(new ReadingProgress.Position(book,target,first));
-            open(next);
-        });
+        if(available)arrow.setOnClickListener(v->openBibleDestination(destination));
         return arrow;
+    }
+
+    private void openBibleDestination(BibleReadingNavigation.Destination destination){
+        if(destination==null)return;
+        BibleStore.Passage next=store.passage(destination.label());
+        if(next==null){
+            showError("No se ha encontrado "+destination.label()+" en tu Biblia importada.");
+            return;
+        }
+        flushReadingProgress();
+        int first=AnnotationAnchors.firstVerse(next.text);
+        if(first>0)store.saveReadingPosition(
+            new ReadingProgress.Position(next.book,next.chapter,first));
+        open(next);
     }
 
     private void passagePage(){
         if(selected==null){page=1;render();return;}
         BibleStore.Passage p=selected;
-        // Ambos accesos comparten exactamente la misma acción y el mismo pasaje.
-        Runnable interpretChapter=()->interpret(p,
-            "Explica este pasaje de forma breve y fiel a su contexto.",false);
         TextView edition=text("TEXTO BÍBLICO · UNIVERSIDAD DE NAVARRA",11,ACCENT,true);column.addView(edition);
         chapterNavigation(column,p,false);
-        button(column,"✦ Interpretación con IA",interpretChapter,true);
+        hint(column,"Selecciona texto y pulsa «Interpretar con IA»; "
+            +"sin selección, interpretará el capítulo.");
         addGap(column,6);
         LinearLayout c=card(column);c.setBackground(outlined(BG,16));
         TextView bible=text(p.text,textSize,DARK,false);serif(bible);
@@ -1006,7 +1043,11 @@ public final class MainActivity extends Activity {
         });
         returnToSavedVerse(bible,p);
         chapterNavigation(c,p,true);
-        button(c,"✦ Interpretación con IA",interpretChapter,true);
+        BibleReadingNavigation.Destination nextBook=BibleReadingNavigation.adjacent(
+            p.book,p.chapter,true,store::chapters);
+        if(nextBook!=null&&!nextBook.book.equals(p.book))
+            button(c,"Continuar en "+nextBook.label()+" →",
+                ()->openBibleDestination(nextBook),true);
         // Jerarquía clara: acciones rápidas compactas, IA destacada y el resto
         // agrupado en «Más herramientas» para no enterrar el avance de lectura.
         LinearLayout quick=new LinearLayout(this);
@@ -1044,14 +1085,16 @@ public final class MainActivity extends Activity {
             button(tools,"Añadir nota por versículos",()->manualStudyAnnotation(p),false);
             button(tools,"Comentarios de la Biblia de Navarra",()->showNavarraNote(p),false);
             button(tools,"Profundizar o preguntar",()->ask(p),false);
-            button(tools,"Lugares del capítulo",()->showPassagePlaces(p),false);
             button(tools,"Atlas del libro "+Books.name(p.book),()->openBookAtlas(p.book),false);
             button(tools,"Índice: "+Books.name(p.book),()->openBookInfo(p.book),false);
             java.util.List<BiblicalArt.Painting> related=BiblicalArt.forPassage(p.book,p.chapter);
             if(!related.isEmpty())
                 button(tools,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
         }
-        hint(c,"Mantén pulsado el texto y elige «Subrayar», «Anotar» o «Definir». Los subrayados se guardan sin nota; toca uno para quitarlo.");
+        button(c,"Lugares de este capítulo",()->showPassagePlaces(p),false);
+        hint(c,"Mantén pulsado el texto para seleccionar un fragmento, subrayar, "
+            +"anotar o definir. El botón fijo de IA interpreta la selección, "
+            +"o el capítulo si no has seleccionado nada.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
         alternative.setOnClickListener(v->askForWord(p));
@@ -1296,7 +1339,52 @@ public final class MainActivity extends Activity {
             }catch(RuntimeException error){
                 showError("No se pudo guardar el subrayado.");
             }
-        },(quote,start,end)->interpretSelectedFragment(passage,start,end));
+        },(quote,start,end)->interpretSelectedFragment(passage,start,end),
+            new DefinitionUi.SelectionLifecycle(){
+                @Override public void onSelectionChanged(int start,int end){
+                    if(page==5&&selected!=null&&selected.ref.equals(passage.ref)
+                            &&start>=0&&end>start){
+                        readerSelectionActive=true;
+                        readerSelectedStart=start;
+                        readerSelectedEnd=end;
+                    }
+                }
+                @Override public void onSelectionFinished(){
+                    // Al tocar la acción IA fija no se descarta la selección
+                    // antes de procesar el clic; al cancelar normalmente, sí.
+                    if(!readerSelectionPreserved){
+                        readerSelectionActive=false;
+                        readerSelectedStart=-1;
+                        readerSelectedEnd=-1;
+                    }
+                }
+            });
+    }
+
+    /** La barra fija reutiliza el flujo existente de fragmentos o capítulos. */
+    private void interpretReaderSelectionOrChapter(){
+        BibleStore.Passage passage=readingPassage;
+        if(page!=5||passage==null||selected==null
+                ||!passage.ref.equals(selected.ref))return;
+        int start=-1,end=-1;
+        if(readerSelectionActive){
+            if(readingBible!=null){
+                start=readingBible.getSelectionStart();
+                end=readingBible.getSelectionEnd();
+            }
+            if(start<0||end<=start){
+                start=readerSelectedStart;
+                end=readerSelectedEnd;
+            }
+        }
+        readerSelectionPreserved=false;
+        readerSelectionActive=false;
+        readerSelectedStart=-1;
+        readerSelectedEnd=-1;
+        if(start>=0&&end>start)
+            interpretSelectedFragment(passage,start,end);
+        else
+            interpret(passage,"Explica este pasaje de forma breve y fiel a su contexto.",false);
     }
 
     /** Mantiene exactamente la misma petición con ambos proveedores, si el respaldo está autorizado. */
@@ -3815,7 +3903,7 @@ public final class MainActivity extends Activity {
         else if(page==10){page=1;render();}
         else if(page==14){page=13;render();}
         else if(page==13){page=12;render();}
-        else if(page==12){page=1;render();}
+        else if(page==12){page=0;render();}
         else if(page==7||page==8){page=0;searchResultsQuery="";render();}
         else if(page==6){
             if(atlasMode==3||atlasMode==4){atlasMode=0;render();}

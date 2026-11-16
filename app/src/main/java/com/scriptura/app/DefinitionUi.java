@@ -40,6 +40,11 @@ public final class DefinitionUi {
     public interface FragmentHandler {
         void onExplainSelection(String selected,int start,int end);
     }
+    /** Permite al lector mantener una selección al tocar una acción fija externa. */
+    public interface SelectionLifecycle {
+        void onSelectionChanged(int start,int end);
+        void onSelectionFinished();
+    }
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,Delegate delegate){
         attach(activity,textView,geminiEnabled,delegate,null,null,null);
     }
@@ -55,6 +60,13 @@ public final class DefinitionUi {
     public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
                               Delegate delegate,SelectionHandler selectionHandler,
                               UnderlineHandler underlineHandler,FragmentHandler fragmentHandler){
+        attach(activity,textView,geminiEnabled,delegate,selectionHandler,
+            underlineHandler,fragmentHandler,null);
+    }
+    public static void attach(Activity activity,TextView textView,boolean geminiEnabled,
+                              Delegate delegate,SelectionHandler selectionHandler,
+                              UnderlineHandler underlineHandler,FragmentHandler fragmentHandler,
+                              SelectionLifecycle lifecycle){
         // No reemplazar ni consumir las acciones nativas Copiar/Compartir/Seleccionar todo.
         textView.setTextIsSelectable(true);
         // Algunos TextView no se marcan como long-clickable por el motor de
@@ -93,13 +105,20 @@ public final class DefinitionUi {
                 ensureAnnotate(menu);
                 ensureUnderline(menu);
                 ensureExplainFragment(menu);
+                reportSelection();
                 return true;
+            }
+            private void reportSelection(){
+                if(lifecycle!=null)
+                    lifecycle.onSelectionChanged(textView.getSelectionStart(),
+                        textView.getSelectionEnd());
             }
             @Override public boolean onPrepareActionMode(ActionMode mode,Menu menu){
                 ensureDefine(menu);
                 ensureAnnotate(menu);
                 ensureUnderline(menu);
                 ensureExplainFragment(menu);
+                reportSelection();
                 return true;
             }
             @Override public boolean onActionItemClicked(ActionMode mode,MenuItem item){
@@ -138,7 +157,9 @@ public final class DefinitionUi {
                 show(activity,selected,geminiEnabled,delegate);
                 return true;
             }
-            @Override public void onDestroyActionMode(ActionMode mode){}
+            @Override public void onDestroyActionMode(ActionMode mode){
+                if(lifecycle!=null)lifecycle.onSelectionFinished();
+            }
         });
     }
 

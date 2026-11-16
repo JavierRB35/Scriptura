@@ -208,14 +208,17 @@ def main():
         assert_text("Lugares bíblicos")
         screen("02_mapas_superior")
         hit("Inicio", strict=True)
-        hit("Abrir sección Misa")
-        assert_text("Lecturas de la misa")
+        hit("Abrir sección Biblioteca")
+        assert_text("Biblioteca")
+        assert_text("Ediciones de trabajo")
         hit("Inicio", strict=True)
         assert_text("Dos pasajes para hoy")
         REPORT["checks"]["top_navigation_only_on_home"]="PASS"
         # La navegación inferior original sigue operativa.
         hit("Biblia", strict=True)
-        assert_text("Leer y buscar en la Biblia")
+        assert_text("Biblia")
+        assert_text("Índice de los 73 libros")
+        assert not list(candidates(dump(),"Biblioteca · Evangelios apócrifos")), "Textos extrabíblicos en menú Biblia"
         screen("03_buscar")
         hit("Misa")
         assert_text("Lecturas de la misa")

@@ -86,6 +86,7 @@ public final class MainActivity extends Activity {
     private int librarySection=1;
     private int libraryReturnOffset=-1;
     private int lastLibraryRenderedSection=-1;
+    private boolean libraryIndexExpanded=false;
     private boolean libraryJumpPending=false;
     private int restoredLibraryScrollY=-1;
     private Runnable libraryProgressTask;
@@ -2331,6 +2332,7 @@ public final class MainActivity extends Activity {
                 hint(book,work.structure+" · Extracanónico");
                 button(book,"Abrir obra",()->{
                     libraryBookId=work.id;
+                    libraryIndexExpanded=false;
                     go(13);
                 },false);
             }
@@ -2383,6 +2385,7 @@ public final class MainActivity extends Activity {
     }
 
     /** Índice con las secciones originales de cada obra; no se inventan versículos. */
+    /** Entrada principal al texto completo; el índice de unidades es opcional. */
     private void libraryBookIndex(){
         final LibraryCatalog.Work work;
         final List<LibraryCatalog.Section> sections;
@@ -2397,18 +2400,33 @@ public final class MainActivity extends Activity {
         title(column,work.title);
         hint(column,"Texto extracanónico · "+work.structure+
             " · Traducción española de trabajo pendiente de revisión independiente.");
-        button(column,"Leer la obra completa (lectura continua)",()->
-            openLibrarySection(work,1),true);
+        button(column,"Leer la obra completa",()->openLibrarySection(work,1),true);
         button(column,"Ver fuente y atribución",()->openLibrarySource(work),false);
         addGap(column,12);
-        hint(column,"Índice de secciones (opcional): toca un dicho o capítulo para "
-            +"abrirlo en su posición dentro del texto completo.");
+        button(column,libraryIndexExpanded?"Ocultar índice de secciones":
+            "Ir a un dicho o capítulo concreto",()->{
+                libraryIndexExpanded=!libraryIndexExpanded;
+                render();
+            },false);
+        if(!libraryIndexExpanded){
+            hint(column,"Los dichos y capítulos aparecen seguidos dentro del lector. "
+                +"Abre el índice únicamente si quieres saltar a uno concreto.");
+            return;
+        }
+        hint(column,"Pulsa un título para saltar a su lugar dentro del texto completo.");
         for(LibraryCatalog.Section section:sections){
-            LinearLayout entry=card(column);
-            entry.addView(text(section.title,16,DARK,true));
-            if(section.editorial)
-                hint(entry,"Apéndice o nota editorial, separado del relato principal");
-            button(entry,"Leer",()->openLibrarySection(work,section.index),false);
+            TextView link=text(section.title,15,
+                section.editorial?MUTED:DARK,section.editorial);
+            link.setGravity(Gravity.CENTER_VERTICAL);
+            link.setMinHeight(dp(48));
+            link.setPadding(dp(14),dp(10),dp(14),dp(10));
+            link.setBackground(outlined(section.editorial?BG:SOFT,10));
+            link.setContentDescription("Ir a "+section.title);
+            link.setFocusable(true);
+            LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,-2);
+            params.topMargin=dp(5);
+            column.addView(link,params);
+            link.setOnClickListener(v->openLibrarySection(work,section.index));
         }
     }
 

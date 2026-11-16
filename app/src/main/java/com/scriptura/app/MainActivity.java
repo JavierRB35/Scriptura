@@ -944,17 +944,16 @@ public final class MainActivity extends Activity {
         parent.addView(bar,row);
 
         int chapter=passage.chapter;
-        boolean hasPrevious=chapter>1;
         int totalChapters=store.chapters(passage.book);
-        boolean hasNext=chapter<totalChapters;
-        TextView previous=chapterArrow("←","Capítulo anterior",passage.book,chapter-1,hasPrevious);
-        TextView next=chapterArrow("→","Capítulo siguiente",passage.book,chapter+1,hasNext);
-        bar.addView(previous,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        BibleReadingNavigation.Destination previous=BibleReadingNavigation.adjacent(
+            passage.book,chapter,false,store::chapters);
+        BibleReadingNavigation.Destination next=BibleReadingNavigation.adjacent(
+            passage.book,chapter,true,store::chapters);
+        bar.addView(chapterArrow("←",previous),new LinearLayout.LayoutParams(dp(48),dp(48)));
 
         String label=afterText?"Capítulo "+chapter:passage.ref;
         TextView heading=text(label,afterText?14:26,DARK,afterText);
         if(totalChapters>0){
-            // Mostrar el total en pequeño en la misma línea, sin otra fila de cabecera.
             int end=label.indexOf(':');
             if(end<0)end=label.length();
             String total="/"+totalChapters;
@@ -970,8 +969,8 @@ public final class MainActivity extends Activity {
         heading.setGravity(Gravity.CENTER);
         heading.setPadding(dp(4),0,dp(4),0);
         bar.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
-        bar.addView(next,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        // Control de tipografía junto al capítulo: no hay que ir a Ajustes ni buscarlo.
+        bar.addView(chapterArrow("→",next),new LinearLayout.LayoutParams(dp(48),dp(48)));
+
         if(!afterText){
             TextView typeChip=text("Aa",15,DARK,true);
             typeChip.setGravity(Gravity.CENTER);
@@ -986,26 +985,33 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private TextView chapterArrow(String symbol,String action,String book,int target,boolean available){
+    private TextView chapterArrow(String symbol,BibleReadingNavigation.Destination destination){
+        boolean available=destination!=null;
         TextView arrow=text(symbol,29,available?DARK:MUTED,true);
         arrow.setGravity(Gravity.CENTER);
         arrow.setMinHeight(dp(48));
         arrow.setBackground(outlined(available?SOFT:BG,12));
-        arrow.setContentDescription(available?action+", "+Books.name(book)+" "+target:
-            "No hay "+action.toLowerCase(java.util.Locale.ROOT));
+        arrow.setContentDescription(available?
+            "Leer "+destination.label():"No hay más libros de la Biblia en esta dirección");
         arrow.setEnabled(available);
         arrow.setFocusable(available);
         arrow.setAlpha(available?1f:0.35f);
-        if(available)arrow.setOnClickListener(v->{
-            BibleStore.Passage next=store.passage(Books.name(book)+" "+target);
-            if(next==null){showError("No se ha encontrado el capítulo seleccionado.");return;}
-            // Finish tracking the previous chapter before moving the bookmark.
-            flushReadingProgress();
-            int first=AnnotationAnchors.firstVerse(next.text);
-            if(first>0)store.saveReadingPosition(new ReadingProgress.Position(book,target,first));
-            open(next);
-        });
+        if(available)arrow.setOnClickListener(v->openBibleDestination(destination));
         return arrow;
+    }
+
+    private void openBibleDestination(BibleReadingNavigation.Destination destination){
+        if(destination==null)return;
+        BibleStore.Passage next=store.passage(destination.label());
+        if(next==null){
+            showError("No se ha encontrado "+destination.label()+" en tu Biblia importada.");
+            return;
+        }
+        flushReadingProgress();
+        int first=AnnotationAnchors.firstVerse(next.text);
+        if(first>0)store.saveReadingPosition(
+            new ReadingProgress.Position(next.book,next.chapter,first));
+        open(next);
     }
 
     private void passagePage(){

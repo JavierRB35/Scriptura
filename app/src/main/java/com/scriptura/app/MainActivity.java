@@ -483,8 +483,11 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,1);
             nav.addView(item,lp);
-            item.setOnClickListener(v->{atlasReturnToStudy=false;
-                backStack.clear();searchResultsQuery="";page=dest;render();});
+            item.setOnClickListener(v->{
+                if(page==14)flushLibraryReadingProgress();
+                atlasReturnToStudy=false;
+                backStack.clear();searchResultsQuery="";page=dest;render();
+            });
         }
         frame.addView(nav);setContentView(frame);
         // Transición sutil sólo al cambiar de página; los re-render de la misma
@@ -547,6 +550,7 @@ public final class MainActivity extends Activity {
      * que Atrás devuelva al contexto de origen, no siempre a Inicio.
      */
     private void go(int destination){
+        if(page==14&&destination!=14)flushLibraryReadingProgress();
         if(destination!=page)backStack.push(page);
         page=destination;
         if(destination==1)searchResultsQuery="";
@@ -2526,12 +2530,14 @@ public final class MainActivity extends Activity {
             TextView reading=text(section.text,textSize,DARK,false);
             serif(reading);
             reading.setTextIsSelectable(true);
-            applyLibraryMarks(reading,work,section);
+            List<StudyAnnotations.Item> marks=
+                studyAnnotations.forChapter(work.annotationBook(),section.index);
+            applyLibraryMarks(reading,work,section,marks);
             attachLibrarySelection(reading,work,section);
             content.addView(reading);
             libraryReadingViews.add(reading);
             spoken.append(section.title).append(".\n").append(section.text).append("\n\n");
-            showLibraryAnnotations(content,work,section);
+            showLibraryAnnotations(content,work,section,marks);
             if(section.index==targetSection){
                 targetHeading=heading;
                 targetText=reading;
@@ -2689,9 +2695,7 @@ public final class MainActivity extends Activity {
     }
 
     private void applyLibraryMarks(TextView view,LibraryCatalog.Work work,
-            LibraryCatalog.Section section){
-        List<StudyAnnotations.Item> marks=
-            studyAnnotations.forChapter(work.annotationBook(),section.index);
+            LibraryCatalog.Section section,List<StudyAnnotations.Item> marks){
         android.text.SpannableString painted=new android.text.SpannableString(section.text);
         ArrayList<StudyAnnotations.Item> visible=new ArrayList<>();
         ArrayList<int[]> ranges=new ArrayList<>();
@@ -2736,9 +2740,8 @@ public final class MainActivity extends Activity {
     }
 
     private void showLibraryAnnotations(LinearLayout container,
-            LibraryCatalog.Work work,LibraryCatalog.Section section){
-        List<StudyAnnotations.Item> annotations=
-            studyAnnotations.forChapter(work.annotationBook(),section.index);
+            LibraryCatalog.Work work,LibraryCatalog.Section section,
+            List<StudyAnnotations.Item> annotations){
         if(annotations.isEmpty())return;
         addGap(container,12);
         container.addView(text("MIS SUBRAYADOS Y NOTAS · "+annotations.size(),
@@ -4001,6 +4004,7 @@ public final class MainActivity extends Activity {
      * formulario, el lector regresa a su origen y el atlas despliega sus niveles.
      */
     @Override public void onBackPressed(){
+        if(page==14)flushLibraryReadingProgress();
         if(page==1&&!searchResultsQuery.isEmpty()){
             searchResultsQuery="";
             render();

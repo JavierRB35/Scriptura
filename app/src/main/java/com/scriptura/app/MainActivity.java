@@ -429,21 +429,39 @@ public final class MainActivity extends Activity {
         column=vertical();column.setPadding(dp(16),dp(17),dp(16),dp(24));
         scroll.addView(column);frame.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
-        // El lector reserva la única acción permanente para interpretar.
-        // Fuera del lector se libera espacio: Biblioteca y mapas se abren desde su sección.
+        // Dos acciones fijas en una misma barra, únicamente durante la lectura bíblica.
+        // Se reutilizan los flujos consolidados de lugares y de interpretación contextual.
         if(page==5&&selected!=null){
-            TextView interpretFixed=text("✦ Interpretar con IA",15,Color.WHITE,true);
+            LinearLayout readerActions=new LinearLayout(this);
+            readerActions.setOrientation(LinearLayout.HORIZONTAL);
+            readerActions.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(52));
+            fixedParams.setMargins(dp(13),dp(4),dp(13),dp(7));
+            frame.addView(readerActions,fixedParams);
+
+            TextView placesFixed=text("Lugares citados",14,DARK,true);
+            placesFixed.setGravity(Gravity.CENTER);
+            placesFixed.setBackground(outlined(SOFT,12));
+            placesFixed.setContentDescription("Buscar lugares citados en el capítulo");
+            placesFixed.setTooltipText("Ver los lugares mencionados en este capítulo");
+            placesFixed.setFocusable(true);
+            readerActions.addView(placesFixed,new LinearLayout.LayoutParams(0,-1,1));
+            placesFixed.setOnClickListener(v->{
+                if(page==5&&selected!=null)showPassagePlaces(selected);
+            });
+
+            View separator=new View(this);
+            readerActions.addView(separator,new LinearLayout.LayoutParams(dp(8),dp(1)));
+
+            TextView interpretFixed=text("✦ Interpretar con IA",14,Color.WHITE,true);
             interpretFixed.setGravity(Gravity.CENTER);
-            interpretFixed.setMinHeight(dp(52));
             interpretFixed.setBackground(bg(NAV_BG,12));
             interpretFixed.setContentDescription("Interpretar el texto seleccionado; "
                 +"si no hay selección, interpretar el capítulo actual");
-            interpretFixed.setFocusable(true);
             interpretFixed.setTooltipText(
                 "Selecciona un fragmento para interpretarlo, o pulsa sin seleccionar para el capítulo");
-            LinearLayout.LayoutParams fixedParams=new LinearLayout.LayoutParams(-1,dp(52));
-            fixedParams.setMargins(dp(13),dp(4),dp(13),dp(7));
-            frame.addView(interpretFixed,fixedParams);
+            interpretFixed.setFocusable(true);
+            readerActions.addView(interpretFixed,new LinearLayout.LayoutParams(0,-1,1));
             interpretFixed.setOnTouchListener((v,event)->{
                 if(event.getActionMasked()==MotionEvent.ACTION_DOWN)
                     readerSelectionPreserved=true;
@@ -1117,10 +1135,10 @@ public final class MainActivity extends Activity {
             if(!related.isEmpty())
                 button(tools,"Ver obras pictóricas sobre este pasaje",()->openGalleryFor(p.book),false);
         }
-        button(c,"Lugares de este capítulo",()->showPassagePlaces(p),false);
         hint(c,"Mantén pulsado el texto para seleccionar un fragmento, subrayar, "
-            +"anotar o definir. El botón fijo de IA interpreta la selección, "
-            +"o el capítulo si no has seleccionado nada.");
+            +"anotar o definir. En la barra fija puedes consultar los lugares "
+            +"citados o interpretar con IA la selección; sin selección, "
+            +"la IA interpreta el capítulo.");
         TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
         alternative.setOnClickListener(v->askForWord(p));

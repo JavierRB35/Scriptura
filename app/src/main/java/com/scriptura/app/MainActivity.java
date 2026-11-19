@@ -43,6 +43,7 @@ public final class MainActivity extends Activity {
     private static final int BIBLE_QUESTIONS_PER_PAGE=20;
     private boolean massAutoLoading=false;
     private boolean speechActive=false;
+    private boolean automaticSpeechNavigation=false;
     private ReaderSpeech speech;
     private TextView speechLabel,fontLabel;
     private String pendingExport=null;
@@ -962,6 +963,10 @@ public final class MainActivity extends Activity {
     }
     private void open(BibleStore.Passage p){open(p,-1);}
     private void open(BibleStore.Passage p,int targetVerse){
+        // Un cambio manual de lectura cancela el audio anterior; el avance
+        // automático es la única excepción.
+        if(speech!=null&&speech.active()&&!automaticSpeechNavigation&&
+                (selected==null||!selected.ref.equals(p.ref)))speech.stop();
         if(page!=5){
             readerOrigin=page;
             backStack.push(page);
@@ -1167,22 +1172,87 @@ public final class MainActivity extends Activity {
         return item;
     }
 
-    /** Escucha local del pasaje con el motor de voz de Android; nada sale del teléfono. */
+    /** Lectura bíblica continua: voz con capítulo y sin números de versículo. */
     private void toggleSpeech(){
-        toggleSpeechText(readingPassage!=null?readingPassage.text:readingLibraryText);
+        BibleStore.Passage passage=readingPassage;
+        if(passage==null){
+            toggleSpeechText(readingLibraryText);
+            return;
+        }
+        if(speech==null)speech=new ReaderSpeech();
+        speech.toggle(this,BibleSpeechText.chapter(
+            Books.name(passage.book),passage.chapter,passage.text),
+            new ReaderSpeech.Listener(){
+                @Override public void onSpeaking(boolean active){
+                    updateSpeechUi(active);
+                }
+                @Override public void onError(String message){
+                    runOnUiThread(()->{updateSpeechUi(false);showError(message);});
+                }
+                @Override public void onFinished(){
+                    runOnUiThread(()->continueBibleSpeech());
+                }
+            });
     }
+
+    /** Encadena capítulos y cruza el límite entre libros sin nuevos toques. */
+    private void continueBibleSpeech(){
+        if(speech==null||!speech.active())return;
+        if(page!=5||readingPassage==null||selected==null||
+                !readingPassage.ref.equals(selected.ref)){
+            speech.stop();
+            return;
+        }
+        BibleStore.Passage current=readingPassage;
+        BibleReadingNavigation.Destination destination=BibleReadingNavigation.adjacent(
+            current.book,current.chapter,true,store::chapters);
+        if(destination==null){
+            speech.stop(); // Fin del último libro disponible.
+            return;
+        }
+        BibleStore.Passage next=store.passage(destination.label());
+        if(next==null){
+            speech.stop();
+            showError("No se ha podido continuar la lectura en "+destination.label()+".");
+            return;
+        }
+        automaticSpeechNavigation=true;
+        try{
+            flushReadingProgress();
+            int first=AnnotationAnchors.firstVerse(next.text);
+            if(first>0)store.saveReadingPosition(
+                new ReadingProgress.Position(next.book,next.chapter,first));
+            open(next);
+        }finally{
+            automaticSpeechNavigation=false;
+        }
+        if(speech!=null&&speech.active())
+            speech.continueWith(BibleSpeechText.chapter(
+                Books.name(next.book),next.chapter,next.text));
+    }
+
+    private void updateSpeechUi(boolean active){
+        runOnUiThread(()->{
+            speechActive=active;
+            if(speechLabel!=null)speechLabel.setText(active?"Detener":"Escuchar");
+        });
+    }
+
+    /** La Biblioteca conserva la escucha existente sin autoavance bíblico. */
     private void toggleSpeechText(String spoken){
         if(spoken==null)return;
         if(speech==null)speech=new ReaderSpeech();
         speech.toggle(this,spoken,new ReaderSpeech.Listener(){
             @Override public void onSpeaking(boolean active){
-                runOnUiThread(()->{
-                    speechActive=active;
-                    if(speechLabel!=null)speechLabel.setText(active?"Detener":"Escuchar");
-                });
+                updateSpeechUi(active);
             }
             @Override public void onError(String message){
-                runOnUiThread(()->{speechActive=false;showError(message);});
+                runOnUiThread(()->{updateSpeechUi(false);showError(message);});
+            }
+            @Override public void onFinished(){
+                runOnUiThread(()->{
+                    if(speech!=null&&speech.active())speech.stop();
+                });
             }
         });
     }

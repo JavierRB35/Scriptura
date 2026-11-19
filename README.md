@@ -1,5 +1,13 @@
 # Scriptura · Biblia católica personal
 
+## Lectura de voz continua · Scriptura 0.9.4
+
+- **Narración bíblica:** el motor local Android anuncia el nombre del libro y el número de capítulo al comenzar cada capítulo, pero omite los números que etiquetan los versículos. Los números que forman parte de las frases bíblicas se mantienen. La pantalla, los anclajes y las anotaciones no se alteran.
+- **Continuidad automática:** al terminar la última locución del capítulo, avanza al siguiente y comienza a narrarlo sin pulsar de nuevo «Escuchar». También cruza el final de un libro usando el orden canónico ya incorporado. Se detiene al acabar el último libro disponible, al pulsar «Detener», al salir del lector o al cambiar de capítulo manualmente.
+- **Fiabilidad:** se espera a que Android confirme la finalización de la última parte de voz (no se usan tiempos estimados); las locuciones canceladas no continúan por su cuenta. Los controles de voz de Biblioteca no se transforman en una lectura de capítulos bíblicos.
+- La función usa Android TTS instalado en el dispositivo; una prueba real de continuidad con pantalla apagada depende del fabricante, del motor de voz y de su gestión de actividad en segundo plano. No se añaden servicios ni permisos.
+
+
 ## Lugares del capítulo · catálogo ampliable
 
 El lector consulta un catálogo inicial de 1.342 fichas geográficas y los análisis

@@ -384,7 +384,7 @@ public final class MainActivity extends Activity {
         String previousPassageRef=readingPassage==null?null:readingPassage.ref;
         boolean explicitVerseJump=page==5&&selected!=null&&returnToVerse>0
             &&selected.ref.equals(returnToPassageRef);
-        if(speech!=null&&speechActive&&page!=5&&page!=14){speech.stop();speechActive=false;}
+        if(speech!=null&&speech.active()&&page!=5&&page!=14){speech.stop();speechActive=false;}
         readingBible=null;
         readingPassage=null;
         libraryReadingViews.clear();
@@ -2547,7 +2547,7 @@ public final class MainActivity extends Activity {
         try{
             LibraryCatalog.Section source=library.section(work,section);
             if(source==null){showError("Sección no disponible.");return;}
-            if(speech!=null&&speechActive){speech.stop();speechActive=false;}
+            if(speech!=null&&speech.active()){speech.stop();speechActive=false;}
             libraryBookId=work.id;
             librarySection=section;
             libraryJumpPending=true;

@@ -20,9 +20,21 @@ public class WordMeaningTest {
     @Test public void preservesSelectionBoundaries(){
         String s="La gracia y la misericordia.";
         assertEquals("gracia",WordMeaning.selection(s,3,9));
-        assertNull(WordMeaning.selection(s,0,9));
+        assertEquals("La gracia",WordMeaning.selection(s,0,9));
+        assertEquals("la misericordia",WordMeaning.selection(s,12,27));
         assertNull(WordMeaning.selection(s,-1,8));
         assertNull(WordMeaning.selection(s,5,999));
+    }
+    @Test public void supportsMultiwordPhrasesWithAccentsAndWhitespace(){
+        assertEquals("Reino de Dios",WordMeaning.phrase("  Reino  de   Dios "));
+        assertEquals("Hijo del hombre",WordMeaning.phrase("Hijo\\n del\\t hombre"));
+        assertEquals("Espíritu Santo",WordMeaning.phrase("Espíritu Santo"));
+        assertEquals("Señor",WordMeaning.phrase(" Señor "));
+        assertNull(WordMeaning.phrase(" "));
+        assertNull(WordMeaning.phrase("un token con ? redirect=https://malicioso.test"));
+        assertNull(WordMeaning.phrase("123 numeración"));
+        assertNull(WordMeaning.phrase("a".repeat(181)));
+        assertNull(WordMeaning.phrase("y ".repeat(25).trim()));
     }
     @Test public void verifiedCatholicPagesUseDirectArticles(){
         assertEquals("https://ec.aciprensa.com/wiki/Fariseos",
@@ -44,9 +56,15 @@ public class WordMeaningTest {
         assertEquals("https://es.wikipedia.org/wiki/Especial:Buscar?search=Jes%C3%BAs",
             WordMeaning.wikipediaSearchUrl("Jesús"));
     }
-    @Test(expected=IllegalArgumentException.class)
-    public void blocksMultipleWords(){
-        WordMeaning.wikipediaSearchUrl("la gracia");
+    @Test public void searchesForTheCompletePhraseWithoutLosingAccents(){
+        assertEquals("https://es.wikipedia.org/wiki/Especial:Buscar?search=Reino%20de%20Dios",
+            WordMeaning.wikipediaSearchUrl("Reino de Dios"));
+        assertEquals("https://es.wiktionary.org/wiki/Especial:Buscar?search=Esp%C3%ADritu%20Santo",
+            WordMeaning.wiktionarySearchUrl("Espíritu Santo"));
+        assertEquals("https://es.wikipedia.org/wiki/Especial:Buscar?search=Hijo%20del%20hombre",
+            WordMeaning.wikipediaSearchUrl("Hijo   del hombre"));
+        assertNull(WordMeaning.catholicArticleUrl("Reino de Dios"));
+        assertNull(WordMeaning.local("Reino de Dios"));
     }
     @Test(expected=IllegalArgumentException.class)
     public void blocksUnsafePunctuation(){

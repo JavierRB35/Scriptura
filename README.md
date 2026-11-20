@@ -1,5 +1,14 @@
 # Scriptura · Biblia católica personal
 
+## Interpretaciones IA con contexto histórico · Scriptura 0.9.5
+
+- **Respuesta más esquemática:** las nuevas interpretaciones de capítulos, fragmentos, palabras y obras de Biblioteca presentan los apartados «Explicación del texto», «Contexto histórico», «Interpretación espiritual» y «Aplicación y reflexión», con títulos destacados.
+- **Contextualización pertinente:** al explicar un pasaje o una costumbre, se pide situarla en su época, su entorno religioso/social y sus posibles raíces, diferenciando hechos, indicios e hipótesis. Se distingue el momento narrado de la fecha de composición y se reconoce expresamente la falta de datos fiables; no se inventan citas ni certezas.
+- **Continuidad funcional:** se conservan las consultas de Gemini con respaldo Groq autorizado, la selección de versículos, el guardado de interpretaciones y las restricciones de la Biblioteca extracanonica. Las respuestas previas siguen guardadas; se utiliza una nueva clave de caché para generar interpretaciones renovadas sin sobreescribirlas.
+- **Alcance:** «Pregunta a IA · Toda la Biblia» mantiene por separado su política estricta de respuestas solo a partir de los versículos del EPUB local; esta mejora no introduce historia externa en ese flujo ni cambia los datos privados.
+- La contextualización procede del modelo de IA y puede requerir comprobación historiográfica; no equivale automáticamente a evidencia verificada por Scriptura.
+
+
 ## Lectura de voz continua · Scriptura 0.9.4
 
 - **Narración bíblica:** el motor local Android anuncia el nombre del libro y el número de capítulo al comenzar cada capítulo, pero omite los números que etiquetan los versículos. Los números que forman parte de las frases bíblicas se mantienen. La pantalla, los anclajes y las anotaciones no se alteran.

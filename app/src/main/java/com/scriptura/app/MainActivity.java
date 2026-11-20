@@ -1575,7 +1575,7 @@ public final class MainActivity extends Activity {
                                     return;
                                 }
                                 generated[0]=answer;
-                                explanation.setText(answer);
+                                explanation.setText(formattedAiAnswer(answer));
                                 result.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(anchor!=null);
                             }
                         });
@@ -2158,7 +2158,7 @@ public final class MainActivity extends Activity {
     }
     private void interpret(BibleStore.Passage p,String question,boolean custom){
         if(!ai.configured()){showError("Para generar explicaciones configura tu clave Gemini en ⚙ Ajustes.");return;}
-        String cacheKey="explain:"+ai.model()+":"+p.ref;
+        String cacheKey="explain:historical-v1:"+ai.model()+":"+p.ref;
         if(!custom){
             String existing=store.getReflection(cacheKey);
             if(!existing.isEmpty()){showExplanation(p,existing,true);return;}
@@ -2218,9 +2218,42 @@ public final class MainActivity extends Activity {
         }
     }
 
-    /** Unselected chapter interpretations are anchored to verse 1 of their chapter. */
+    /** Destaca los títulos del comentario sin convertir el contenido en HTML ni editar el texto almacenado. */
+    private CharSequence formattedAiAnswer(String answer){
+        if(answer==null||answer.isEmpty())return "";
+        String shown=answer;
+        String[] headings={
+            BibleAiPrompt.EXPLANATION,BibleAiPrompt.HISTORY,
+            BibleAiPrompt.SPIRITUAL,BibleAiPrompt.APPLICATION
+        };
+        for(String heading:headings){
+            shown=shown.replace("**"+heading+":**",heading)
+                .replace("**"+heading+"**",heading)
+                .replace("### "+heading,heading)
+                .replace("## "+heading,heading);
+        }
+        SpannableString styled=new SpannableString(shown);
+        java.util.regex.Pattern pattern=java.util.regex.Pattern.compile(
+            "(?m)^("+String.join("|",headings)+"):[ \\t]*$|^("+
+            String.join("|",headings)+")[ \\t]*$");
+        java.util.regex.Matcher matches=pattern.matcher(shown);
+        while(matches.find()){
+            int start=matches.start(),end=matches.end();
+            styled.setSpan(new android.text.style.StyleSpan(Typeface.BOLD),
+                start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            styled.setSpan(new android.text.style.ForegroundColorSpan(ACCENT),
+                start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            styled.setSpan(new RelativeSizeSpan(1.08f),
+                start,end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return styled;
+    }
+
+    /** Las interpretaciones del capítulo se vinculan al primer versículo para guardarlas. */
     private void showExplanation(BibleStore.Passage p,String answer,boolean cache){
-        TextView body=text(answer,16,DARK,false);body.setTextIsSelectable(true);pad(body,18);
+        TextView body=text(answer,16,DARK,false);
+        body.setText(formattedAiAnswer(answer));
+        body.setTextIsSelectable(true);pad(body,18);
         ScrollView scroll=new ScrollView(this);scroll.addView(body);
         final ScrollView originalScroll=readingScroll;
         final int savedY=originalScroll==null?0:originalScroll.getScrollY();
@@ -2936,7 +2969,7 @@ public final class MainActivity extends Activity {
             showError("Para interpretar la Biblioteca, configura Gemini en Ajustes.");
             return;
         }
-        String key="library:interpret:"+ai.model()+":"+work.id+":"+section.index;
+        String key="library:interpret:historical-v1:"+ai.model()+":"+work.id+":"+section.index;
         if(!custom&&selectedQuote==null){
             String saved=store.getReflection(key);
             if(!saved.isEmpty()){
@@ -2977,7 +3010,9 @@ public final class MainActivity extends Activity {
 
     private void showLibraryExplanation(LibraryCatalog.Work work,
             LibraryCatalog.Section section,String answer,String quote,int offset){
-        TextView value=text(answer,16,DARK,false);value.setTextIsSelectable(true);pad(value,18);
+        TextView value=text(answer,16,DARK,false);
+        value.setText(formattedAiAnswer(answer));
+        value.setTextIsSelectable(true);pad(value,18);
         ScrollView scroll=new ScrollView(this);scroll.addView(value);
         new AlertDialog.Builder(this)
             .setTitle("Interpretación · "+work.title+" · "+section.title)

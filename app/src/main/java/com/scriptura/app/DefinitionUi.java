@@ -150,7 +150,7 @@ public final class DefinitionUi {
                 final String selected=WordMeaning.selection(textView.getText().toString(),
                     textView.getSelectionStart(),textView.getSelectionEnd());
                 if(selected==null){
-                    delegate.showError("Selecciona una sola palabra para consultar su significado.");
+                    delegate.showError("Selecciona una o varias palabras para consultar su significado.");
                     return true;
                 }
                 mode.finish();
@@ -164,8 +164,9 @@ public final class DefinitionUi {
     }
 
     public static void show(Activity activity,String word,boolean geminiEnabled,Delegate delegate){
-        if(!WordMeaning.oneWord(word)){
-            delegate.showError("La consulta debe contener una sola palabra.");
+        String selected=WordMeaning.phrase(word);
+        if(selected==null){
+            delegate.showError("Selecciona una o varias palabras válidas (máximo 180 caracteres).");
             return;
         }
         int pad=dp(activity,16);
@@ -174,14 +175,14 @@ public final class DefinitionUi {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(pad,pad,pad,pad);
         content.setBackgroundColor(Color.WHITE);
-        addText(activity,content,word,22,NAVY,true,0);
-        String local=WordMeaning.local(word);
+        addText(activity,content,selected,22,NAVY,true,0);
+        String local=WordMeaning.oneWord(selected)?WordMeaning.local(selected):null;
         addText(activity,content,local!=null?local:
-            "Este término no figura todavía en el glosario local. Puedes consultar las fuentes externas que aparecen abajo.",
+            "Este término o expresión no figura en el glosario local. Puedes consultar las fuentes externas que aparecen abajo.",
             15,NAVY,false,9);
         addText(activity,content,local!=null?
             "Glosario orientativo de Scriptura. El sentido varía según el pasaje.":
-            "Las consultas externas solo envían la palabra elegida; requieren conexión.",
+            "Las búsquedas externas solo envían el término o expresión elegidos; requieren conexión.",
             12,MUTED,false,8);
         final ScrollView scroll=new ScrollView(activity);
         scroll.setFillViewport(false);
@@ -192,21 +193,22 @@ public final class DefinitionUi {
             .setView(scroll)
             .setNegativeButton("Cerrar",(d,w)->d.dismiss())
             .create();
-        String catholic=WordMeaning.catholicArticleUrl(word);
+        String catholic=WordMeaning.oneWord(selected)?
+            WordMeaning.catholicArticleUrl(selected):null;
         if(catholic!=null){
             addLink(activity,content,"Enciclopedia Católica · Abrir artículo",catholic,dialog,delegate);
         } else {
-            addText(activity,content,"Enciclopedia Católica: no hay un artículo verificado para este término.",12,MUTED,false,10);
+            addText(activity,content,"Enciclopedia Católica: solo se ofrecen artículos directos verificados para palabras individuales.",12,MUTED,false,10);
         }
-        addLink(activity,content,"Wikipedia · Buscar «"+word+"»",
-            WordMeaning.wikipediaSearchUrl(word),dialog,delegate);
-        addLink(activity,content,"Wikcionario · Buscar «"+word+"»",
-            WordMeaning.wiktionarySearchUrl(word),dialog,delegate);
+        addLink(activity,content,"Wikipedia · Buscar «"+selected+"»",
+            WordMeaning.wikipediaSearchUrl(selected),dialog,delegate);
+        addLink(activity,content,"Wikcionario · Buscar «"+selected+"»",
+            WordMeaning.wiktionarySearchUrl(selected),dialog,delegate);
         if(geminiEnabled){
-            TextView ai=addText(activity,content,"✦ Explicar esta palabra en su pasaje con Gemini",14,GOLD,true,12);
+            TextView ai=addText(activity,content,"✦ Explicar la selección en su pasaje con Gemini",14,GOLD,true,12);
             ai.setMinHeight(dp(activity,48));
             ai.setGravity(Gravity.CENTER_VERTICAL);
-            ai.setOnClickListener(v->{dialog.dismiss();delegate.explainWithGemini(word);});
+            ai.setOnClickListener(v->{dialog.dismiss();delegate.explainWithGemini(selected);});
         }
         // Medida segura: nunca acceder a LayoutParams sin comprobar que existe.
         // El contenido es desplazable incluso cuando la ventana se limita a

@@ -1144,7 +1144,7 @@ public final class MainActivity extends Activity {
             +"anotar o definir. En la barra fija puedes consultar los lugares "
             +"citados o interpretar con IA la selección; sin selección, "
             +"la IA interpreta el capítulo.");
-        TextView alternative=text("¿No aparece Definir? Escribir palabra",13,ACCENT,true);
+        TextView alternative=text("¿No aparece Definir? Escribir término o expresión",13,ACCENT,true);
         alternative.setPadding(dp(1),dp(10),dp(1),dp(10));
         alternative.setOnClickListener(v->askForWord(p));
         c.addView(alternative);
@@ -1427,7 +1427,7 @@ public final class MainActivity extends Activity {
                 }
             }
             @Override public void explainWithGemini(String word){
-                interpret(passage,"Explica la palabra «"+word+
+                interpret(passage,"Explica el significado del término o expresión «"+word+
                     "» en el contexto de esta referencia; diferencia historia, sentido literal y teología.",true);
             }
             @Override public void showError(String message){
@@ -1927,14 +1927,14 @@ public final class MainActivity extends Activity {
     private void askForWord(BibleStore.Passage passage){
         EditText entry=new EditText(this);
         entry.setSingleLine(true);
-        entry.setHint("Palabra bíblica");
+        entry.setHint("Palabra o expresión bíblica");
         entry.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
             android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         LinearLayout form=vertical();
         form.setPadding(dp(20),dp(4),dp(20),dp(6));
         form.addView(entry);
-        styleAsBottomSheet(new AlertDialog.Builder(this).setTitle("Definir una palabra")
-            .setMessage("Puedes consultar una palabra sin usar la selección de texto.")
+        styleAsBottomSheet(new AlertDialog.Builder(this).setTitle("Definir palabras o expresiones")
+            .setMessage("Puedes consultar una o varias palabras sin seleccionarlas en el texto.")
             .setView(form)
             .setNegativeButton("Cancelar",null)
             .setPositiveButton("Definir",(dialog,button)->{
@@ -1946,7 +1946,7 @@ public final class MainActivity extends Activity {
                         catch(Exception error){showError("No se pudo abrir el navegador.");}
                     }
                     @Override public void explainWithGemini(String word){
-                        interpret(passage,"Explica la palabra «"+word+
+                        interpret(passage,"Explica el significado del término o expresión «"+word+
                             "» en el contexto de este pasaje con prudencia histórica.",true);
                     }
                     @Override public void showError(String message){MainActivity.this.showError(message);}
@@ -2788,7 +2788,7 @@ public final class MainActivity extends Activity {
                 }catch(RuntimeException error){showError("No se pudo abrir la fuente.");}
             }
             @Override public void explainWithGemini(String word){
-                interpretLibrary(work,section,"Explica la palabra «"+word+
+                interpretLibrary(work,section,"Explica el significado del término o expresión «"+word+
                     "» dentro de este documento extracanonico.",null,0,true);
             }
             @Override public void showError(String message){MainActivity.this.showError(message);}

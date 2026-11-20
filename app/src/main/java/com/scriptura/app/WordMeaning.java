@@ -89,6 +89,17 @@ public final class WordMeaning {
         }
         return true;
     }
+    /** Una o varias palabras, con límites para búsquedas externas y sin código ni URL inyectados. */
+    public static String phrase(String selection){
+        if(selection==null)return null;
+        String text=selection.trim().replaceAll("\\s+"," ");
+        if(text.isEmpty()||text.codePointCount(0,text.length())>180)return null;
+        String[] words=text.split(" ",-1);
+        if(words.length>24)return null;
+        for(String word:words)if(!oneWord(word))return null;
+        return text;
+    }
+
     /** Artículos concretos cuya URL canónica se ha comprobado. Sin enlaces especulativos. */
     public static String catholicArticleUrl(String word){
         if(!oneWord(word))throw new IllegalArgumentException("Se requiere una sola palabra");
@@ -114,9 +125,11 @@ public final class WordMeaning {
     private static String encodePath(String title){
         return encodeUtf8(title);
     }
-    private static String encodeSearchTerm(String word){
-        if(!oneWord(word))throw new IllegalArgumentException("Se requiere una sola palabra");
-        return encodeUtf8(word.trim());
+    private static String encodeSearchTerm(String term){
+        String safe=phrase(term);
+        if(safe==null)throw new IllegalArgumentException(
+            "Selecciona una o varias palabras válidas");
+        return encodeUtf8(safe);
     }
     private static String encodeUtf8(String value){
         // Este overload existe desde Android 1; URLEncoder.encode(String, Charset)
@@ -129,7 +142,6 @@ public final class WordMeaning {
     }
     public static String selection(String original,int start,int end){
         if(original==null||start<0||end>original.length()||start>=end)return null;
-        String candidate=original.substring(start,end).trim();
-        return oneWord(candidate)?candidate:null;
+        return phrase(original.substring(start,end));
     }
 }

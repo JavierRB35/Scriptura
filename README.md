@@ -1,5 +1,12 @@
 # Scriptura · Biblia católica personal
 
+## Definir una o varias palabras · Scriptura 0.9.6
+
+- En el lector bíblico y la Biblioteca, **Definir** acepta una palabra o una expresión de varias palabras seleccionadas (por ejemplo, «Reino de Dios»). La consulta manual permite lo mismo.
+- El glosario local y los enlaces directos comprobados de la Enciclopedia Católica siguen disponibles para palabras individuales; las expresiones se buscan completas en Wikipedia o Wikcionario y, si se ha configurado Gemini, pueden explicarse en el contexto del pasaje con consentimiento.
+- Se limita el texto de consulta y se codifican los caracteres de los enlaces. No cambian las anotaciones, el EPUB, los permisos ni la configuración de IA.
+
+
 ## Interpretaciones IA con contexto histórico · Scriptura 0.9.5
 
 - **Respuesta más esquemática:** las nuevas interpretaciones de capítulos, fragmentos, palabras y obras de Biblioteca presentan los apartados «Explicación del texto», «Contexto histórico», «Interpretación espiritual» y «Aplicación y reflexión», con títulos destacados.

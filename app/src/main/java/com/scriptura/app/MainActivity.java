@@ -2218,7 +2218,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-    /** Unselected chapter interpretations are anchored to verse 1 of their chapter. */
     /** Destaca los títulos del comentario sin convertir el contenido en HTML ni editar el texto almacenado. */
     private CharSequence formattedAiAnswer(String answer){
         if(answer==null||answer.isEmpty())return "";
@@ -2250,6 +2249,7 @@ public final class MainActivity extends Activity {
         return styled;
     }
 
+    /** Las interpretaciones del capítulo se vinculan al primer versículo para guardarlas. */
     private void showExplanation(BibleStore.Passage p,String answer,boolean cache){
         TextView body=text(answer,16,DARK,false);
         body.setText(formattedAiAnswer(answer));

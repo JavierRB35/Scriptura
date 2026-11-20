@@ -77,7 +77,7 @@ public final class GeminiClient {
         }
     }
     public String explain(String ref,String scripture,String context,String question) throws Exception {
-        return generate(BibleAiPrompt.build(ref,scripture,context,question),420,false);
+        return generate(BibleAiPrompt.build(ref,scripture,context,question),950,false);
     }
     String geography(String prompt)throws Exception{return generate(prompt,8192,true);}
     private String generate(String prompt,int maxTokens,boolean structured)throws Exception{

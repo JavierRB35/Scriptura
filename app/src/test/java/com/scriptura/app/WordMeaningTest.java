@@ -29,6 +29,8 @@ public class WordMeaningTest {
         assertEquals("Reino de Dios",WordMeaning.phrase("  Reino  de   Dios "));
         assertEquals("Hijo del hombre",WordMeaning.phrase("Hijo\\n del\\t hombre"));
         assertEquals("Espíritu Santo",WordMeaning.phrase("Espíritu Santo"));
+        String verse="Creed en el Reino de Dios.";
+        assertEquals("Reino de Dios",WordMeaning.selection(verse,12,25));
         assertEquals("Señor",WordMeaning.phrase(" Señor "));
         assertNull(WordMeaning.phrase(" "));
         assertNull(WordMeaning.phrase("un token con ? redirect=https://malicioso.test"));
@@ -63,7 +65,7 @@ public class WordMeaningTest {
             WordMeaning.wiktionarySearchUrl("Espíritu Santo"));
         assertEquals("https://es.wikipedia.org/wiki/Especial:Buscar?search=Hijo%20del%20hombre",
             WordMeaning.wikipediaSearchUrl("Hijo   del hombre"));
-        assertNull(WordMeaning.catholicArticleUrl("Reino de Dios"));
+        assertFalse(WordMeaning.oneWord("Reino de Dios"));
         assertNull(WordMeaning.local("Reino de Dios"));
     }
     @Test(expected=IllegalArgumentException.class)

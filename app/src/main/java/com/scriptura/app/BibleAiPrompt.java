@@ -27,6 +27,9 @@ final class BibleAiPrompt {
             EXPLANATION+"\nExplica el significado literal y los elementos concretos del pasaje.\n"+
             HISTORY+"\nSitúa el texto en su época y entorno cuando sea posible: contexto "+
             "social, político o religioso, costumbres, origen y función de las prácticas mencionadas. "+
+            "Explica especialmente por qué surgió una costumbre y cómo se entendía entonces "+
+            "cuando haya base suficiente. Distingue la época narrada de la fecha "+
+            "de composición del escrito; no supongas que coinciden. "+
             "Distingue claramente hechos históricos razonablemente establecidos, indicios del "+
             "texto y conjeturas. No inventes cronologías, fuentes, tradiciones o detalles. "+
             "Si faltan datos fiables o la cuestión no admite contextualización, indícalo "+

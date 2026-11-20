@@ -27,7 +27,7 @@ public class WordMeaningTest {
     }
     @Test public void supportsMultiwordPhrasesWithAccentsAndWhitespace(){
         assertEquals("Reino de Dios",WordMeaning.phrase("  Reino  de   Dios "));
-        assertEquals("Hijo del hombre",WordMeaning.phrase("Hijo\\n del\\t hombre"));
+        assertEquals("Hijo del hombre",WordMeaning.phrase("Hijo\n del\t hombre"));
         assertEquals("Espíritu Santo",WordMeaning.phrase("Espíritu Santo"));
         String verse="Creed en el Reino de Dios.";
         assertEquals("Reino de Dios",WordMeaning.selection(verse,12,25));
